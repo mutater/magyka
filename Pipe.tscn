@@ -1,0 +1,74 @@
+[gd_scene load_steps=7 format=2]
+
+[ext_resource path="res://Img/Pipe.png" type="Texture" id=1]
+[ext_resource path="res://Img/PipeTop.png" type="Texture" id=2]
+[ext_resource path="res://Pipe.gd" type="Script" id=3]
+
+[sub_resource type="RectangleShape2D" id=1]
+extents = Vector2( 16, 8 )
+
+[sub_resource type="RectangleShape2D" id=2]
+extents = Vector2( 13, 50 )
+
+[sub_resource type="RectangleShape2D" id=3]
+extents = Vector2( 5, 28 )
+
+[node name="Pipe" type="RigidBody2D"]
+collision_mask = 0
+mode = 1
+mass = 0.00102041
+gravity_scale = 0.0
+script = ExtResource( 3 )
+
+[node name="TopTip" type="Sprite" parent="."]
+position = Vector2( 0, 36 )
+texture = ExtResource( 2 )
+
+[node name="BottomTip" type="Sprite" parent="."]
+position = Vector2( 0, -36 )
+texture = ExtResource( 2 )
+
+[node name="TopPipe" type="TextureRect" parent="."]
+margin_left = -13.0
+margin_top = -144.0
+margin_right = 13.0
+margin_bottom = -44.0
+texture = ExtResource( 1 )
+stretch_mode = 2
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="BottomPipe" type="TextureRect" parent="."]
+margin_left = -13.0
+margin_top = 44.0
+margin_right = 13.0
+margin_bottom = 144.0
+texture = ExtResource( 1 )
+stretch_mode = 2
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="TopTipCollision" type="CollisionShape2D" parent="."]
+position = Vector2( 0, -36 )
+shape = SubResource( 1 )
+
+[node name="BottomTipCollision" type="CollisionShape2D" parent="."]
+position = Vector2( 0, 36 )
+shape = SubResource( 1 )
+
+[node name="TopPipeCollision" type="CollisionShape2D" parent="."]
+position = Vector2( 0, -94 )
+shape = SubResource( 2 )
+
+[node name="BottomPipeCollision" type="CollisionShape2D" parent="."]
+position = Vector2( 0, 94 )
+shape = SubResource( 2 )
+
+[node name="Area2D" type="Area2D" parent="."]
+collision_layer = 2
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+shape = SubResource( 3 )

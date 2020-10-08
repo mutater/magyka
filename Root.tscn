@@ -1,0 +1,167 @@
+[gd_scene load_steps=21 format=2]
+
+[ext_resource path="res://Img/Background.png" type="Texture" id=1]
+[ext_resource path="res://Player.tscn" type="PackedScene" id=2]
+[ext_resource path="res://Img/GrassTile.png" type="Texture" id=3]
+[ext_resource path="res://Ground.gd" type="Script" id=4]
+[ext_resource path="res://Img/BuildingTile.png" type="Texture" id=5]
+[ext_resource path="res://Pipe.tscn" type="PackedScene" id=7]
+[ext_resource path="res://Root.gd" type="Script" id=8]
+[ext_resource path="res://PressStart2P.ttf" type="DynamicFontData" id=9]
+[ext_resource path="res://Score.gd" type="Script" id=10]
+[ext_resource path="res://Img/Title.png" type="Texture" id=11]
+[ext_resource path="res://buttonTexture.tres" type="StyleBox" id=12]
+[ext_resource path="res://Img/ButtonPressed.png" type="Texture" id=13]
+[ext_resource path="res://QuitButtonTexture.tres" type="StyleBox" id=14]
+[ext_resource path="res://Img/QuitButtonPressed.png" type="Texture" id=15]
+[ext_resource path="res://QuitButton.gd" type="Script" id=16]
+
+[sub_resource type="RectangleShape2D" id=1]
+extents = Vector2( 160, 3.99998 )
+
+[sub_resource type="StyleBoxTexture" id=2]
+texture = ExtResource( 13 )
+region_rect = Rect2( 0, 0, 48, 20 )
+
+[sub_resource type="StyleBoxTexture" id=4]
+texture = ExtResource( 15 )
+region_rect = Rect2( 0, 0, 48, 20 )
+
+[sub_resource type="DynamicFont" id=5]
+size = 8
+font_data = ExtResource( 9 )
+
+[sub_resource type="DynamicFont" id=6]
+font_data = ExtResource( 9 )
+
+[node name="Root" type="Node2D"]
+script = ExtResource( 8 )
+
+[node name="Background" type="Node2D" parent="."]
+
+[node name="Sky" type="Sprite" parent="Background"]
+texture = ExtResource( 1 )
+centered = false
+
+[node name="Ground" type="KinematicBody2D" parent="Background"]
+script = ExtResource( 4 )
+
+[node name="Building" type="TextureRect" parent="Background/Ground"]
+margin_top = 157.0
+margin_right = 336.0
+margin_bottom = 173.0
+texture = ExtResource( 5 )
+stretch_mode = 2
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Grass" type="TextureRect" parent="Background/Ground"]
+margin_top = 172.0
+margin_right = 336.0
+margin_bottom = 180.0
+texture = ExtResource( 3 )
+stretch_mode = 2
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="World" type="Node2D" parent="."]
+
+[node name="Pipe" parent="World" instance=ExtResource( 7 )]
+position = Vector2( 336, 0 )
+
+[node name="Pipe2" parent="World" instance=ExtResource( 7 )]
+position = Vector2( 512, 0 )
+x_pos = 512
+
+[node name="GrassCollider" type="StaticBody2D" parent="World"]
+collision_mask = 0
+
+[node name="GrassCollision" type="CollisionShape2D" parent="World/GrassCollider"]
+visible = false
+position = Vector2( 160, 176 )
+shape = SubResource( 1 )
+
+[node name="Player" parent="World" instance=ExtResource( 2 )]
+pause_mode = 2
+visible = false
+position = Vector2( 160, 90 )
+collision_layer = 2
+
+[node name="UI" type="Control" parent="."]
+margin_left = 112.0
+margin_top = 51.0
+margin_right = 208.0
+margin_bottom = 141.0
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="PlayButton" type="Button" parent="UI"]
+pause_mode = 2
+margin_left = 24.0
+margin_top = 35.0
+margin_right = 72.0
+margin_bottom = 55.0
+focus_mode = 0
+custom_styles/hover = ExtResource( 12 )
+custom_styles/pressed = SubResource( 2 )
+custom_styles/disabled = ExtResource( 12 )
+custom_styles/normal = ExtResource( 12 )
+enabled_focus_mode = 0
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="QuitButton" type="Button" parent="UI"]
+pause_mode = 2
+margin_left = 24.0
+margin_top = 63.0
+margin_right = 72.0
+margin_bottom = 83.0
+focus_mode = 0
+custom_styles/hover = ExtResource( 14 )
+custom_styles/pressed = SubResource( 4 )
+custom_styles/disabled = ExtResource( 14 )
+custom_styles/normal = ExtResource( 14 )
+enabled_focus_mode = 0
+script = ExtResource( 16 )
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Sprite" type="Sprite" parent="UI"]
+position = Vector2( 48, 0 )
+texture = ExtResource( 11 )
+
+[node name="ControlHint" type="Label" parent="UI"]
+margin_left = -76.0
+margin_top = 90.0
+margin_right = 172.0
+margin_bottom = 104.0
+custom_fonts/font = SubResource( 5 )
+custom_colors/font_color = Color( 0.980392, 0.992157, 1, 1 )
+text = "Click or Press Space to bounce."
+align = 1
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Score" type="Label" parent="."]
+margin_left = 130.0
+margin_top = 10.0
+margin_right = 190.0
+margin_bottom = 26.0
+custom_fonts/font = SubResource( 6 )
+custom_colors/font_color = Color( 0.980392, 0.992157, 1, 1 )
+text = "0"
+align = 1
+script = ExtResource( 10 )
+__meta__ = {
+"_edit_use_anchors_": false
+}
+[connection signal="death_animation_done" from="World/Player" to="." method="_on_Player_death_animation_done"]
+[connection signal="point_increase" from="World/Player" to="Score" method="_on_Player_point_increase"]
+[connection signal="pressed" from="UI/PlayButton" to="." method="_on_PlayButton_pressed"]
+[connection signal="pressed" from="UI/QuitButton" to="UI/QuitButton" method="_on_QuitButton_pressed"]
