@@ -1,0 +1,201 @@
+[gd_scene load_steps=11 format=2]
+
+[ext_resource path="res://Styles/MainButtonTheme.tres" type="Theme" id=1]
+[ext_resource path="res://Main/InfoBar.tscn" type="PackedScene" id=2]
+[ext_resource path="res://Img/Icons/TaskIcon.png" type="Texture" id=4]
+[ext_resource path="res://Img/Icons/CraftingIcon.png" type="Texture" id=5]
+[ext_resource path="res://Img/Icons/BossIcon.png" type="Texture" id=6]
+[ext_resource path="res://Img/Icons/ShopIcon.png" type="Texture" id=7]
+[ext_resource path="res://Img/Icons/CharacterIcon.png" type="Texture" id=8]
+[ext_resource path="res://Img/Icons/SkillsIcon.png" type="Texture" id=9]
+[ext_resource path="res://Img/Icons/AdventureIcon.png" type="Texture" id=10]
+[ext_resource path="res://Img/Icons/TowerIcon.png" type="Texture" id=11]
+
+[node name="Menu" type="Control"]
+margin_right = 320.0
+margin_bottom = 180.0
+mouse_filter = 2
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="InfoBar" parent="." instance=ExtResource( 2 )]
+
+[node name="Buttons" type="Control" parent="."]
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="ShopButton" type="Button" parent="Buttons"]
+margin_left = 16.0
+margin_top = 36.0
+margin_right = 64.0
+margin_bottom = 84.0
+theme = ExtResource( 1 )
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Sprite" type="Sprite" parent="Buttons/ShopButton"]
+position = Vector2( 24, 22 )
+texture = ExtResource( 7 )
+
+[node name="Label" type="Label" parent="Buttons/ShopButton"]
+margin_top = 45.0
+margin_right = 48.0
+margin_bottom = 59.0
+text = "Shop"
+align = 1
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="CraftingButton" type="Button" parent="Buttons"]
+margin_left = 80.0
+margin_top = 36.0
+margin_right = 128.0
+margin_bottom = 84.0
+theme = ExtResource( 1 )
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Sprite" type="Sprite" parent="Buttons/CraftingButton"]
+position = Vector2( 24, 22 )
+texture = ExtResource( 5 )
+
+[node name="Label" type="Label" parent="Buttons/CraftingButton"]
+margin_top = 45.0
+margin_right = 48.0
+margin_bottom = 59.0
+text = "Crafting"
+align = 1
+
+[node name="TaskButton" type="Button" parent="Buttons"]
+margin_left = 144.0
+margin_top = 36.0
+margin_right = 192.0
+margin_bottom = 84.0
+theme = ExtResource( 1 )
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Sprite" type="Sprite" parent="Buttons/TaskButton"]
+position = Vector2( 24, 22 )
+texture = ExtResource( 4 )
+
+[node name="Label" type="Label" parent="Buttons/TaskButton"]
+margin_top = 45.0
+margin_right = 48.0
+margin_bottom = 59.0
+text = "Tasks"
+align = 1
+
+[node name="AdventureButton" type="Button" parent="Buttons"]
+margin_left = 16.0
+margin_top = 99.0
+margin_right = 64.0
+margin_bottom = 147.0
+theme = ExtResource( 1 )
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Sprite" type="Sprite" parent="Buttons/AdventureButton"]
+position = Vector2( 24, 22 )
+texture = ExtResource( 10 )
+
+[node name="Label" type="Label" parent="Buttons/AdventureButton"]
+margin_top = 45.0
+margin_right = 48.0
+margin_bottom = 59.0
+text = "Adventure"
+align = 1
+
+[node name="BossButton" type="Button" parent="Buttons"]
+margin_left = 80.0
+margin_top = 99.0
+margin_right = 128.0
+margin_bottom = 147.0
+theme = ExtResource( 1 )
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Sprite" type="Sprite" parent="Buttons/BossButton"]
+position = Vector2( 24, 22 )
+texture = ExtResource( 6 )
+
+[node name="Label" type="Label" parent="Buttons/BossButton"]
+margin_top = 45.0
+margin_right = 48.0
+margin_bottom = 59.0
+text = "Boss Fight"
+align = 1
+
+[node name="TowerButton" type="Button" parent="Buttons"]
+margin_left = 144.0
+margin_top = 99.0
+margin_right = 192.0
+margin_bottom = 147.0
+theme = ExtResource( 1 )
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Sprite" type="Sprite" parent="Buttons/TowerButton"]
+position = Vector2( 24, 22 )
+texture = ExtResource( 11 )
+
+[node name="Label" type="Label" parent="Buttons/TowerButton"]
+margin_top = 45.0
+margin_right = 48.0
+margin_bottom = 59.0
+text = "The Tower"
+align = 1
+
+[node name="CharacterButton" type="Button" parent="Buttons"]
+margin_left = 256.0
+margin_top = 36.0
+margin_right = 304.0
+margin_bottom = 84.0
+theme = ExtResource( 1 )
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Sprite" type="Sprite" parent="Buttons/CharacterButton"]
+position = Vector2( 24, 22 )
+texture = ExtResource( 8 )
+
+[node name="Label" type="Label" parent="Buttons/CharacterButton"]
+margin_top = 45.0
+margin_right = 48.0
+margin_bottom = 59.0
+text = "Character"
+align = 1
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="SkillButton" type="Button" parent="Buttons"]
+margin_left = 256.0
+margin_top = 99.0
+margin_right = 304.0
+margin_bottom = 147.0
+theme = ExtResource( 1 )
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Sprite" type="Sprite" parent="Buttons/SkillButton"]
+position = Vector2( 24, 22 )
+texture = ExtResource( 9 )
+
+[node name="Label" type="Label" parent="Buttons/SkillButton"]
+margin_top = 45.0
+margin_right = 48.0
+margin_bottom = 59.0
+text = "Skills"
+align = 1

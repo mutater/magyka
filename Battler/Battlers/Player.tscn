@@ -1,0 +1,13 @@
+[gd_scene load_steps=4 format=2]
+
+[ext_resource path="res://Battler/Battlers/Player.gd" type="Script" id=1]
+[ext_resource path="res://Battler/Battlers/Stats/Player.tres" type="Resource" id=2]
+[ext_resource path="res://Battler/Stats.tscn" type="PackedScene" id=3]
+
+[node name="Player" type="Position2D"]
+script = ExtResource( 1 )
+
+[node name="Skin" type="Position2D" parent="."]
+
+[node name="Stats" parent="." instance=ExtResource( 3 )]
+stats = ExtResource( 2 )

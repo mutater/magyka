@@ -1,0 +1,19 @@
+[gd_resource type="Resource" load_steps=2 format=2]
+
+[ext_resource path="res://Battler/StartingStats.gd" type="Script" id=1]
+
+[resource]
+script = ExtResource( 1 )
+jobName = "Hero"
+maxHealth = 10
+maxMana = 20
+maxTech = 20
+strength = 1
+intelligence = 1
+dexterity = 1
+armor = 0
+wisdom = 1
+vitality = 1
+critChance = 4
+critDamage = 100
+resistance = 2

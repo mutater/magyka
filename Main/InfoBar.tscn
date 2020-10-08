@@ -1,0 +1,142 @@
+[gd_scene load_steps=7 format=2]
+
+[ext_resource path="res://Img/GUI/Coin.png" type="Texture" id=1]
+[ext_resource path="res://Img/GUI/BarEmpty.png" type="Texture" id=2]
+[ext_resource path="res://Img/GUI/Stone.png" type="Texture" id=3]
+[ext_resource path="res://Img/GUI/HpBarFull.png" type="Texture" id=4]
+[ext_resource path="res://Img/GUI/MpBarFull.png" type="Texture" id=5]
+[ext_resource path="res://Main/InfoBar.gd" type="Script" id=7]
+
+[node name="InfoBar" type="ColorRect"]
+margin_right = 320.0
+margin_bottom = 18.0
+color = Color( 0.337255, 0.337255, 0.337255, 1 )
+script = ExtResource( 7 )
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="InfoBars" type="Control" parent="."]
+margin_left = 128.0
+margin_top = 2.0
+margin_right = 192.0
+margin_bottom = 16.0
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Bars" type="Control" parent="InfoBars"]
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="HpBarEmpty" type="Sprite" parent="InfoBars/Bars"]
+position = Vector2( 32, 5 )
+texture = ExtResource( 2 )
+
+[node name="HpBarFull" type="TextureRect" parent="InfoBars/Bars"]
+margin_left = 1.0
+margin_top = 4.0
+margin_right = 63.0
+margin_bottom = 6.0
+texture = ExtResource( 4 )
+expand = true
+stretch_mode = 2
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="MpBarEmpty" type="Sprite" parent="InfoBars/Bars"]
+position = Vector2( 32, 10 )
+texture = ExtResource( 2 )
+
+[node name="MpBarFull" type="TextureRect" parent="InfoBars/Bars"]
+margin_left = 1.0
+margin_top = 9.0
+margin_right = 63.0
+margin_bottom = 11.0
+texture = ExtResource( 5 )
+expand = true
+stretch_mode = 2
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Labels" type="Control" parent="InfoBars"]
+visible = false
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="HpLabel" type="Label" parent="InfoBars/Labels"]
+margin_top = -5.0
+margin_right = 64.0
+margin_bottom = 8.0
+text = "HP 10/10"
+align = 1
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="MpLabel" type="Label" parent="InfoBars/Labels"]
+margin_top = 4.0
+margin_right = 64.0
+margin_bottom = 17.0
+text = "MP 20/20"
+align = 1
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="NameLabel" type="Label" parent="."]
+margin_right = 64.0
+margin_bottom = 18.0
+text = "Vincent"
+align = 1
+valign = 1
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="LevelLabel" type="Label" parent="."]
+margin_left = 64.0
+margin_right = 128.0
+margin_bottom = 18.0
+text = "Level 1"
+align = 1
+valign = 1
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="GoldSprite" type="Sprite" parent="."]
+position = Vector2( 304, 10 )
+texture = ExtResource( 1 )
+
+[node name="GoldLabel" type="Label" parent="."]
+margin_left = 256.0
+margin_right = 299.0
+margin_bottom = 18.0
+text = "0"
+align = 2
+valign = 1
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="StonesSprite" type="Sprite" parent="."]
+position = Vector2( 240, 10 )
+texture = ExtResource( 3 )
+
+[node name="StonesLabel" type="Label" parent="."]
+margin_left = 192.0
+margin_right = 235.0
+margin_bottom = 18.0
+text = "1"
+align = 2
+valign = 1
+__meta__ = {
+"_edit_use_anchors_": false
+}
+[connection signal="mouse_entered" from="InfoBars" to="." method="_on_InfoBars_mouse_entered"]
+[connection signal="mouse_exited" from="InfoBars" to="." method="_on_InfoBars_mouse_exited"]
