@@ -1,0 +1,655 @@
+[
+  {
+    "type": "consumable",
+    "name": "Aspirin",
+    "description": "A small, gray pill.",
+    "rarity": "uncommon",
+    "value": 4,
+    "effect": [
+      {
+        "type": "mp",
+        "value": 8
+      }
+    ],
+    "target": "self",
+    "useSound": "eat",
+    "useVerb": "swallows"
+  },
+  {
+    "type": "equipment",
+    "name": "Bandage I Tome",
+    "description": "A white blook, decorated with a red cross.",
+    "rarity": "uncommon",
+    "value": 25,
+    "slot": "tome",
+    "effect": [
+      {
+        "type": "hp",
+        "value": 6
+      }
+    ],
+    "mana": 4,
+    "attackName": "Bandage I",
+    "attackSound": "lightning",
+    "target": "self"
+  },
+  {
+    "type": "item",
+    "name": "Bottle of Sap",
+    "description": "A small bottle of sap that smells sweet. It swirls around like honey, and looks light yellow in color.",
+    "rarity": "uncommon",
+    "value": 8
+  },
+  {
+    "type": "item",
+    "name": "Congealed Green Slime",
+    "description": "Ew! Yuck! Slime!",
+    "rarity": "common",
+    "value": 2
+  },
+  {
+    "type": "consumable",
+    "name": "Cooked Wolf Meat",
+    "description": "A savory slab of grilled wolf meat. Slightly charred around the edges.",
+    "rarity": "rare",
+    "value": 8,
+    "effect": [
+      {
+        "type": "hp",
+        "value": 8
+      }
+    ],
+    "target": "self",
+    "useSound": "eat",
+    "useVerb": "eats"
+  },
+  {
+    "type": "equipment",
+    "name": "Copper Boots",
+    "description": "A pair of boots, forged with copper.",
+    "rarity": "uncommon",
+    "value": 6,
+    "slot": "feet",
+    "effect": [
+      {
+        "type": "armor",
+        "value": 1
+      }
+    ],
+    "target": null
+  },
+  {
+    "type": "equipment",
+    "name": "Copper Broadsword",
+    "description": "A plain broadsword, forged with copper.",
+    "rarity": "uncommon",
+    "value": 8,
+    "slot": "weapon",
+    "effect": [
+      {
+        "type": "attack",
+        "value": [
+          2,
+          4
+        ]
+      }
+    ],
+    "attackName": null,
+    "attackSound": "slice",
+    "target": null
+  },
+  {
+    "type": "equipment",
+    "name": "Copper Chestplate",
+    "description": "A plain chestplate, forged with copper.",
+    "rarity": "uncommon",
+    "value": 12,
+    "slot": "chest",
+    "effect": [
+      {
+        "type": "armor",
+        "value": 1
+      },
+      {
+        "type": "max hp",
+        "value": 1
+      }
+    ],
+    "target": null
+  },
+  {
+    "type": "equipment",
+    "name": "Copper Greaves",
+    "description": "A pair of greaves, forged with copper.",
+    "rarity": "uncommon",
+    "value": 10,
+    "slot": "legs",
+    "effect": [
+      {
+        "type": "armor",
+        "value": 1
+      }
+    ],
+    "target": null
+  },
+  {
+    "type": "equipment",
+    "name": "Copper Helmet",
+    "description": "A plain helmet, forged with copper.",
+    "rarity": "uncommon",
+    "value": 11,
+    "slot": "head",
+    "effect": [
+      {
+        "type": "armor",
+        "value": 1
+      }
+    ],
+    "target": null
+  },
+  {
+    "type": "equipment",
+    "name": "Copper Ring",
+    "description": "A small, plain ring, forged with copper.",
+    "rarity": "uncommon",
+    "value": 18,
+    "slot": "accessory",
+    "effect": [
+      {
+        "type": "strength",
+        "value": 1
+      }
+    ],
+    "target": null
+  },
+  {
+    "type": "consumable",
+    "name": "Draught of Stoneskin",
+    "description": "A moutheful of potion, grey in color.",
+    "rarity": "rare",
+    "value": 25,
+    "effect": [
+      {
+        "type": "passive",
+        "name": "Stoneskin",
+        "buff": true,
+        "turns": 8,
+        "effect": {
+          "type": "armor",
+          "value": 4
+        }
+      }
+    ],
+    "target": "self",
+    "useSound": "drink",
+    "useVerb": "drinks"
+  },
+  {
+    "type": "consumable",
+    "name": "Healing Sludge",
+    "description": "It doesn't look edible, but has a surprisingly sweet flavor.",
+    "rarity": "uncommon",
+    "value": 6,
+    "effect": [
+      {
+        "type": "hp",
+        "value": 6
+      }
+    ],
+    "target": "self",
+    "useSound": "eat",
+    "useVerb": "eats"
+  },
+  {
+    "type": "item",
+    "name": "Iron Bar",
+    "description": "A sturdy metal bar.",
+    "rarity": "uncommon",
+    "value": 5
+  },
+  {
+    "type": "equipment",
+    "name": "Iron Broadsword",
+    "description": "A hefty sword, forged of iron.",
+    "rarity": "rare",
+    "value": 30,
+    "slot": "weapon",
+    "effect": [
+      {
+        "type": "attack",
+        "value": [
+          3,
+          5
+        ]
+      }
+    ],
+    "attackName": null,
+    "attackSound": "slice"
+  },
+  {
+    "type": "consumable",
+    "name": "Jar of Water",
+    "description": "Not the cleanest, but it's safe to drink.",
+    "rarity": "common",
+    "value": 2,
+    "effect": [
+      {
+        "type": "mp",
+        "value": 4
+      }
+    ],
+    "target": "self",
+    "useSound": "drink",
+    "useVerb": "drinks"
+  },
+  {
+    "type": "consumable",
+    "name": "Kill Rune",
+    "description": "[DEV]: Kills a monster instantly.",
+    "rarity": "mythical",
+    "value": 0,
+    "effect": [
+      {
+        "type": "-hp",
+        "value": 999999999,
+        "resist": 0,
+        "dodge": 0,
+        "hit": 100,
+        "variance": false
+      }
+    ],
+    "target": "enemy",
+    "useSound": "lightning",
+    "useVerb": "activates"
+  },
+  {
+    "type": "equipment",
+    "name": "Lightning I Tome",
+    "description": "A black book, inscribed with a golden lightning bolt.",
+    "rarity": "uncommon",
+    "value": 25,
+    "slot": "tome",
+    "effect": [
+      {
+        "type": "-all",
+        "value": [
+          [
+            4,
+            9
+          ],
+          [
+            4,
+            7
+          ]
+        ],
+        "dodge": 0,
+        "resist": 0
+      }
+    ],
+    "mana": 5,
+    "attackName": "Lightning I",
+    "attackSound": "lightning",
+    "target": null
+  },
+  {
+    "type": "item",
+    "name": "Mossy Shroom",
+    "description": "Ew. It smells terrible.",
+    "rarity": "common",
+    "value": 2
+  },
+  {
+    "type": "item",
+    "name": "Old Parchment",
+    "description": "An empty square of very, very old parchment.",
+    "rarity": "uncommon",
+    "value": 10
+  },
+  {
+    "type": "equipment",
+    "name": "Patched Jeans",
+    "description": "A pair of ripped jeans. It's made out of what seems like a sack.",
+    "rarity": "common",
+    "value": 3,
+    "slot": "legs",
+    "effect": [
+      {
+        "type": "armor",
+        "value": 1
+      }
+    ],
+    "target": null
+  },
+  {
+    "type": "equipment",
+    "name": "Patched Shirt",
+    "description": "A torn shirt. It barely provides any coverage.",
+    "rarity": "common",
+    "value": 3,
+    "slot": "chest",
+    "effect": [
+      {
+        "type": "armor",
+        "value": 1
+      }
+    ],
+    "target": null
+  },
+  {
+    "type": "item",
+    "name": "Pure Earth Water",
+    "description": "This water is a brownish clear color, and it smells clean. It seems to pulse green every now and then.",
+    "rarity": "uncommon",
+    "value": 6
+  },
+  {
+    "type": "item",
+    "name": "Razor Leaf",
+    "description": "Very sharp leaves. Ow!",
+    "rarity": "uncommon",
+    "value": 4
+  },
+  {
+    "type": "equipment",
+    "name": "Razor Leaf Blade",
+    "description": "A small blade, made from pressing razor leaves into iron.",
+    "rarity": "rare",
+    "value": 25,
+    "slot": "weapon",
+    "effect": [
+      {
+        "type": "attack",
+        "value": [
+          3,
+          5
+        ]
+      },
+      {
+        "type": "crit",
+        "value": 12
+      }
+    ],
+    "attackSound": "slice"
+  },
+  {
+    "type": "item",
+    "name": "Rotted Oak",
+    "description": "This peice of oak smells terrible, and crumbles on touch. It is a mixture of brown and black in color.",
+    "rarity": "uncommon",
+    "value": 0
+  },
+  {
+    "type": "consumable",
+    "name": "Rough Bandage",
+    "description": "A bandage, which appears to be made out of an old rag.",
+    "rarity": "uncommon",
+    "value": 3,
+    "effect": [
+      {
+        "type": "hp",
+        "value": 5
+      }
+    ],
+    "target": "self",
+    "useSound": "bandage",
+    "useVerb": "uses"
+  },
+  {
+    "type": "consumable",
+    "name": "Scroll of Fireball I",
+    "description": "A crinked old scroll, decorated with patterns of flames.",
+    "rarity": "rare",
+    "value": 20,
+    "effect": [
+      {
+        "type": "-hp",
+        "value": [
+          4,
+          6
+        ],
+        "passive": {
+          "type": "passive",
+          "name": "Fire I",
+          "buff": false,
+          "turns": [
+            2,
+            4
+          ],
+          "effect": {
+            "type": "-hp",
+            "value": [
+              1,
+              3
+            ],
+            "dodge": 0,
+            "resist": 0.5
+          }
+        }
+      }
+    ],
+    "target": "enemy",
+    "useSound": "fire",
+    "useVerb": "uses"
+  },
+  {
+    "type": "consumable",
+    "name": "Scroll of Leaf Blast",
+    "description": "An old scroll, woven with leaves.",
+    "rarity": "rare",
+    "value": 20,
+    "effect": [
+      {
+        "type": "-hp",
+        "value": [
+          7,
+          10
+        ],
+        "hit": 100,
+        "dodge": 0
+      }
+    ],
+    "target": "enemy",
+    "useSound": "use",
+    "useVerb": "uses"
+  },
+  {
+    "type": "consumable",
+    "name": "Scroll of Lesser Dark Magic",
+    "description": "An old scroll. It seems to soak up the light around it.",
+    "rarity": "rare",
+    "value": 25,
+    "effect": [
+      {
+        "type": "-hp",
+        "value": [
+          9,
+          11
+        ],
+        "hit": 100,
+        "dodge": 0
+      }
+    ],
+    "target": "enemy",
+    "useSound": "use",
+    "useVerb": "uses"
+  },
+  {
+    "type": "consumable",
+    "name": "Scroll of Poison I",
+    "description": "A slightly green crinkled paper with faded runes that you can barely read.",
+    "rarity": "rare",
+    "value": 20,
+    "effect": [
+      {
+        "type": "passive",
+        "name": "Poison I",
+        "buff": false,
+        "turns": [
+          4,
+          5
+        ],
+        "effect": {
+          "type": "-hp",
+          "value": [
+            3,
+            5
+          ],
+          "dodge": 0,
+          "resist": 0
+        }
+      }
+    ],
+    "target": "enemy",
+    "useSound": "use",
+    "useVerb": "uses"
+  },
+  {
+    "type": "consumable",
+    "name": "Sweet Water",
+    "description": "This water is crystal clear, and it does not smell of anything. It tastes of syrup.",
+    "rarity": "rare",
+    "value": 16,
+    "effect": [
+      {
+        "type": "mp",
+        "value": [
+          12,
+          15
+        ]
+      }
+    ],
+    "target": "self",
+    "useSound": "drink",
+    "useVerb": "drinks"
+  },
+  {
+    "type": "equipment",
+    "name": "Tarnished Sword",
+    "description": "A chipped and extremely old sword. It's better than nothing.",
+    "rarity": "common",
+    "value": 3,
+    "slot": "weapon",
+    "effect": [
+      {
+        "type": "attack",
+        "value": [
+          1,
+          2
+        ]
+      }
+    ],
+    "attackName": null,
+    "attackSound": "slice",
+    "target": null
+  },
+  {
+    "type": "consumable",
+    "name": "Wheat Biscuit",
+    "description": "A very hard biscuit. Is this even food?",
+    "rarity": "common",
+    "value": 2,
+    "effect": [
+      {
+        "type": "hp",
+        "value": 3
+      }
+    ],
+    "target": "self",
+    "useSound": "eat",
+    "useVerb": "eats"
+  },
+  {
+    "type": "item",
+    "name": "Wolf Pelt",
+    "description": "The fur on the pelt is very soft.",
+    "rarity": "uncommon",
+    "value": 7
+  },
+  {
+    "type": "equipment",
+    "name": "Wolven Helmet",
+    "description": "A very soft helmet made of wolf pelt and iron.",
+    "rarity": "rare",
+    "value": 22,
+    "slot": "head",
+    "effect": [
+      {
+        "type": "armor",
+        "value": 2
+      },
+      {
+        "type": "max mp",
+        "value": 3
+      }
+    ],
+    "target": null
+  },
+  {
+    "type": "equipment",
+    "name": "Wolven Pants",
+    "description": "A very soft pair of pants made of wolf pelt and iron.",
+    "rarity": "rare",
+    "value": 18,
+    "slot": "legs",
+    "effect": [
+      {
+        "type": "armor",
+        "value": 2
+      }
+    ],
+    "target": null
+  },
+  {
+    "type": "equipment",
+    "name": "Wolven Shoes",
+    "description": "A very soft pair of shoes made of wolf pelt and iron.",
+    "rarity": "rare",
+    "value": 18,
+    "slot": "feet",
+    "effect": [
+      {
+        "type": "armor",
+        "value": 2
+      },
+      {
+        "type": "crit",
+        "value": 4
+      }
+    ],
+    "target": null
+  },
+  {
+    "type": "equipment",
+    "name": "Wolven Tunic",
+    "description": "A very soft tunic made of wolf pelt and iron.",
+    "rarity": "rare",
+    "value": 20,
+    "slot": "chest",
+    "effect": [
+      {
+        "type": "armor",
+        "value": 2
+      },
+      {
+        "type": "max hp",
+        "value": 2
+      }
+    ],
+    "target": null
+  },
+  {
+    "type": "equipment",
+    "name": "Wooden Ring",
+    "description": "A smooth band of wood. It seems to vibrate slightly when worn.",
+    "rarity": "uncommon",
+    "value": 15,
+    "slot": "accessory",
+    "effect": [
+      {
+        "type": "max mp",
+        "value": 6
+      }
+    ],
+    "target": null
+  }
+]

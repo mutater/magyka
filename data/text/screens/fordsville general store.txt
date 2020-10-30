@@ -1,0 +1,4 @@
+\n You're in a dusty but well-stocked store, well lit by a large fireplace and multiple lanterns.
+ A large man behind the counter beckons you over.
+
+ {c("yellow")}Store Keeper: {reset}\"What'll it be for you today, lad?\"

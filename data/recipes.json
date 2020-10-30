@@ -1,0 +1,124 @@
+[
+  {
+    "result": "Healing Sludge",
+    "quantity": 2,
+    "ingredients": [
+      [
+        "Congealed Green Slime",
+        1
+      ],
+      [
+        "Mossy Shroom",
+        1
+      ]
+    ]
+  },
+  {
+    "result": "Iron Broadsword",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Iron Bar",
+        5
+      ]
+    ]
+  },
+  {
+    "result": "Razor Leaf Blade",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Iron Bar",
+        3
+      ],
+      [
+        "Razor Leaf",
+        4
+      ]
+    ]
+  },
+  {
+    "result": "Scroll of Leaf Blast",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Old Parchment",
+        1
+      ],
+      [
+        "Razor Leaf",
+        3
+      ]
+    ]
+  },
+  {
+    "result": "Sweet Water",
+    "quantity": 2,
+    "ingredients": [
+      [
+        "Bottle of Sap",
+        1
+      ],
+      [
+        "Pure Earth Water",
+        1
+      ]
+    ]
+  },
+  {
+    "result": "Wolven Helmet",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Wolf Pelt",
+        1
+      ],
+      [
+        "Iron Bar",
+        2
+      ]
+    ]
+  },
+  {
+    "result": "Wolven Pants",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Wolf Pelt",
+        2
+      ],
+      [
+        "Iron Bar",
+        3
+      ]
+    ]
+  },
+  {
+    "result": "Wolven Shoes",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Wolf Pelt",
+        1
+      ],
+      [
+        "Iron Bar",
+        2
+      ]
+    ]
+  },
+  {
+    "result": "Wolven Tunic",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Wolf Pelt",
+        2
+      ],
+      [
+        "Iron Bar",
+        4
+      ]
+    ]
+  }
+]
