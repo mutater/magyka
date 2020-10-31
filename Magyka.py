@@ -1,6 +1,6 @@
 """
 ADD DRINKS TO TAVERN
-ADD COIN ICON TO SELL CONFIRM TEXT
+FIX DEV COMMANDS NOT WORKING
 """
 
 # ::::::.    :::.::::::::::::::::::  :::.      :::     ::::::::::::.,::::::  
@@ -14,7 +14,7 @@ ADD COIN ICON TO SELL CONFIRM TEXT
 
 
 
-import sys, os, math, keyboard, pickle, string, msvcrt, time, traceback, re, inspect, win32gui, json, copy
+import sys, os, math, keyboard, pickle, string, msvcrt, time, traceback, re, inspect, win32gui, json, copy, subprocess
 print("\n Loading...")
 from data.Entity import *
 from data.Item import *
@@ -187,7 +187,7 @@ def command(input = False, mode = "alphabetic", back = True, silent = False, low
     setCursorVisible(False)
 
     if a == "": return ""
-    if not mode == "command": return str.lower(a).strip() if lower else a.strip()
+    if not mode == "command": return (str.lower(a).strip() if lower else a.strip())
 
     a1 = a.split(" ", 1)
     a2 = a.split(" ", 2)
@@ -282,15 +282,6 @@ def pressEnter(prompt = f'\n {c("option")}[Press Enter]{reset}'):
         if not win32gui.GetForegroundWindow() == windowID: keyboard.wait("enter")
         else: break
 
-def delay(t = 3, n = True):
-    if n: print("\n ",end="")
-    for i in range(3):
-        print(".",end="")
-        sys.stdout.flush()
-        while msvcrt.kbhit(): msvcrt.getwch()
-        time.sleep(t/3)
-    print("")
-
 def fullscreen():
     keyboard.remove_hotkey("alt + enter")
     keyboard.press_and_release("alt + enter")
@@ -327,6 +318,8 @@ def returnToScreen(screen):
 
 def write(text, speed = textSpeed):
     i = 0
+    delay = speed
+    canSkip = not keyboard.is_pressed("enter")
     while i < len(text):
         if text[i:i+2] == "0m":
             print(reset, end="")
@@ -336,11 +329,15 @@ def write(text, speed = textSpeed):
             i += 9
         elif text[i] == "#":
             pressEnter()
+            delay = speed
         elif text[i] == "<":
             clear()
-        else: print(text[i], end="")
-        time.sleep(speed)
-        if keyboard.is_pressed("escape"): speed = 0
+            delay = speed
+        else:
+            print(text[i], end="")
+        time.sleep(delay)
+        if not canSkip and not keyboard.is_pressed("enter"): canSkip = True
+        if canSkip and keyboard.is_pressed("enter"): delay = 0
         sys.stdout.flush()
         while msvcrt.kbhit(): msvcrt.getwch()
         i += 1
@@ -463,7 +460,18 @@ def displayPlayerStats():
     displayPlayerGold()
     displayPlayerPassives()
 
-
+def displayBattleStats(player, enemy):
+        print(f'\n -= {player.name} Versus {enemy.name} [Lvl {enemy.level}] =-')
+        print(f'\n {player.name}')
+        displayPlayerHP()
+        displayPlayerMP()
+        displayPlayerPassives()
+        print(f'\n {enemy.name} [Lvl {enemy.level}]')
+        print(f' {c("red")}♥ {drawBar(enemy.stats["max hp"], enemy.hp, "red", 20)} {enemy.hp}/{enemy.stats["max hp"]}')
+        print(f' {c("blue")}♦ {drawBar(enemy.stats["max mp"], enemy.mp, "blue", 20)} {enemy.mp}/{enemy.stats["max mp"]}')
+        if len(enemy.passives) > 0:
+            print(" ", end="")
+            print(", ".join([f'{c("light green" if passive["buff"] else "light red")}{passive["name"]}{reset} ({passive["turns"]})' for passive in enemy.passives]))
 
 
 
@@ -673,26 +681,13 @@ def s_battle(enemy):
     itemLog = []
     if type(enemy.level) is list: enemy.level = enemy.level[0]
 
-    def displayBattleStats():
-        print(f'\n -= {player.name} Versus {enemy.name} [Lvl {enemy.level}] =-')
-        print(f'\n {player.name}')
-        displayPlayerHP()
-        displayPlayerMP()
-        displayPlayerPassives()
-        print(f'\n {enemy.name} [Lvl {enemy.level}]')
-        print(f' {c("red")}♥ {drawBar(enemy.stats["max hp"], enemy.hp, "red", 20)} {enemy.hp}/{enemy.stats["max hp"]}')
-        print(f' {c("blue")}♦ {drawBar(enemy.stats["max mp"], enemy.mp, "blue", 20)} {enemy.mp}/{enemy.stats["max mp"]}')
-        if len(enemy.passives) > 0:
-            print(" ", end="")
-            print(", ".join([f'{c("light green" if passive["buff"] else "light red")}{passive["name"]}{reset} ({passive["turns"]})' for passive in enemy.passives]))
-
     while 1:
         player.guard = ""
         while 1:
             clear()
             usedItem = False
 
-            displayBattleStats()
+            displayBattleStats(player, enemy)
 
             canUseMagic = False if player.equipment["tome"] == "" or player.mp < player.equipment["tome"]["mana"] else True
 
@@ -725,7 +720,7 @@ def s_battle(enemy):
                     next = False if len(itemList) < (page+1)*10 else True
                     previous = False if page == 1 else True
 
-                    displayBattleStats()
+                    displayBattleStats(player, enemy)
                     print("\n Type the number of the item you wish to consume.\n")
 
                     for i in range(-10 + 10*page, 10*page if 10*page < len(itemList) else len(itemList)):
@@ -755,12 +750,12 @@ def s_battle(enemy):
                             if option1 == "u":
                                 usedItem = True
                                 clear()
-                                displayBattleStats()
+                                displayBattleStats(player, enemy)
 
                                 for effect in item["effect"]:
                                     text = player.defend(effect, player.stats) if item["target"] == "self" else enemy.defend(effect, player.stats)
                                     print(f'\n {player.name} {item["useVerb"]} {displayItem(item["name"], item["rarity"], 1)}, ' + evalText(text))
-                                    delay(1.5)
+                                    pressEnter()
 
                                 player.removeItem(item)
 
@@ -794,7 +789,7 @@ def s_battle(enemy):
                             return
                         else:
                             print(f'\n {player.name} attempts to flee, but fails.')
-                            delay(1.5)
+                            pressEnter()
                             break
                     elif option == "B": break
                 if option == "y": break
@@ -812,7 +807,7 @@ def s_battle(enemy):
         enemy.guard = ""
         clear()
 
-        displayBattleStats()
+        displayBattleStats(player, enemy)
 
         # LOGIC FOR ENEMY ATTACK
         enemy.guard = ""
@@ -866,8 +861,8 @@ def s_battle(enemy):
 
         levelDifference = enemy.level - player.level
         if levelDifference == 0: lootMultiplier = 1
-        else: lootMultiplier = 1.5 ** levelDifference
-        lootMultiplier = max(min(round(lootMultiplier, 2) * 1.1 ** enemy.levelDifference, 2.5), 0.33)
+        else: lootMultiplier = round(1.5 ** levelDifference, 2)
+        lootMultiplier = round(max(min(lootMultiplier * 1.1 ** enemy.levelDifference, 2.5), 0.33), 2)
         xp = math.ceil(enemy.xp * lootMultiplier)
         gold = math.ceil(randint(math.ceil(enemy.gold*0.9), math.ceil(enemy.gold*1.1)) * lootMultiplier)
         items = []
@@ -1069,7 +1064,7 @@ def s_sell(item):
         if option in tuple(map(str, range(1, player.numOfItems(item["name"]) + 1))):
             player.removeItem(item, int(option))
             player.gold += round(item["value"] * 0.66) * int(option)
-            print(f'\n Sold {displayItem(item["name"], item["rarity"], int(option))} for {round(item["value"] * 0.66) * int(option)}{c("yellow")}●{reset}.')
+            print(f'\n Sold {displayItem(item["name"], item["rarity"], int(option))}.')
             pressEnter()
             break
         elif option == "B": break
@@ -1451,4 +1446,4 @@ except Exception as err:
     # Restart Program
     pressEnter()
     if settings["fullscreen"]: fullscreen()
-    os.execv(sys.executable, ['python'] + sys.argv)
+    subprocess.call([r'run.bat'])
