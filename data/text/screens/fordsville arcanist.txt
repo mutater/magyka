@@ -1,4 +1,0 @@
-\n The very air seems to glitter, as it flows around a neat and clean store.
- From the counter, that was empty just a second ago, a woman appears.
-
- {c("yellow")}Arcanist: {reset}\"Need something, dear?\"

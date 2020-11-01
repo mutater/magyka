@@ -1,6 +1,5 @@
 """
 ADD DRINKS TO TAVERN
-FIX DEV COMMANDS NOT WORKING
 """
 
 # ::::::.    :::.::::::::::::::::::  :::.      :::     ::::::::::::.,::::::  
@@ -77,8 +76,8 @@ def openTextAsList(path, splitter = "|"):
 def evalTextAsList(path, splitter = "|"):
     return [eval(i) for i in open(path, "r").read().split(splitter)]
 
-def printEvalText(path):
-    print(evalText(openText(path)))
+def printEvalText(string):
+    print(evalText(string))
 
 
 # :::::  :::::  :: ::  :: ::   :::   ::  :  ::::   :::::
@@ -358,74 +357,104 @@ def displayItem(name, rarity, quantity = 0):
     if rarity == "legendary": return c("light orange") + name + reset + amt
     if rarity == "mythical": return c("lightish red") + name + reset + amt
 
+def displayEffect(effects):
+    if "-hp" in effects or "-mp" in effects or "-all" in effects:
+        if "-hp" in effects:
+            if type(effects["-hp"]["value"]) is list:
+                damage = f'{c("red")}{effects["-hp"]["value"][0]} - {effects["-hp"]["value"][1]}{"%" if "*" in effects["-hp"] else ""} ♥{reset}'
+            else:
+                damage = f'{c("red")}{effects["-hp"]["value"]}{"%" if "*" in effects["-hp"] else ""} ♥{reset}'
+            effect = "-hp"
+        if "-mp" in effects:
+            if type(effects["-mp"]["value"]) is list:
+                damage = f'{c("blue")}{effects["-mp"]["value"][0]} - {effects["-mp"]["value"][1]}{"%" if "*" in effects["-mp"] else ""} ♦{reset}'
+            else:
+                damage = f'{c("blue")}{effects["-mp"]["value"]}{"%" if "*" in effects["-mp"] else ""} ♦{reset}'
+            effect = "-mp"
+        if "-all" in effects:
+            if type(effects["-all"]["value"][0]) is list:
+                damage = f'{c("red")}{effects["-all"]["value"][0][0]} - {effects["-all"]["value"][0][1]}{"%" if "*" in effects["-all"] else ""} ♥{reset} and '
+            else:
+                damage = f'{c("red")}{effects["-all"]["value"][0]}{"%" if "*" in effects["-all"] else ""} ♥{reset} and '
+            if type(effects["-all"]["value"][1]) is list:
+                damage += f'{c("blue")}{effects["-all"]["value"][1][0]} - {effects["-all"]["value"][1][1]}{"%" if "*" in effects["-all"] else ""} ♦{reset}'
+            else:
+                damage += f'{c("blue")}{effects["-all"]["value"][1]}{"%" if "*" in effects["-all"] else ""} ♦{reset}'
+            effect = "-all"
+        print(f'\n Deals {damage} damage')
+        if "crit" in effects[effect]: print(f' - {effects[effect]["crit"]}% critical strike chance')
+        if "hit" in effects[effect]: print(f' - {effects[effect]["hit"]}% hit chance')
+        if "dodge" in effects[effect]: print(f' - Undodgeable')
+    if "hp" in effects or "mp" in effects or "all" in effects:
+        if "hp" in effects:
+            if type(effects["hp"]["value"]) is list:
+                heal = f'{c("red")}{effects["hp"]["value"][0]} - {effects["hp"]["value"][1]}{"%" if "*" in effects["hp"] else ""} ♥{reset}'
+            else:
+                heal = f'{c("red")}{effects["hp"]["value"]}{"%" if "*" in effects["hp"] else ""} ♥{reset}'
+            effect = "hp"
+        if "mp" in effects:
+            if type(effects["mp"]["value"]) is list:
+                heal = f'{c("blue")}{effects["mp"]["value"][0]} - {effects["mp"]["value"][1]}{"%" if "*" in effects["mp"] else ""} ♦{reset}'
+            else:
+                heal = f'{c("blue")}{effects["mp"]["value"]}{"%" if "*" in effects["mp"] else ""} ♦{reset}'
+            effect = "mp"
+        if "all" in effects:
+            if type(effects["all"]["value"][0]) is list:
+                heal = f'{c("red")}{effects["all"]["value"][0][0]} - {effects["all"]["value"][0][1]}{"%" if "*" in effects["all"] else ""} ♥{reset} and '
+            else:
+                heal = f'{c("red")}{effects["all"]["value"][0]}{"%" if "*" in effects["all"] else ""} ♥{reset} and '
+            if type(effects["all"]["value"][1]) is list:
+                heal += f'{c("blue")}{effects["all"]["value"][1][0]} - {effects["all"]["value"][1][1]}{"%" if "*" in effects["all"] else ""} ♦{reset}'
+            else:
+                heal += f'{c("blue")}{effects["all"]["value"][1]}{"%" if "*" in effects["all"] else ""} ♦{reset}'
+            effect = "all"
+        print(f'\n Heals {heal}')
+        if effect in ("hp", "all"): displayPlayerHP()
+        if effect in ("mp", "all"): displayPlayerMP()
+    if any([stat in effects for stat in player.stats]): print("")
+    if "attack" in effects: print(f' {effects["attack"]["value"][0]} - {effects["attack"]["value"][1]} Damage')
+    for stat in ("armor", "strength", "intelligence", "vitality", "agility", "max hp", "max mp"):
+        if stat in effects:
+            if stat == "max hp":
+                color, character = c("red"), " ♥"
+            elif stat == "max mp":
+                color, character = c("blue"), " ♦"
+            else:
+                color, character = "", ""
+            
+            if "*" in effects[stat]:
+                print(f' {abs(effects[stat]["value"])}% {"Increased" if effects[stat]["value"] > 0 else "Decreased"} {color}{stat.capitalize()}{character}{reset}')
+            else:
+                print(f' {"+" if effects[stat]["value"] > 0 else ""}{effects[stat]["value"]} {color}{stat.capitalize()}{character}{reset}')
+    for stat in ("crit", "hit", "dodge"):
+        if stat in effects: print(f' {abs(effects[stat]["value"])}% {"Increased" if effects[stat]["value"] > 0 else "Decreased"} {stat.capitalize()} Chance')
+
 def displayItemStats(item):
     print("\n " + displayItem(item["name"], item["rarity"]))
     print("  " + item["description"])
     print(" " + item["rarity"].capitalize())
 
     effects = {}
-    passives = []
+    p_passives = []
     if item["type"] != "item":
         for effect in item["effect"]:
-            if effect["type"] == "passive": passives.append(effect)
-            else: effects.update({effect["type"]: effect})
+            if effect["type"] == "passive":
+                p_passives.append(passives[effect["name"]])
+            else:
+                effects.update({effect["type"]: effect})
     if item["type"] == "equipment" and item["slot"] == "tome": print(f'\n Costs {c("blue")}{item["mana"]} ♦{reset}')
-    if "-hp" in effects or "-mp" in effects or "-all" in effects:
-        if "-hp" in effects:
-            if type(effects["-hp"]["value"]) is list: damage = f'{c("red")}{effects["-hp"]["value"][0]} - {effects["-hp"]["value"][1]}{"%" if "*" in effects["-hp"] else ""} ♥{reset}'
-            else: damage = f'{c("red")}{effects["-hp"]["value"]}{"%" if "*" in effects["-hp"] else ""} ♥{reset}'
-            effect = "-hp"
-        if "-mp" in effects:
-            if type(effects["-mp"]["value"]) is list: damage = f'{c("blue")}{effects["-mp"]["value"][0]} - {effects["-mp"]["value"][1]}{"%" if "*" in effects["-mp"] else ""} ♦{reset}'
-            else: damage = f'{c("blue")}{effects["-mp"]["value"]}{"%" if "*" in effects["-mp"] else ""} ♦{reset}'
-            effect = "-mp"
-        if "-all" in effects:
-            if type(effects["-all"]["value"][0]) is list: damage = f'{c("red")}{effects["-all"]["value"][0][0]} - {effects["-all"]["value"][0][1]}{"%" if "*" in effects["-all"] else ""} ♥{reset} and '
-            else: damage = f'{c("red")}{effects["value"]}{"%" if "*" in effects["-all"] else ""} ♥{reset} and '
-            if type(effects["-all"]["value"][1]) is list: damage += f'{c("blue")}{effects["-all"]["value"][1][0]} - {effects["-all"]["value"][1][1]}{"%" if "*" in effects["-all"] else ""} ♦{reset}'
-            else: damage += f'{c("blue")}{effects["-all"]["value"]}{"%" if "*" in effects["-all"] else ""} ♦{reset}'
-            effect = "-all"
-        print(f'\n Deals {damage} damage.')
-        if "crit" in effects[effect]: print(f' - {effects[effect]["crit"]}% critical strike chance')
-        if "hit" in effects[effect]: print(f' - {effects[effect]["hit"]}% hit chance')
-        if "dodge" in effects[effect]: print(f' - Undodgeable')
-    if "hp" in effects or "mp" in effects or "all" in effects:
-        if "hp" in effects:
-            if type(effects["hp"]["value"]) is list: heal = f'{c("red")}{effects["hp"]["value"][0]} - {effects["hp"]["value"][1]}{"%" if "*" in effects["hp"] else ""} ♥{reset}'
-            else: heal = f'{c("red")}{effects["hp"]["value"]}{"%" if "*" in effects["hp"] else ""} ♥{reset}'
-            effect = "hp"
-            displayPlayerHP()
-        if "mp" in effects:
-            if type(effects["mp"]["value"]) is list: heal = f'{c("blue")}{effects["mp"]["value"][0]} - {effects["mp"]["value"][1]}{"%" if "*" in effects["mp"] else ""} ♦{reset}'
-            else: heal = f'{c("blue")}{effects["mp"]["value"]}{"%" if "*" in effects["mp"] else ""} ♦{reset}'
-            effect = "mp"
-            displayPlayerMP()
-        if "all" in effects:
-            if type(effects["all"]["value"][0]) is list: heal = f'{c("red")}{effects["all"]["value"][0]} - {effects["all"]["value"][1]}{"%" if "*" in effects["all"] else ""} ♥{reset} and '
-            else: heal = f'{c("red")}{effects["value"]}{"%" if "*" in effects["all"] else ""} ♥{reset} and '
-            if type(effects["all"]["value"][1]) is list: heal += f'{c("blue")}{effects["all"]["value"][0]} - {effects["all"]["value"][1]}{"%" if "*" in effects["all"] else ""} ♦{reset}'
-            else: heal += f'{c("blue")}{effects["all"]["value"]}{"%" if "*" in effects["all"] else ""} ♦{reset}'
-            effect = "all"
-            displayPlayerHP()
-            displayPlayerMP()
-        print(f'\n Heals {heal}.')
-    if any([stat in effects for stat in player.stats]): print("")
-    if "attack" in effects: print(f' {effects["attack"]["value"][0]} - {effects["attack"]["value"][1]} Damage')
-    for stat in ("armor", "strength", "intelligence", "vitality", "agility", "max hp", "max mp"):
-        if stat in effects:
-            if stat == "max hp": color, character = c("red"), " ♥"
-            elif stat == "max mp": color, character = c("blue"), " ♦"
-            else: color, character = "", ""
-            if "*" in effects[stat]: print(f' {abs(effects[stat]["value"])}% {"Increased" if effects[stat]["value"] > 0 else "Decreased"} {color}{stat.capitalize()}{character}{reset}')
-            else: print(f' {"+" if effects[stat]["value"] > 0 else ""}{effects[stat]["value"]} {color}{stat.capitalize()}{character}{reset}')
-    for stat in ("crit", "hit", "dodge"):
-        if stat in effects:
-            print(f' {abs(effects[stat]["value"])}% {"Increased" if effects[stat]["value"] > 0 else "Decreased"} {stat.capitalize()} Chance')
-    for effect in passives:
-        if effect["buff"]: effectColor = "light green"
-        else: effectColor = "light red"
-        if type(effect["turns"]) is list: turnText = f'{effect["turns"][0]} - {effect["turns"][1]}'
-        else: turnText = f'{effect["turns"]} turn{"s" if effect["turns"] > 1 else ""}'
+    displayEffect(effects)
+    for effect in p_passives:
+        if effect["buff"]:
+            effectColor = "light green"
+        else:
+            effectColor = "light red"
+        
+        if type(effect["turns"]) is list:
+            turnText = f'{effect["turns"][0]} - {effect["turns"][1]} turns'
+        else:
+            turnText = f'{effect["turns"]} turn{"s" if effect["turns"] > 1 else ""}'
+        
         print(f'\n Applies {c(effectColor)}{effect["name"]}{reset} for {turnText}')
         if "crit" in effect: print(f' - {effect["crit"]}% critical strike chance')
         if "hit" in effect: print(f' - {effect["hit"]}% hit chance')
@@ -591,7 +620,7 @@ def s_camp():
 
         print("\n -= Camp =-")
         displayPlayerStats()
-        printEvalText("data//text//screens//camp.txt")
+        printEvalText(openText("data//text//screens//camp.txt"))
         
         options(["Explore", "Town", "Character", "Options", "Save", "Quit"])
         option = command(back = False, options = "etcosq")
@@ -617,14 +646,13 @@ def s_explore():
 
         print("\n -= Explore =-")
         displayPlayerStats()
-        printEvalText(f'data//text//screens//{player.location} explore.txt')
+        printEvalText(openText(f'data//text//screens//{player.location} explore.txt'))
 
         options(["Hunt", c("dark gray") + "Search", c("dark gray") + "Location", c("dark gray") + "Map"])
         option = command(options = "hslm")
 
         if option == "h":
-            areaEnemies = openTextAsList(f'data//lists//{player.location} explore.txt', "\n")
-            areaEnemies = [[int(enemy.split("-")[1]) * 100, newEnemy(enemy.split("-")[0])] for enemy in areaEnemies]
+            areaEnemies = loadEncounter(player.location, "hunt")
             
             weight = 0
             level = randint(1, 4)
@@ -700,7 +728,11 @@ def s_battle(enemy):
                 break
             elif option == "m":
                 for effect in player.get_magic():
-                    text = player.defend(effect, player.stats) if player.equipment["tome"]["target"] == "self" else enemy.defend(effect, player.stats)
+                    if "passive" in effect:
+                        passive = passives[effect["passive"]]
+                    else:
+                        passive = False
+                    text = player.defend(effect, player.stats, passive=passive) if player.equipment["tome"]["target"] == "self" else enemy.defend(effect, player.stats, passive=passive)
                     print(f'\n {player.name} casts {player.equipment["tome"]["attackName"]} on {player.name if player.equipment["tome"]["target"] == "self" else enemy.name}, ' + evalText(text))
                 player.mp -= player.equipment["tome"]["mana"]
                 break
@@ -717,14 +749,14 @@ def s_battle(enemy):
                     clear()
 
                     itemList = [item for item in player.inventory if item[0]["type"] == "consumable"]
-                    next = False if len(itemList) < (page+1)*10 else True
-                    previous = False if page == 1 else True
+                    next = len(itemList) > page*10 + 1
+                    previous = page != 1
 
                     displayBattleStats(player, enemy)
                     print("\n Type the number of the item you wish to consume.\n")
 
                     for i in range(-10 + 10*page, 10*page if 10*page < len(itemList) else len(itemList)):
-                        print(f' {i}) {displayItem(itemList[i][0]["name"], itemList[i][0]["rarity"], itemList[i][1])}')
+                        print(f' {str(i)[:-1]}({str(i)[-1]}) {displayItem(itemList[i][0]["name"], itemList[i][0]["rarity"], itemList[i][1])}')
 
                     if len(itemList) == 0:
                         print(" " + c("dark gray") + "- Empty -" + reset)
@@ -733,7 +765,7 @@ def s_battle(enemy):
                     option = command(False, "optionumeric", options = ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(itemList))))))
 
                     if option in tuple(map(str, range(0, len(itemList)))):
-                        item = itemList[int(option)][0]
+                        item = itemList[int(option) + (page-1) * 10][0]
                         while 1:
                             clear()
                             player.updateStats()
@@ -752,10 +784,16 @@ def s_battle(enemy):
                                 clear()
                                 displayBattleStats(player, enemy)
 
+                                text = ""
                                 for effect in item["effect"]:
-                                    text = player.defend(effect, player.stats) if item["target"] == "self" else enemy.defend(effect, player.stats)
-                                    print(f'\n {player.name} {item["useVerb"]} {displayItem(item["name"], item["rarity"], 1)}, ' + evalText(text))
-                                    pressEnter()
+                                    if "passive" in effect:
+                                        passive = passives[effect["passive"]]
+                                    else:
+                                        passive = False
+                                    text += player.defend(effect, player.stats, passive=passive) if item["target"] == "self" else enemy.defend(effect, player.stats, passive=passive)
+                                
+                                onEnemy = '' if item["target"] == "self" else f' on {enemy.name}'
+                                print(f'\n {player.name} {item["useVerb"]} {displayItem(item["name"], item["rarity"], 1)}{onEnemy}, ' + evalText(text))
 
                                 player.removeItem(item)
 
@@ -853,6 +891,7 @@ def s_battle(enemy):
                 print(evalText(line))
         if enemy.hp <= 0 or player.hp <= 0: break
         pressEnter()
+    pressEnter()
     
     if enemy.hp <= 0:
         clear()
@@ -861,8 +900,7 @@ def s_battle(enemy):
 
         levelDifference = enemy.level - player.level
         if levelDifference == 0: lootMultiplier = 1
-        else: lootMultiplier = round(1.5 ** levelDifference, 2)
-        lootMultiplier = round(max(min(lootMultiplier * 1.1 ** enemy.levelDifference, 2.5), 0.33), 2)
+        else: lootMultiplier = round(1.4 ** levelDifference, 2)
         xp = math.ceil(enemy.xp * lootMultiplier)
         gold = math.ceil(randint(math.ceil(enemy.gold*0.9), math.ceil(enemy.gold*1.1)) * lootMultiplier)
         items = []
@@ -925,8 +963,8 @@ def s_town():
         clear()
 
         print("\n -= Town of Fordsville =-")
-        displayPlayerStats()  
-        printEvalText(f'data//text//screens//{player.location} town.txt')
+        displayPlayerStats()
+        printEvalText(openText(f'data//text//screens//{player.location} town.txt'))
 
         options(["Tavern", "General Store", "Blacksmith", "Arcanist", "Flea Market"])
         option = command(options = "tgbaf")
@@ -961,8 +999,9 @@ def s_tavern():
                 print(f'\n You feel well rested.')
                 pressEnter()
             else:
-                print(f'\n {c("yellow")} Barkeep:{reset} "You do not have enough coin to stay here, lad."')
+                print(f'\n {c("yellow")}Barkeep:{reset} You don\'t have enough coin to stay.')
                 pressEnter()
+        elif options == "d": s_store("tavern")
         elif option == "B": break
         if returnTo(): break
 
@@ -970,14 +1009,14 @@ def s_store(store):
     page = 1
     while 1:
         clear()
-
-        itemList = openTextAsList(f'data//lists//{player.location} {store}.txt', "\n")
-        itemList = [newItem(item) for item in itemList]
+        storeData = loadStore(player.location, store)
+        
+        itemList = [newItem(item) for item in storeData["inventory"]]
         next = False if len(itemList) < (page+1)*10 else True
         previous = False if page == 1 else True
 
         print(f'\n -= {store.capitalize()} =-')
-        printEvalText(f'data//text//screens//{player.location} {store}.txt')
+        printEvalText(storeData["description"])
         print("")
         displayPlayerGold()
         print("")
@@ -1108,8 +1147,8 @@ def s_inventory():
         if len(player.inventory) == 0:
             print(" " + c("dark gray") + "- Empty -" + reset)
 
-        next = False if len(player.inventory) < page*10 + 1 else True
-        previous = False if page == 1 else True
+        next = len(player.inventory) > page*10 + 1
+        previous = page != 1
 
         options((["Next"] if next else []) + (["Previous"] if previous else []))
         option = command(False, "optionumeric", options = ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(player.inventory))))))
@@ -1166,7 +1205,11 @@ def s_inspect(item, equipped):
             break
         elif item["type"] == "consumable" and option == "u" and item["target"] == "self":
             for effect in item["effect"]:
-                text = player.defend(effect)
+                if "passive" in effect:
+                    passive = passives[effect["passive"]]
+                else:
+                    passive = False
+                text = player.defend(passives[effect["name"]] if effect["type"] == "passive" else effect, passive=passive)
                 print(f'\n {player.name} {item["useVerb"]} {displayItem(item["name"], item["rarity"], 1)}, ' + evalText(text))
             pressEnter()
             player.removeItem(item)
@@ -1252,11 +1295,12 @@ def s_craft(recipe):
         if returnTo(): return
 
 def s_stats():
-    clear()
+    page = 1
+    player.updateStats()
     while 1:
-        player.updateStats()
+        clear()
 
-        print("\n -= Player Stats =-")
+        print("\n -= Player Stats =-\m")
 
         stats = player.stats.copy()
         stats.pop("attack")
@@ -1265,16 +1309,45 @@ def s_stats():
         statNamePad = len(max(player.stats, key=len)) + 1
         statValuePad = len(max([str(player.stats[stat]) for stat in stats], key=len))
 
-        displayPlayerStats()
+        displayPlayerTitle()
+        displayPlayerHP()
+        displayPlayerMP()
+        displayPlayerXP()
+        displayPlayerGold()
         print("")
         print(f' {"Attack".ljust(statNamePad)}: {(str(player.stats["attack"][0]) + " - " + str(player.stats["attack"][1])).ljust(statValuePad)}')
 
         for stat in stats:
             print(f' {stat.capitalize().ljust(statNamePad)}: {str(player.stats[stat]).ljust(statValuePad)} ({"+" if player.baseStats[stat] <= player.stats[stat] else ""}{player.stats[stat] - player.baseStats[stat]})')
 
-        option = command(mode = "none")
+        print("\n -= Player Passives =-\n")
 
-        if option == "B": break
+        for i in range(-10 + 10*page, 10*page if 10*page < len(player.passives) else len(player.passives)):
+            print(f' {str(i)[:-1]}({str(i)[-1]}) {c("light green" if player.passives[i]["buff"] else "light red")}{player.passives[i]["name"]}{reset} ({player.passives[i]["turns"]})')
+        
+        if len(player.passives) == 0:
+            print(" " + c("dark gray") + "- Empty -" + reset)
+        
+        next = len(player.passives) > page*10 + 1
+        previous = page != 1
+        
+        options((["Next"] if next else []) + (["Previous"] if previous else []))
+        option = command(False, "optionumeric", options = ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(player.passives))))))
+        
+        if option in tuple(map(str, range(0, len(player.passives)))):
+            clear()
+            print(f'\n -= Inspecting {c("light green" if player.passives[int(option) + (page-1) * 10]["buff"] else "light red")}{player.passives[int(option) + (page-1) * 10]["name"]}{reset} =-')
+            print(" " + player.passives[int(option) + (page-1) * 10]["description"])
+            print("\n Effects:")
+            e = passives[player.passives[int(option) + (page-1) * 10]["name"]]["effect"]
+            effects = {}
+            for effect in e:
+                effects.update({effect["type"]: effect})
+            displayEffect(effects)
+            pressEnter()
+        elif option == "n" and next: page += 1
+        elif option == "p" and previous: page -= 1
+        elif option == "B": break
         if returnTo(): break
 
 
@@ -1415,6 +1488,12 @@ try:
 
         def newEnemy(name):
             return Enemy(enemies[name])
+        
+        def loadStore(location, storeType):
+            return stores[location][storeType]
+        
+        def loadEncounter(location, area):
+            return [[enemy[0]*2, newEnemy(enemy[1])] for enemy in encounters[location][area]]
     
         with open("data\\items.json", "r") as itemFile:
             items = json.load(itemFile)
@@ -1424,8 +1503,18 @@ try:
             enemies = json.load(enemyFile)
         enemies = {enemy["name"]: enemy for enemy in enemies}
         
+        with open("data\\encounters.json", "r") as encounterFile:
+            encounters = json.load(encounterFile)
+        
         with open("data\\recipes.json", "r") as recipeFile:
             recipes = json.load(recipeFile)
+        
+        with open("data\\stores.json", "r") as storeFile:
+            stores = json.load(storeFile)
+        
+        with open("data\\passives.json", "r") as passiveFile:
+            passives = json.load(passiveFile)
+        passives = {passive["name"]: passive for passive in passives}
         
         with open("data\\settings.json", "r+") as settingsFile:
             settings = json.load(settingsFile)

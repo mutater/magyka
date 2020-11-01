@@ -62,7 +62,7 @@ class Entity():
         if self.hp <= 0 and bufferhp != 0: self.hp = 1
         if self.mp <= 0 and buffermp != 0: self.mp = 0
 
-    def defend(self, effect, stats = {"hit": 100, "crit": 0}):
+    def defend(self, effect, stats = {"hit": 100, "crit": 0}, passive = False):
         effect = copy.deepcopy(effect)
         text = ""
         if effect["type"] in ("-hp", "-mp", "-all", "passive"):
@@ -120,14 +120,13 @@ class Entity():
                 if type(effect["turns"]) is list: turns = randint(effect["turns"][0], effect["turns"][1])
                 else: turns = effect["turns"]
                 effect["turns"] = turns
-                for passive in self.passives:
-                    if effect["name"] == passive["name"]:
+                for p in self.passives:
+                    if effect["name"] == p["name"]:
                         passiveFound = True
-                        passive["turns"] = turns
+                        p["turns"] = turns
                         break
                 if not passiveFound: self.passives.append(effect)
-                turnText = f'{turns} turn{"s" if turns > 1 else ""}'
-                text = f'applying {c("light green" if effect["buff"] == True else "light red")}{effect["name"]}{reset} on {self.name} for {turnText}'
+                text = f'applying {c("light green" if effect["buff"] == True else "light red")}{effect["name"]}{reset} ({effect["turns"]})'
         elif effect["type"] in ("hp", "mp", "all"):
             if effect["type"] == "all":
                 if "*" in effect: amount = [(effect["value"][0] / 100) * self.stats["max hp"], (effect["value"][1] / 100) * self.stats["max mp"]]
@@ -152,19 +151,18 @@ class Entity():
                     if amount + self.mp > self.stats["max mp"]: amount = self.stats["max mp"] - self.mp
                     self.mp += amount
                     text = f'healing {c("blue")}{amount} ♦{reset}'
-        if "passive" in effect:
-            passiveFound = False
-            if type(effect["passive"]["turns"]) is list: turns = randint(effect["passive"]["turns"][0], effect["passive"]["turns"][1])
-            else: turns = effect["passive"]["turns"]
-            effect["passive"]["turns"] = turns
-            for passive in self.passives:
-                if effect["passive"]["name"] == passive["passive"]["name"]:
-                    passiveFound = True
-                    passive["passive"]["turns"] = turns
-                    break
-            if not passiveFound: self.passives.append(effect["passive"])
-            turnText = f'{turns} turn{"s" if turns > 1 else ""}'
-            text += f' and applying {c("light green" if effect["passive"]["buff"] == True else "light red")}{effect["passive"]["name"]}{reset} for {turnText}.'
+        if passive != False:
+            if type(passive) is list:
+                for i in range(len(passive)):
+                    text += ", "
+                    if i == len(passive) - 1: text += "and "
+                    passive[i].update({"dodge": 0, "hit": 100})
+                    text += self.defend(passive[i])
+            else:
+                text += " and "
+                passive.update({"dodge": 0, "hit": 100})
+                text += self.defend(passive)
+                print(self.passives)
         else: text += "."
         return text
 
@@ -288,5 +286,5 @@ class Enemy(Entity):
         self.updateStats()
         self.attackSound = kwargs["attackSound"]
         self.attackVerb = kwargs["attackVerb"]
-        self.magic = ifIn("magic", kwargs, None)
+        self.magic = kwargs.get("magic")
         self.levelDifference = 0

@@ -1,0 +1,72 @@
+[
+  {
+    "type": "passive",
+    "buff": true,
+    "effect": [
+      {
+        "type": "strength",
+        "value": 3
+      },
+      {
+        "type": "vitality",
+        "value": -2
+      }
+    ],
+    "name": "Fiery Drunk",
+    "turns": 5,
+    "description": "You feel extremely drunk, and slightly upset."
+  },
+  {
+    "type": "passive",
+    "buff": false,
+    "effect": [
+      {
+        "type": "-hp",
+        "value": [
+          2,
+          3
+        ],
+        "resist": 0.5
+      }
+    ],
+    "name": "Lesser Fire",
+    "turns": [
+      2,
+      4
+    ],
+    "description": "You're on fire! The flames are rather weak."
+  },
+  {
+    "type": "passive",
+    "buff": false,
+    "effect": [
+      {
+        "type": "-hp",
+        "value": [
+          3,
+          5
+        ],
+        "resist": 0
+      }
+    ],
+    "name": "Lesser Poison",
+    "turns": [
+      3,
+      5
+    ],
+    "description": "You have a headache and a small stomachache."
+  },
+  {
+    "type": "passive",
+    "name": "Stoneskin",
+    "buff": "True",
+    "turns": 8,
+    "effect": [
+      {
+        "type": "armor",
+        "value": 4
+      }
+    ],
+    "description": "Your skin is no longer stretchy, and is extremely hard."
+  }
+]

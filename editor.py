@@ -8,10 +8,13 @@ with open("data\\enemies.json", "r+") as enemyFile:
     enemies = json.load(enemyFile)
 with open("data\\recipes.json", "r+") as recipeFile:
     recipes = json.load(recipeFile)
+with open("data\\passives.json", "r+") as passiveFile:
+    passives = json.load(passiveFile)
 
-items.sort(key = lambda item : item["name"])
-enemies.sort(key = lambda enemy : enemy["name"])
-recipes.sort(key = lambda recipe : recipe["result"])
+items.sort(key=lambda item : item["name"])
+enemies.sort(key=lambda enemy : enemy["name"])
+recipes.sort(key=lambda recipe : recipe["result"])
+passives.sort(key=lambda passive : passive["name"])
 
 keyboard.press_and_release("windows + up")
 
@@ -23,12 +26,10 @@ hints = {
     "rarity": "String. Must be 'common', 'uncommon', 'rare', 'epic', 'legendary', or 'mythical'.",
     "value": "Integer. Must be positive or zero.",
     "slot": "String. Must be 'weapon', 'tome', 'head', 'chest', 'legs', 'feet', 'accessory'",
-    "effect": "List of dictionaries. Arguments are 'type', 'name' (passives), 'value'[, 'passive', 'crit', 'hit', 'dodge', 'variance', 'resist']",
+    "effect": "List of dictionaries. Arguments are 'type', 'name', 'value'[, 'passive', 'crit', 'hit', 'dodge', 'variance', 'resist']",
     "target": "String. Must be 'self', 'enemy'.",
     "mana": "Int. Only applies to tomes.",
     "attackName": "String. Only applies to tomes.",
-    "attackSound": "String. Must be in the sounds folder.",
-    "useSound": "String. Must be in the sounds folder.",
     "useVerb": "String.",
     "hp": "Integer.",
     "mp": "Integer.",
@@ -38,10 +39,12 @@ hints = {
     "xp": "Integer.",
     "items": "List of dictionaries. Each dict is composed of {'name', chance, quantity (range or integer)}.",
     "attackVerb": "String. Must be uncapitalized.",
-    "magic": "List of dictionaries. Arguments are 'type', 'name' (passives), 'target', 'mana', 'attackSound', 'attackName', 'effect'[, 'passive', 'crit', 'hit', 'dodge', 'variance', 'resist']",
+    "magic": "List of dictionaries. Arguments are 'type', 'name' (passives), 'target', 'mana', 'attackName', 'effect'[, 'passive', 'crit', 'hit', 'dodge', 'variance', 'resist']",
     "result": "String. Must be an existing item name.",
     "quantity": "Integer.",
-    "ingredients": "List of lists. Each item is composed of ['name', quantity]."
+    "ingredients": "List of lists. Each item is composed of ['name', quantity].",
+    "buff": "Boolean.",
+    "turns": "Integer."
 }
 
 def ifIn(key, container, backup):
@@ -55,8 +58,8 @@ def main():
         print("\n -= Main =-")
         print("\n Choose a category to edit.")
         
-        options(["Items", "Enemies", "Recipes"])
-        option = command(False, "alphabetic", options = "ier", back = False)
+        options(["Items", "Enemies", "Recipes", "Passives"])
+        option = command(False, "alphabetic", options = "ierp", back = False)
         
         selection = option
         s_main()
@@ -67,6 +70,7 @@ def s_main():
     if selection == "i": global items
     if selection == "e": global enemies
     if selection == "r": global recipes
+    if selection == "p": global passives
     page = 1
     while 1:
         clear()
@@ -80,11 +84,15 @@ def s_main():
         if selection == "r":
             print("\n -= Recipes =-\n")
             length = len(recipes)
+        if selection == "p":
+            print("\n -= Passives =-\n")
+            length = len(passives)
 
         for i in range(-10 + 10*page, 10*page if 10*page < length else length):
             if selection == "i": print(f' {str(i)[:-1]}({str(i)[-1]}) {displayItem(items[i]["name"], items[i]["rarity"])}')
             if selection == "e": print(f' {str(i)[:-1]}({str(i)[-1]}) {enemies[i]["name"]}')
             if selection == "r": print(f' {str(i)[:-1]}({str(i)[-1]}) {recipes[i]["result"]}')
+            if selection == "p": print(f' {str(i)[:-1]}({str(i)[-1]}) {passives[i]["name"]}')
 
         next = False if length < page*10 + 1 else True
         previous = False if page == 1 else True
@@ -94,43 +102,52 @@ def s_main():
 
         if option in tuple(map(str, range(0, length))):
             s_inspect(int(option) + (page-1) * 10)
-            if selection == "i": items.sort(key = lambda item : item["name"])
-            if selection == "e": enemies.sort(key = lambda enemy : enemy["name"])
-            if selection == "r": recipes.sort(key = lambda recipe : recipe["result"])
+            if selection == "i": items.sort(key=lambda item : item["name"])
+            if selection == "e": enemies.sort(key=lambda enemy : enemy["name"])
+            if selection == "r": recipes.sort(key=lambda recipe : recipe["result"])
+            if selection == "p": passives.sort(key=lambda passive : passive["name"])
         elif option == "n" and next: page += 1
         elif option == "p" and previous: page -= 1
         elif option == "c": s_create()
         elif option == "s":
             if selection == "i":
                 with open("data\\items.json", "w+") as itemFile:
-                    json.dump(items, itemFile, indent = 2)
+                    json.dump(items, itemFile, indent=2)
             if selection == "e":
                 with open("data\\enemies.json", "w+") as enemyFile:
-                    json.dump(enemies, enemyFile, indent = 2)
+                    json.dump(enemies, enemyFile, indent=2)
             if selection == "r":
                 with open("data\\recipes.json", "w+") as recipeFile:
-                    json.dump(recipes, recipeFile, indent = 2)
+                    json.dump(recipes, recipeFile, indent=2)
+            if selection == "p":
+                with open("data\\passives.json", "w+") as passiveFile:
+                    json.dump(passives, passiveFile, indent=2)
         elif option == "B": break
 
 def s_inspect(index):
     if selection == "i": global items
     if selection == "e": global enemies
     if selection == "r": global recipes
+    if selection == "p": global passives
     page = 1
     while 1:
         clear()
         if selection == "i":
             print(f'\n -= Inspect {items[index]["name"]} =-\n')
             parameters = [[key, items[index][key]] for key in items[index] if not key in ("type")]
-            parameters.sort(key = lambda parameter : parameter[0])
+            parameters.sort(key=lambda parameter : parameter[0])
         if selection == "e":
             print(f'\n -= Inspect {enemies[index]["name"]} =-\n')
             parameters = [[key, enemies[index][key]] for key in enemies[index]]
-            parameters.sort(key = lambda parameter : parameter[0])
+            parameters.sort(key=lambda parameter : parameter[0])
         if selection == "r":
             print(f'\n -= Inspect {recipes[index]["result"]} =-\n')
             parameters = [[key, recipes[index][key]] for key in recipes[index]]
-            parameters.sort(key = lambda parameter : parameter[0])
+            parameters.sort(key=lambda parameter : parameter[0])
+        if selection == "p":
+            print(f'\n -= Inspect {passives[index]["name"]} =-\n')
+            parameters = [[key, passives[index][key]] for key in passives[index]]
+            parameters.sort(key=lambda parameter : parameter[0])
         
         for i in range(-10 + 10*page, 10*page if 10*page < len(parameters) else len(parameters)):
             print(f' {str(i)[:-1]}({str(i)[-1]}) {parameters[i][0]}: {parameters[i][1]}')
@@ -159,6 +176,7 @@ def s_inspect(index):
                 if selection == "i": items[index][parameters[option][0]] = value
                 if selection == "e": enemies[index][parameters[option][0]] = value
                 if selection == "r": recipes[index][parameters[option][0]] = value
+                if selection == "p": passives[index][parameters[option][0]] = value
                 break
         elif option == "n" and next: page += 1
         elif option == "p" and previous: page -= 1
@@ -173,6 +191,10 @@ def s_inspect(index):
                 enemies.insert(index, copied)
             if selection == "r":
                 copied = copy.deepcopy(recipes[index])
+                copied["result"] += " - Copy"
+                recipes.insert(index, copied)
+            if selection == "p":
+                copied = copy.deepcopy(passives[index])
                 copied["result"] += " - Copy"
                 recipes.insert(index, copied)
         elif option == "a":
@@ -199,11 +221,13 @@ def s_inspect(index):
                 if selection == "i": items[index][name] = value
                 if selection == "e": enemies[index][name] = value
                 if selection == "r": recipes[index][name] = value
+                if selection == "p": passives[index][name] = value
                 break
         elif option == "d":
             if selection == "i": items.pop(index)
             if selection == "e": enemies.pop(index)
             if selection == "r": recipes.pop(index)
+            if selection == "p": passives.pop(index)
             break
         elif option == "B": break
 
@@ -224,19 +248,20 @@ def s_create():
                 parameters = ["name", "description", "rarity", "value"]
                 inputParameters = {"type": "item"}
             elif option == "e":
-                parameters = ["name", "description", "rarity", "value", "slot", "effect", "mana", "attackName", "attackSound"]
+                parameters = ["name", "description", "rarity", "value", "slot", "effect", "mana", "attackName"]
                 inputParameters = {"type": "equipment"}
             elif option == "c":
-                parameters = ["name", "description", "rarity", "value", "effect", "target", "useSound", "useVerb"]
+                parameters = ["name", "description", "rarity", "value", "effect", "target", "useVerb"]
                 inputParameters = {"type": "consumable"}
         if selection == "e":
-            parameters = ["name", "hp", "mp", "level", "stats", "gold", "xp", "items", "attackSound", "attackVerb"]
+            parameters = ["name", "hp", "mp", "level", "stats", "gold", "xp", "items", "attackVerb"]
             inputParameters = {}
         if selection == "r":
             parameters = ["result", "quantity", "ingredients"]
             inputParameters = {}
-
-        parameters.sort()
+        if selection == "p":
+            parameters = ["name", "description", "buff", "turns", "effect"]
+            inputParameters = {"type": "passive"}
 
         broken = False
         for i in range(len(parameters)):
@@ -255,14 +280,16 @@ def s_create():
         
         if selection == "i":
             items.append(inputParameters)
-            items.sort(key = lambda item : item["name"])
+            items.sort(key=lambda item : item["name"])
         if selection == "e":
             enemies.append(inputParameters)
-            enemies.sort(key = lambda enemy : enemy["name"])
+            enemies.sort(key=lambda enemy : enemy["name"])
         if selection == "r":
             recipes.append(inputParameters)
-            recipes.sort(key = lambda recipe : recipe["result"])
-        
+            recipes.sort(key=lambda recipe : recipe["result"])
+        if selection == "p":
+            passives.append(inputParameters)
+            passives.sort(key=lambda passive : passive["name"])
         break
 
 main()

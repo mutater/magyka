@@ -41,3 +41,4 @@ class Consumable():
                 self.target = "enemy"
                 break
         self.type = "consumable"
+
