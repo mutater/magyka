@@ -1,3 +1,5 @@
+#! /venv/scripts/python.exe
+
 """
 ADD DRINKS TO TAVERN
 """
