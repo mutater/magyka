@@ -1483,7 +1483,7 @@ try:
         keyboard.block_key("f11")
         keyboard.add_hotkey("alt + enter", blockAltEnter)
 
-        saves = [[pickle.load(open("data\\saves\\" + file, "rb")), file] for file in os.listdir("data\\saves")]
+        saves = [[pickle.load(open("data\\saves\\" + file, "rb")), file] for file in os.listdir("data\\saves") if not file.endswith(".txt")]
 
         def newItem(name):
             return copy.deepcopy(items[name])
