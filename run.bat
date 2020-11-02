@@ -1,2 +1,2 @@
 call "venv/scripts/activate.bat"
-python magyka.py
+"venv/scripts/python.exe" magyka.py
