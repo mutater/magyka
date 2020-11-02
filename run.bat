@@ -1,4 +1,2 @@
-cd venv/scripts
-call activate.bat
-cd ../..
-"venv/scripts/python.exe" magyka.py
+call "venv/scripts/activate.bat"
+python magyka.py
