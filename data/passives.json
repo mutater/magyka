@@ -1,6 +1,25 @@
 [
   {
     "type": "passive",
+    "name": "Charon's Curse",
+    "description": "You told the old man you didn't want to cross into the underworld. He obeyed, but with a price.",
+    "buff": false,
+    "turns": 9,
+    "effect": [
+      {
+        "type": "max hp",
+        "value": -10,
+        "*": true
+      },
+      {
+        "type": "max mp",
+        "value": -10,
+        "*": true
+      }
+    ]
+  },
+  {
+    "type": "passive",
     "buff": true,
     "effect": [
       {
@@ -68,5 +87,26 @@
       }
     ],
     "description": "Your skin is no longer stretchy, and is extremely hard."
+  },
+  {
+    "type": "passive",
+    "name": "Well Rested",
+    "description": "You had just the perfect amount of sleep, in a comfortable bed.",
+    "buff": true,
+    "turns": 10,
+    "effect": [
+      {
+        "type": "strength",
+        "value": 1
+      },
+      {
+        "type": "vitality",
+        "value": 1
+      },
+      {
+        "type": "intelligence",
+        "value": 1
+      }
+    ]
   }
 ]

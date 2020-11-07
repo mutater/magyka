@@ -116,17 +116,7 @@ class Entity():
                     if self.mp < 0: self.mp = 0
                     text = f'dealing {c("blue")}{amount} ♦{reset} {critical}damage'
             elif effect["type"] == "passive":
-                passiveFound = False
-                if type(effect["turns"]) is list: turns = randint(effect["turns"][0], effect["turns"][1])
-                else: turns = effect["turns"]
-                effect["turns"] = turns
-                for p in self.passives:
-                    if effect["name"] == p["name"]:
-                        passiveFound = True
-                        p["turns"] = turns
-                        break
-                if not passiveFound: self.passives.append(effect)
-                text = f'applying {c("light green" if effect["buff"] == True else "light red")}{effect["name"]}{reset} ({effect["turns"]})'
+                text = addPassive(effect)
         elif effect["type"] in ("hp", "mp", "all"):
             if effect["type"] == "all":
                 if "*" in effect: amount = [(effect["value"][0] / 100) * self.stats["max hp"], (effect["value"][1] / 100) * self.stats["max mp"]]
@@ -156,15 +146,26 @@ class Entity():
                 for i in range(len(passive)):
                     text += ", "
                     if i == len(passive) - 1: text += "and "
-                    passive[i].update({"dodge": 0, "hit": 100})
-                    text += self.defend(passive[i])
+                    text += self.addPassive(passive[i], False)
             else:
                 text += " and "
-                passive.update({"dodge": 0, "hit": 100})
-                text += self.defend(passive)
-                print(self.passives)
+                text += self.addPassive(passive, False)
         else: text += "."
         return text
+
+    def addPassive(self, passive):
+        passive.update({"dodge": 0, "hit": 100})
+        passiveFound = False
+        if type(passive["turns"]) is list: turns = randint(passive["turns"][0], passive["turns"][1])
+        else: turns = passive["turns"]
+        passive["turns"] = turns
+        for p in self.passives:
+            if passive["name"] == p["name"]:
+                passiveFound = True
+                p["turns"] = turns
+                break
+        if not passiveFound: self.passives.append(passive)
+        return f'applying {c("light green" if passive["buff"] == True else "light red")}{passive["name"]}{reset} ({passive["turns"]})'
 
     def update(self):
         self.updateStats()

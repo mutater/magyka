@@ -58,25 +58,19 @@
   },
   {
     "name": "Gray Wolf",
-    "hp": 16,
+    "hp": 14,
     "mp": 12,
     "level": [
       5,
       9
     ],
-    "stats": {
-      "attack": [
-        5,
-        8
-      ],
-      "armor": 3
-    },
+    "stats": "B",
     "gold": 14,
     "xp": 9,
     "items": [
       {
         "name": "Wolf Pelt",
-        "chance": 25,
+        "chance": 50,
         "quantity": [
           1,
           2

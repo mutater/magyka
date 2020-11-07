@@ -943,9 +943,9 @@ def s_battle(enemy):
             print(f' - {displayItem(item[0]["name"], item[0]["rarity"], item[1])}')
 
         itemLog = []
-        player.defend({"type": "passive", "name": "Charon's Curse", "buff": False, "turns": 15, "effect": [{"type": "max hp", "value": -10, "*": True}, {"type": "max mp", "value": -10, "*": True}], "dodge": 0, "hit": 100})
+        player.addPassive(passives["Charon's Curse"])
         player.updateStats()
-        player.hp = player.stats["max hp"]//2
+        player.hp = player.stats["max hp"]
         player.mp = player.stats["max mp"]//3
         pressEnter()
         return
@@ -994,7 +994,7 @@ def s_tavern():
                 player.gold -= price
                 player.hp = player.stats["max hp"]
                 player.mp = player.stats["max mp"]
-                player.defend({"type": "passive", "name": "Well Rested", "buff": True, "turns": 10, "effect": [{"type": "strength", "value": 1}, {"type": "vitality", "value": 1}, {"type": "intelligence", "value": 1}], "dodge": 0, "hit": 100})
+                player.addPassive(passives["Well Rested"])
                 player.updateStats()
                 print(f'\n You feel well rested.')
                 pressEnter()
@@ -1091,7 +1091,7 @@ def s_sell(item):
         clear()
         player.updateStats()
 
-        print(f'\n -= Purchase {item["type"].capitalize()} =-')
+        print(f'\n -= Sell {item["type"].capitalize()} =-')
 
         displayItemStats(item)
         print(f'\n Sell value: {c("yellow")}● {reset}{round(item["value"] * 0.66)}')
@@ -1206,7 +1206,10 @@ def s_inspect(item, equipped):
         elif item["type"] == "consumable" and option == "u" and item["target"] == "self":
             for effect in item["effect"]:
                 if "passive" in effect:
-                    passive = passives[effect["passive"]]
+                    if type(effect["passive"]) is list:
+                        passive = [passives[p] for p in effect["passive"]]
+                    else:
+                        passive = passives[effect["passive"]]
                 else:
                     passive = False
                 text = player.defend(passives[effect["name"]] if effect["type"] == "passive" else effect, passive=passive)
@@ -1337,7 +1340,7 @@ def s_stats():
         if option in tuple(map(str, range(0, len(player.passives)))):
             clear()
             print(f'\n -= Inspecting {c("light green" if player.passives[int(option) + (page-1) * 10]["buff"] else "light red")}{player.passives[int(option) + (page-1) * 10]["name"]}{reset} =-')
-            print(" " + player.passives[int(option) + (page-1) * 10]["description"])
+            print("  " + player.passives[int(option) + (page-1) * 10]["description"])
             print("\n Effects:")
             e = passives[player.passives[int(option) + (page-1) * 10]["name"]]["effect"]
             effects = {}
@@ -1377,7 +1380,7 @@ def s_save():
 
         if option in tuple(map(str, range(0, len(saves)))):
             pickle.dump(player, open("data\\saves\\" + saves[int(option)][1], "wb"))
-            saves = [[pickle.load(open("data\\saves\\" + file, "rb")), file] for file in os.listdir("data\\saves")]
+            saves = [[pickle.load(open("data\\saves\\" + file, "rb")), file] for file in os.listdir("data\\saves") if not file.endswith(".txt")]
             print("\n File saved successfully!")
             pressEnter()
             break
@@ -1408,7 +1411,7 @@ def s_create():
             pressEnter()
         else:
             pickle.dump(player, open("data\\saves\\" + option.capitalize(), "wb"))
-            saves = [[pickle.load(open("data\\saves\\" + file, "rb")), file] for file in os.listdir("data\\saves")]
+            saves = [[pickle.load(open("data\\saves\\" + file, "rb")), file] for file in os.listdir("data\\saves") if not file.endswith(".txt")]
             print("\n File saved successfully!")
             pressEnter()
             break
@@ -1432,7 +1435,7 @@ def s_delete():
         if option == "B": break
         elif option in tuple(map(str, range(0, len(saves)))):
             os.remove("data\\saves\\" + saves[int(option) - 1][1])
-            saves = [[pickle.load(open("data\\saves\\" + file, "rb")), file] for file in os.listdir("data\\saves")]
+            saves = [[pickle.load(open("data\\saves\\" + file, "rb")), file] for file in os.listdir("data\\saves") if not file.endswith(".txt")]
             print("\n File deleted successfully!")
             pressEnter()
             break
