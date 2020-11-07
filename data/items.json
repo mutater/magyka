@@ -41,7 +41,8 @@
     "slot": "weapon",
     "effect": [
       {
-        "attack": [
+        "type": "attack",
+        "value": [
           5,
           10
         ]
