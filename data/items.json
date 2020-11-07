@@ -414,7 +414,7 @@
     "name": "Rotted Oak",
     "description": "This peice of oak smells terrible, and crumbles on touch. It is a mixture of brown and black in color.",
     "rarity": "uncommon",
-    "value": 0
+    "value": 10
   },
   {
     "type": "consumable",
@@ -441,8 +441,8 @@
       {
         "type": "-hp",
         "value": [
-          7,
-          10
+          9,
+          11
         ],
         "hit": 100,
         "dodge": 0
@@ -461,8 +461,8 @@
       {
         "type": "-hp",
         "value": [
-          9,
-          11
+          12,
+          15
         ],
         "hit": 100,
         "dodge": 0
@@ -476,7 +476,7 @@
     "name": "Scroll of Lesser Fireball",
     "description": "A crinked old scroll, decorated with patterns of flames.",
     "rarity": "rare",
-    "value": 20,
+    "value": 10,
     "effect": [
       {
         "type": "-hp",
