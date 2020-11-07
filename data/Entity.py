@@ -285,7 +285,6 @@ class Enemy(Entity):
         self.gold = kwargs["gold"]
         self.items = kwargs["items"]
         self.updateStats()
-        self.attackSound = kwargs["attackSound"]
         self.attackVerb = kwargs["attackVerb"]
         self.magic = kwargs.get("magic")
         self.levelDifference = 0
