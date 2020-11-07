@@ -545,6 +545,21 @@
   },
   {
     "type": "consumable",
+    "name": "Vial of Lesser Restoration",
+    "description": "A tiny vial filled with red liquid.",
+    "rarity": "rare",
+    "value": 15,
+    "effect": [
+      {
+        "type": "hp",
+        "value": 16
+      }
+    ],
+    "target": "self",
+    "useVerb": "drinks"
+  },
+  {
+    "type": "consumable",
     "name": "Wheat Biscuit",
     "description": "A very hard biscuit. Is this even food?",
     "rarity": "common",

@@ -9,6 +9,6 @@
   .88888888*  X888  X888X.  8888.:8888  888&.:8888   x888&.:888'   8888  8888. 8888.:8888 
    "88888*    *888  `8888"  "888*""888" *888" 888&    "88"" 888  '"888*" 8888" "888*""888"
                                               "8888         88F                           
-                                        .d8!   `888        98"                            
-                                        4888o.oJ8%       ./"             By Vincent G, aka Mutater
-                                         ^68889*`       ~`           Help from Ransom M, aka Yung Clump
+                                        .d8!   `888        98"           By Vincent G, aka Mutater
+                                        4888o.oJ8%       ./"         Help from Ransom M, aka Yung Clump
+                                         ^68889*`       ~`         Playtested by Ian J, aka Void of Trash
