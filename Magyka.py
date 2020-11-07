@@ -787,7 +787,7 @@ def s_battle(enemy):
                                 text = ""
                                 for effect in item["effect"]:
                                     if "passive" in effect:
-                                        passive = passives[effect["passive"]]
+                                        passive = newPassive(effect["passive"])
                                     else:
                                         passive = False
                                     text += player.defend(effect, player.stats, passive=passive) if item["target"] == "self" else enemy.defend(effect, player.stats, passive=passive)
@@ -943,7 +943,7 @@ def s_battle(enemy):
             print(f' - {displayItem(item[0]["name"], item[0]["rarity"], item[1])}')
 
         itemLog = []
-        player.addPassive(passives["Charon's Curse"])
+        player.addPassive(newPassive("Charon's Curse"))
         player.updateStats()
         player.hp = player.stats["max hp"]
         player.mp = player.stats["max mp"]//3
@@ -994,7 +994,7 @@ def s_tavern():
                 player.gold -= price
                 player.hp = player.stats["max hp"]
                 player.mp = player.stats["max mp"]
-                player.addPassive(passives["Well Rested"])
+                player.addPassive(newPassive("Well Rested"))
                 player.updateStats()
                 print(f'\n You feel well rested.')
                 pressEnter()
@@ -1207,12 +1207,12 @@ def s_inspect(item, equipped):
             for effect in item["effect"]:
                 if "passive" in effect:
                     if type(effect["passive"]) is list:
-                        passive = [passives[p] for p in effect["passive"]]
+                        passive = [newPassive(p) for p in effect["passive"]]
                     else:
-                        passive = passives[effect["passive"]]
+                        passive = newPassive(effect["passive"])
                 else:
                     passive = False
-                text = player.defend(passives[effect["name"]] if effect["type"] == "passive" else effect, passive=passive)
+                text = player.defend(newPassive(effect["name"]) if effect["type"] == "passive" else effect, passive=passive)
                 print(f'\n {player.name} {item["useVerb"]} {displayItem(item["name"], item["rarity"], 1)}, ' + evalText(text))
             pressEnter()
             player.removeItem(item)
@@ -1342,7 +1342,7 @@ def s_stats():
             print(f'\n -= Inspecting {c("light green" if player.passives[int(option) + (page-1) * 10]["buff"] else "light red")}{player.passives[int(option) + (page-1) * 10]["name"]}{reset} =-')
             print("  " + player.passives[int(option) + (page-1) * 10]["description"])
             print("\n Effects:")
-            e = passives[player.passives[int(option) + (page-1) * 10]["name"]]["effect"]
+            e = newPassive(player.passives[int(option) + (page-1) * 10]["name"])["effect"]
             effects = {}
             for effect in e:
                 effects.update({effect["type"]: effect})
@@ -1491,6 +1491,9 @@ try:
 
         def newEnemy(name):
             return Enemy(enemies[name])
+        
+        def newPassive(name):
+            return copy.deepcopy(passives[name])
         
         def loadStore(location, storeType):
             return stores[location][storeType]

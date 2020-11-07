@@ -1,5 +1,39 @@
 [
   {
+    "name": "Bandit",
+    "hp": 33,
+    "mp": 5,
+    "level": [
+      10,
+      15
+    ],
+    "stats": {
+      "armor": 6,
+      "attack": [
+        10,
+        15
+      ]
+    },
+    "gold": 70,
+    "xp": 30,
+    "items": [
+      {
+        "name": "Bandit Sword",
+        "chance": 50,
+        "quantity": 1
+      },
+      {
+        "name": "Wolf Pelt",
+        "chance": 100,
+        "quantity": [
+          1,
+          2
+        ]
+      }
+    ],
+    "attackVerb": "slashes"
+  },
+  {
     "name": "Crazed Magician",
     "hp": 19,
     "mp": 2,
@@ -64,16 +98,22 @@
       5,
       9
     ],
-    "stats": "B",
+    "stats": {
+      "armor": 4,
+      "attack": [
+        3,
+        6
+      ]
+    },
     "gold": 14,
     "xp": 9,
     "items": [
       {
         "name": "Wolf Pelt",
-        "chance": 50,
+        "chance": 100,
         "quantity": [
           1,
-          2
+          3
         ]
       }
     ],

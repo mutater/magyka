@@ -33,6 +33,23 @@
     "target": "self"
   },
   {
+    "type": "equipment",
+    "name": "Bandit Sword",
+    "description": "A roughed up blade, recently liberated from its lifelong master.",
+    "rarity": "rare",
+    "value": 25,
+    "slot": "weapon",
+    "effect": [
+      {
+        "attack": [
+          5,
+          10
+        ]
+      }
+    ],
+    "attackName": "slashes"
+  },
+  {
     "type": "consumable",
     "description": "A small bottle of milk.",
     "effect": [
