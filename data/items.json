@@ -16,6 +16,128 @@
   },
   {
     "type": "equipment",
+    "name": "Baby Wood Dragon Blade",
+    "description": "A blade, made of the drops of a baby Wood Dragon. You monster.",
+    "rarity": "epic",
+    "value": 40,
+    "slot": "weapon",
+    "effect": [
+      {
+        "type": "attack",
+        "value": [
+          5,
+          10
+        ]
+      },
+      {
+        "type": "crit",
+        "value": 8
+      }
+    ]
+  },
+  {
+    "type": "item",
+    "name": "Baby Wood Dragon Bone",
+    "description": "A rather large bone, straight from the carcas of a baby Wood Dragon. You monster.",
+    "rarity": "rare",
+    "value": 17
+  },
+  {
+    "type": "equipment",
+    "name": "Baby Wood Dragon Boots",
+    "description": "A pair of scaly boots, made from the drops of a baby Wood Dragon. You monster.",
+    "rarity": "epic",
+    "value": 50,
+    "slot": "feet",
+    "effect": [
+      {
+        "type": "armor",
+        "value": 3
+      },
+      {
+        "type": "crit",
+        "value": 8
+      },
+      {
+        "type": "dodge",
+        "value": 4
+      }
+    ]
+  },
+  {
+    "type": "equipment",
+    "name": "Baby Wood Dragon Breastplate",
+    "description": "A scaly breastblate, made from the drops of a baby Wood Dragon. You monster.",
+    "rarity": "epic",
+    "value": 60,
+    "slot": "chest",
+    "effect": [
+      {
+        "type": "armor",
+        "value": 5
+      },
+      {
+        "type": "strength",
+        "value": 2
+      }
+    ]
+  },
+  {
+    "type": "equipment",
+    "name": "Baby Wood Dragon Crown",
+    "description": "A crown, made from the drops of a baby Wood Dragon. You monster.",
+    "rarity": "epic",
+    "value": 45,
+    "slot": "head",
+    "effect": [
+      {
+        "type": "armor",
+        "value": 4
+      },
+      {
+        "type": "strength",
+        "value": 2
+      },
+      {
+        "type": "crit",
+        "value": 4
+      }
+    ]
+  },
+  {
+    "type": "item",
+    "name": "Baby Wood Dragon Fang",
+    "description": "A tiny claw, ripped from a precious baby Wood Dragon. You monster.",
+    "rarity": "rare",
+    "value": 15
+  },
+  {
+    "type": "equipment",
+    "name": "Baby Wood Dragon Kilt",
+    "description": "A scaly kilt, made from the drops of a baby Wood Dragon. You monster.",
+    "rarity": "epic",
+    "value": 45,
+    "slot": "legs",
+    "effect": [
+      {
+        "type": "armor",
+        "value": 3
+      },
+      {
+        "type": "dodge",
+        "value": 8
+      }
+    ]
+  },
+  {
+    "type": "item",
+    "name": "Baby Wood Dragon Scale",
+    "description": "The shiny scales of a baby Wood Dragon. You monster.",
+    "rarity": "rare",
+    "value": 16
+  },
+  {
+    "type": "equipment",
     "name": "Bandage I Tome",
     "description": "A white blook, decorated with a red cross.",
     "rarity": "uncommon",
@@ -44,7 +166,7 @@
         "type": "attack",
         "value": [
           5,
-          10
+          8
         ]
       }
     ],
@@ -332,6 +454,49 @@
   },
   {
     "type": "item",
+    "name": "Living Wood",
+    "description": "A piece of wood. It seems to be pulsing with life.",
+    "rarity": "rare",
+    "value": 12
+  },
+  {
+    "type": "equipment",
+    "name": "Living Wood Chestplate",
+    "description": "A heavy chestplate, made out of wood. It seems to be pulsing with life.",
+    "rarity": "epic",
+    "value": 45,
+    "slot": "chest",
+    "effect": [
+      {
+        "type": "armor",
+        "value": 7
+      },
+      {
+        "type": "max hp",
+        "value": 5
+      }
+    ]
+  },
+  {
+    "type": "equipment",
+    "name": "Living Wood Ring",
+    "description": "A simple ring. It seems to be pulsing with life.",
+    "rarity": "epic",
+    "value": 45,
+    "slot": "accessory",
+    "effect": [
+      {
+        "type": "max mp",
+        "value": 10
+      },
+      {
+        "type": "max hp",
+        "value": 7
+      }
+    ]
+  },
+  {
+    "type": "item",
     "name": "Mossy Shroom",
     "description": "Ew. It smells terrible.",
     "rarity": "common",
@@ -412,7 +577,7 @@
   },
   {
     "type": "item",
-    "name": "Rotted Oak",
+    "name": "Rotten Oak",
     "description": "This peice of oak smells terrible, and crumbles on touch. It is a mixture of brown and black in color.",
     "rarity": "uncommon",
     "value": 10
@@ -516,8 +681,8 @@
       {
         "type": "mp",
         "value": [
-          12,
-          15
+          16,
+          21
         ]
       }
     ],
@@ -536,7 +701,7 @@
         "type": "attack",
         "value": [
           1,
-          2
+          3
         ]
       }
     ],
@@ -545,11 +710,32 @@
     "target": null
   },
   {
+    "type": "equipment",
+    "name": "Tome of Rotten Oak",
+    "description": "A smelly, nasty, rotten book, bound in what seems to be wood.",
+    "rarity": "rare",
+    "value": 30,
+    "slot": "tome",
+    "effect": [
+      {
+        "type": "-hp",
+        "value": [
+          9,
+          12
+        ],
+        "hit": 100
+      }
+    ],
+    "mana": 7,
+    "attackName": "Rotten Oak",
+    "target": "enemy"
+  },
+  {
     "type": "consumable",
     "name": "Vial of Lesser Restoration",
     "description": "A tiny vial filled with red liquid.",
     "rarity": "rare",
-    "value": 15,
+    "value": 18,
     "effect": [
       {
         "type": "hp",

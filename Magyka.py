@@ -532,7 +532,7 @@ def s_mainMenu():
 
         title = openTextAsList("data//text//magyka title.txt", splitter = "\n")
         for i in range(len(title)):
-            print(cc(["026", "012", "006", "039", "045", "019", "020", "021", "004", "027", "026", "012", "006", "039"][i]) + title[i] + reset)
+            print(cc(["026", "012", "006", "039", "045", "019", "020", "021", "004", "027", "026", "012", "006", "039", "000", "039", "006", "012"][i]) + title[i] + reset)
 
         options(["New Game", "Continue", "Options", "Quit"])
         option = command(back = False, options = "ncoq")
@@ -900,7 +900,7 @@ def s_battle(enemy):
 
         levelDifference = enemy.level - player.level
         if levelDifference == 0: lootMultiplier = 1
-        else: lootMultiplier = round(1.4 ** levelDifference, 2)
+        else: lootMultiplier = max(round(1.4 ** levelDifference, 2), 0.6)
         xp = math.ceil(enemy.xp * lootMultiplier)
         gold = math.ceil(randint(math.ceil(enemy.gold*0.9), math.ceil(enemy.gold*1.1)) * lootMultiplier)
         items = []
@@ -986,8 +986,8 @@ def s_tavern():
 
         print(f'\n Price to rest: {c("yellow")}● {reset}{price}.')
 
-        options(["Rest", c("dark gray") + "Drink", c("dark gray") + "Quest", c("dark gray") + "Gamble"])
-        option = command(False, "alphabetic", options = "r")
+        options(["Rest", "Drink", c("dark gray") + "Quest", c("dark gray") + "Gamble"])
+        option = command(False, "alphabetic", options = "rd")
 
         if option == "r":
             if player.gold >= price:
@@ -1001,7 +1001,7 @@ def s_tavern():
             else:
                 print(f'\n {c("yellow")}Barkeep:{reset} You don\'t have enough coin to stay.')
                 pressEnter()
-        elif options == "d": s_store("tavern")
+        elif option == "d": s_store("tavern")
         elif option == "B": break
         if returnTo(): break
 
@@ -1434,7 +1434,7 @@ def s_delete():
 
         if option == "B": break
         elif option in tuple(map(str, range(0, len(saves)))):
-            os.remove("data\\saves\\" + saves[int(option) - 1][1])
+            os.remove("data\\saves\\" + saves[int(option)][1])
             saves = [[pickle.load(open("data\\saves\\" + file, "rb")), file] for file in os.listdir("data\\saves") if not file.endswith(".txt")]
             print("\n File deleted successfully!")
             pressEnter()

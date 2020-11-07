@@ -1,5 +1,71 @@
 [
   {
+    "result": "Baby Wood Dragon Blade",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Baby Wood Dragon Bone",
+        1
+      ],
+      [
+        "Baby Wood Dragon Fang",
+        3
+      ]
+    ]
+  },
+  {
+    "result": "Baby Wood Dragon Boots",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Baby Wood Dragon Scale",
+        3
+      ]
+    ]
+  },
+  {
+    "result": "Baby Wood Dragon Breastplate",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Baby Wood Dragon Bone",
+        1
+      ],
+      [
+        "Baby Wood Dragon Scale",
+        3
+      ]
+    ]
+  },
+  {
+    "result": "Baby Wood Dragon Crown",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Baby Wood Dragon Fang",
+        2
+      ],
+      [
+        "Baby Wood Dragon Bone",
+        1
+      ]
+    ]
+  },
+  {
+    "result": "Baby Wood Dragon Kilt",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Baby Wood Dragon Scale",
+        3
+      ],
+      [
+        "Baby Wood Dragon Bone",
+        1
+      ]
+    ]
+  },
+  {
     "result": "Healing Sludge",
     "quantity": 2,
     "ingredients": [
@@ -20,6 +86,26 @@
       [
         "Iron Bar",
         5
+      ]
+    ]
+  },
+  {
+    "result": "Living Wood Chestplate",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Living Wood",
+        5
+      ]
+    ]
+  },
+  {
+    "result": "Living Wood Ring",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Living Wood",
+        4
       ]
     ]
   },
@@ -62,6 +148,20 @@
       [
         "Pure Earth Water",
         1
+      ]
+    ]
+  },
+  {
+    "result": "Tome of Rotten Oak",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Rotten Oak",
+        2
+      ],
+      [
+        "Old Parchment",
+        3
       ]
     ]
   },

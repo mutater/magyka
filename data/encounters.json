@@ -9,7 +9,10 @@
       [100, "Gray Wolf"],
       [75, "Crazed Magician"],
       [100, "Tree Man"],
-      [75, "Bandit"]
+      [100, "Mud Golem"],
+      [75, "Bandit"],
+      [75, "Forest Golem"],
+      [75, "Baby Wood Dragon"]
     ]
   }
 }

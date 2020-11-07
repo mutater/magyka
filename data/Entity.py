@@ -116,7 +116,7 @@ class Entity():
                     if self.mp < 0: self.mp = 0
                     text = f'dealing {c("blue")}{amount} ♦{reset} {critical}damage'
             elif effect["type"] == "passive":
-                text = addPassive(effect)
+                text = self.addPassive(effect)
         elif effect["type"] in ("hp", "mp", "all"):
             if effect["type"] == "all":
                 if "*" in effect: amount = [(effect["value"][0] / 100) * self.stats["max hp"], (effect["value"][1] / 100) * self.stats["max mp"]]
@@ -146,10 +146,10 @@ class Entity():
                 for i in range(len(passive)):
                     text += ", "
                     if i == len(passive) - 1: text += "and "
-                    text += self.addPassive(passive[i], False)
+                    text += self.addPassive(passive[i])
             else:
                 text += " and "
-                text += self.addPassive(passive, False)
+                text += self.addPassive(passive)
         else: text += "."
         return text
 
