@@ -13,7 +13,21 @@ ADD DRINKS TO TAVERN
 
 
 
-import sys, os, math, keyboard, pickle, string, msvcrt, time, traceback, re, inspect, win32gui, json, copy, subprocess
+import copy
+import inspect
+import json
+import keyboard
+import math
+import msvcrt
+import os
+import pickle
+import re
+import string
+import subprocess
+import sys
+import time
+import traceback
+import win32gui
 print("\n Loading...")
 from data.Entity import *
 from data.Item import *

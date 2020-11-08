@@ -1,8 +1,8 @@
+pyinstaller magyka.spec -y
 rd /Q/S build
-ROBOCOPY /E data magyka\data
-ROBOCOPY /E venv magyka\venv
-ROBOCOPY . magyka Magyka.py
-ROBOCOPY . magyka run.bat
-ROBOCOPY . magyka README.txt
-"C:\Program Files\7-Zip\7z" a magyka.zip magyka
-rd /Q/S magyka
+ROBOCOPY /E data dist/magyka/data
+rd /Q/S dist\magyka\lib2to3
+rd /Q/S dist\magyka\Include
+rm magyka.zip
+"C:\Program Files\7-Zip\7z" a magyka.zip dist/magyka
+rd /Q/S dist
