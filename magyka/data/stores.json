@@ -1,0 +1,42 @@
+{
+  "fordsville": {
+    "arcanist": {
+      "description": "\n The very air seems to glitter, as it flows around a neat and clean store.\n From the counter, that was empty just a second ago, a woman appears.\n\n {c(\"yellow\")}Arcanist: {reset}Need something, dear?",
+      "inventory": [
+        "Tome of Lesser Lightning",
+        "Tome of Lesser Poison",
+        "Bandage I Tome",
+        "Wooden Ring",
+        "Scroll of Lesser Fireball"
+      ]
+    },
+    "blacksmith": {
+      "description": "\n A strong scent of coal and metal hangs about the room, which is dirty, but well organized.\n You hear the pounding of the hammer stop, and a large, muscled man walks in from a side door.\n\n {c(\"yellow\")}Blacksmith: {reset}Whaddya want? I'm busy here, make it quick.",
+      "inventory": [
+        "Copper Broadsword",
+        "Copper Helmet",
+        "Copper Chestplate",
+        "Copper Greaves",
+        "Copper Boots",
+        "Copper Ring"
+      ]
+    },
+    "general store": {
+      "description": "\n You're in a dusty but well-stocked store, well lit by a large fireplace and multiple lanterns.\n A large man behind the counter beckons you over.\n\n {c(\"yellow\")}Store Keeper: {reset}What'll it be for you today, lad?",
+      "inventory": [
+        "Wheat Biscuit",
+        "Jar of Water",
+        "Rough Bandage",
+        "Aspirin",
+        "Iron Bar",
+        "Vial of Lesser Restoration"
+      ]
+    },
+    "tavern": {
+      "description": "",
+      "inventory": [
+        "Fiery Mead"
+      ]
+    }
+  }
+}

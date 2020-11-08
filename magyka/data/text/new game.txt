@@ -1,0 +1,49 @@
+
+ A man wakes up in a small moonlit clearing. His mind is strangely blank...
+ The full moon is high above him, painting the lanscape around in stark shades of gray.
+ He has a slight impression of a bright flash of light and of losing consciousness.
+
+ Something comes back to him. His name! His name is...|
+ Satistfied with remembering his name, {player.name} rolls over and allows exhaustion to overtake him...
+#<
+ - The Next Day -
+
+ {player.name} stands up and stretches, yawning loundly.
+
+ {c("yellow")}{player.name}:{reset} \"My first order of business, I suppose, is to find a nearby town and figure out where I am.\"
+
+ Out of habit, {player.name} checks around the clearing, looking for something of use. Nothing.
+ {player.name} pauses for a moment. The vegetation around seems odd, different somehow.
+ Unable to figure it out, {player.name} shrugs it off and sets off in a random direction, hoping to find civilization.
+#<
+ - Later -
+
+ {player.name} stumbles upon a small village. Smoke lazily drifts from chimneys upon thatched rooftops.
+ It is roughly noon. Most people are out working the fields or inside resting.
+ An old man smoking a pipe watches a child laughingly chase an old hound down a dirt road.
+ The old man glances towards {player.name}, quickly takes notice of the strange figure, and draws a tarnished sword.
+
+ {c("yellow")}Old Man:{reset} \"Who are you? Why are you here? we don\'t take too kindly to suspicious strangers here.\"
+
+ {c("yellow")}{player.name}:{reset} \"I've lost my memory, sir. I have no idea who, where, when, or why I am.\"
+
+ {c("yellow")}Old Man:{reset} \"No memory, you say? Ah. That happened to a buddy of mine a while back. A tragic tale.\"
+
+ The old man sheathes his sword.
+
+ {player.name} sighs in relief.
+
+ {c("yellow")}{player.name}:{reset} \"First off, do you know where I am?\"
+
+ {c("yellow")}Old Man:{reset} \"Sure. Come inside, won't you?\"
+
+ The old man calls the child in and steps inside.
+#<
+ {c("yellow")}Old Man:{reset} \"This here village is named {c("blue")}Fordsville{reset}. It\'s part of the kingdom of {c("blue")}Magyka{reset}. Blah blah blah.\"
+
+ {c("yellow")}{player.name}:{reset} \"Thanks for info, holmes. Spare a poor man items?\"
+
+ {c("yellow")}Old Man:{reset} \"Yee bro I gotchu\"
+
+ The old man tosses you a bong.
+#

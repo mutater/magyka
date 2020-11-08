@@ -1,0 +1,234 @@
+[
+  {
+    "result": "Baby Wood Dragon Blade",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Baby Wood Dragon Bone",
+        1
+      ],
+      [
+        "Baby Wood Dragon Fang",
+        3
+      ]
+    ]
+  },
+  {
+    "result": "Baby Wood Dragon Boots",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Baby Wood Dragon Scale",
+        3
+      ]
+    ]
+  },
+  {
+    "result": "Baby Wood Dragon Breastplate",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Baby Wood Dragon Bone",
+        1
+      ],
+      [
+        "Baby Wood Dragon Scale",
+        3
+      ]
+    ]
+  },
+  {
+    "result": "Baby Wood Dragon Crown",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Baby Wood Dragon Fang",
+        2
+      ],
+      [
+        "Baby Wood Dragon Bone",
+        1
+      ]
+    ]
+  },
+  {
+    "result": "Baby Wood Dragon Kilt",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Baby Wood Dragon Scale",
+        3
+      ],
+      [
+        "Baby Wood Dragon Bone",
+        1
+      ]
+    ]
+  },
+  {
+    "result": "Healing Sludge",
+    "quantity": 2,
+    "ingredients": [
+      [
+        "Congealed Green Slime",
+        1
+      ],
+      [
+        "Mossy Shroom",
+        1
+      ]
+    ]
+  },
+  {
+    "result": "Iron Battleaxe",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Iron Bar",
+        6
+      ]
+    ]
+  },
+  {
+    "result": "Iron Broadsword",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Iron Bar",
+        5
+      ]
+    ]
+  },
+  {
+    "result": "Living Wood Chestplate",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Living Wood",
+        5
+      ]
+    ]
+  },
+  {
+    "result": "Living Wood Ring",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Living Wood",
+        4
+      ]
+    ]
+  },
+  {
+    "result": "Razor Leaf Blade",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Iron Bar",
+        3
+      ],
+      [
+        "Razor Leaf",
+        4
+      ]
+    ]
+  },
+  {
+    "result": "Scroll of Leaf Blast",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Old Parchment",
+        1
+      ],
+      [
+        "Razor Leaf",
+        3
+      ]
+    ]
+  },
+  {
+    "result": "Sweet Water",
+    "quantity": 2,
+    "ingredients": [
+      [
+        "Bottle of Sap",
+        1
+      ],
+      [
+        "Pure Earth Water",
+        1
+      ]
+    ]
+  },
+  {
+    "result": "Tome of Rotten Oak",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Rotten Oak",
+        2
+      ],
+      [
+        "Old Parchment",
+        3
+      ]
+    ]
+  },
+  {
+    "result": "Wolven Helmet",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Wolf Pelt",
+        1
+      ],
+      [
+        "Iron Bar",
+        2
+      ]
+    ]
+  },
+  {
+    "result": "Wolven Pants",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Wolf Pelt",
+        2
+      ],
+      [
+        "Iron Bar",
+        3
+      ]
+    ]
+  },
+  {
+    "result": "Wolven Shoes",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Wolf Pelt",
+        1
+      ],
+      [
+        "Iron Bar",
+        2
+      ]
+    ]
+  },
+  {
+    "result": "Wolven Tunic",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Wolf Pelt",
+        2
+      ],
+      [
+        "Iron Bar",
+        4
+      ]
+    ]
+  }
+]
