@@ -146,7 +146,7 @@
     "effect": [
       {
         "type": "hp",
-        "value": 6
+        "value": 9
       }
     ],
     "mana": 4,
@@ -349,6 +349,20 @@
     "value": 15
   },
   {
+    "type": "equipment",
+    "name": "Green Slime Ring",
+    "description": "A ring made of congealed green slime. Yuck.",
+    "rarity": "rare",
+    "value": 20,
+    "slot": "accessory",
+    "effect": [
+      {
+        "type": "vitality",
+        "value": 2
+      }
+    ]
+  },
+  {
     "type": "consumable",
     "name": "Healing Sludge",
     "description": "It doesn't look edible, but has a surprisingly sweet flavor.",
@@ -369,6 +383,23 @@
     "description": "A sturdy metal bar.",
     "rarity": "uncommon",
     "value": 5
+  },
+  {
+    "type": "equipment",
+    "name": "Iron Battleaxe",
+    "description": "A hefty axe forged with iron.",
+    "rarity": "rare",
+    "value": 35,
+    "slot": "weapon",
+    "effect": [
+      {
+        "type": "attack",
+        "value": [
+          1,
+          7
+        ]
+      }
+    ]
   },
   {
     "type": "equipment",
@@ -422,35 +453,6 @@
     ],
     "target": "enemy",
     "useVerb": "activates"
-  },
-  {
-    "type": "equipment",
-    "name": "Lightning I Tome",
-    "description": "A black book, inscribed with a golden lightning bolt.",
-    "rarity": "uncommon",
-    "value": 25,
-    "slot": "tome",
-    "effect": [
-      {
-        "type": "-all",
-        "value": [
-          [
-            4,
-            9
-          ],
-          [
-            4,
-            7
-          ]
-        ],
-        "dodge": 0,
-        "resist": 0
-      }
-    ],
-    "mana": 5,
-    "attackName": "Lightning I",
-    "attackSound": "lightning",
-    "target": null
   },
   {
     "type": "item",
@@ -708,6 +710,55 @@
     "attackName": null,
     "attackSound": "slice",
     "target": null
+  },
+  {
+    "type": "equipment",
+    "name": "Tome of Lesser Lightning",
+    "description": "A black book, inscribed with a golden lightning bolt.",
+    "rarity": "uncommon",
+    "value": 25,
+    "slot": "tome",
+    "effect": [
+      {
+        "type": "-all",
+        "value": [
+          [
+            4,
+            9
+          ],
+          [
+            4,
+            7
+          ]
+        ],
+        "dodge": 0,
+        "resist": 0
+      }
+    ],
+    "mana": 5,
+    "attackName": "Lesser Lightning",
+    "attackSound": "lightning",
+    "target": null
+  },
+  {
+    "type": "equipment",
+    "name": "Tome of Lesser Poison",
+    "description": "A neon green tome. It's like women with neon hair: don't mess with it.",
+    "rarity": "uncommon",
+    "value": 25,
+    "slot": "tome",
+    "effect": [
+      {
+        "type": "-hp",
+        "value": [
+          2,
+          6
+        ],
+        "passive": "Lesser Poison"
+      }
+    ],
+    "mana": 5,
+    "attackName": "Lesser Poison"
   },
   {
     "type": "equipment",

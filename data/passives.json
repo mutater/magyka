@@ -62,16 +62,16 @@
       {
         "type": "-hp",
         "value": [
-          3,
-          5
+          2,
+          3
         ],
         "resist": 0
       }
     ],
     "name": "Lesser Poison",
     "turns": [
-      3,
-      5
+      2,
+      4
     ],
     "description": "You have a headache and a small stomachache."
   },

@@ -80,6 +80,16 @@
     ]
   },
   {
+    "result": "Iron Battleaxe",
+    "quantity": 1,
+    "ingredients": [
+      [
+        "Iron Bar",
+        6
+      ]
+    ]
+  },
+  {
     "result": "Iron Broadsword",
     "quantity": 1,
     "ingredients": [

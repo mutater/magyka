@@ -228,6 +228,11 @@
           1,
           3
         ]
+      },
+      {
+        "name": "Green Slime Ring",
+        "chance": 5,
+        "quantity": 1
       }
     ],
     "attackSound": "slice",

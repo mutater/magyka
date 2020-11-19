@@ -675,12 +675,16 @@ def s_explore():
             areaEnemies = loadEncounter(player.location, "hunt")
             
             weight = 0
-            level = randint(1, 4)
-            if level == 1: level = player.level if player.level > 1 else 1
-            elif level <= 3: level = player.level
+            level = randint(1, 3)
+            if level == 1: level = player.level - 1 if player.level > 1 else 1
+            elif level == 2: level = player.level
             else: level = player.level + 1
 
-            for i in range(len(areaEnemies)):
+            for i in range(len(areaEnemies)-1, -1, -1):
+                if areaEnemies[i][1].level[0] > level or areaEnemies[i][1].level[1] < level:
+                    areaEnemies.pop(i)
+                    continue
+
                 areaEnemies[i][1].levelDifference = level - areaEnemies[i][1].level[0] if level - areaEnemies[i][1].level[0] >= 0 else 0
                 areaEnemies[i][1].level = max(min(level, areaEnemies[i][1].level[1]), areaEnemies[i][1].level[0])
                 areaEnemies[i][0] += (areaEnemies[i][1].level - player.level) * -50 if areaEnemies[i][1].level - player.level > 0 else 0
@@ -698,7 +702,7 @@ def s_explore():
                 areaEnemies[i][0] = int(areaEnemies[i][0]) + weight
                 weight += areaEnemies[i][0] - weight
 
-            areaEnemies = dict(areaEnemies)
+            areaEnemies = dict(areaEnemies[::-1])
             enemyNum = randint(1, weight)
             for enemy in areaEnemies:
                 if enemyNum <= enemy:

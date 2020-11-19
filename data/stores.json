@@ -3,7 +3,8 @@
     "arcanist": {
       "description": "\n The very air seems to glitter, as it flows around a neat and clean store.\n From the counter, that was empty just a second ago, a woman appears.\n\n {c(\"yellow\")}Arcanist: {reset}Need something, dear?",
       "inventory": [
-        "Lightning I Tome",
+        "Tome of Lesser Lightning",
+        "Tome of Lesser Poison",
         "Bandage I Tome",
         "Wooden Ring",
         "Scroll of Lesser Fireball"
