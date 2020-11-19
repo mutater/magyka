@@ -815,6 +815,7 @@ def s_battle(enemy):
 
                             usedItem = False
                             if option1 == "u":
+                                usedItem = True
                                 text[0] = f'\n {player.name} {item["useVerb"]} {displayItem(item["name"], item["rarity"], 1)}{"" if item["target"] == "self" else " on " + enemy.name}, '
                                 for effect in item["effect"]:
                                     if "passive" in effect: passive = passives[effect["passive"]]
