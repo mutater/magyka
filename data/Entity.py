@@ -65,6 +65,7 @@ class Entity():
     def defend(self, effect, stats = {"hit": 100, "crit": 0}, passive = False):
         effect = copy.deepcopy(effect)
         text = ""
+        hpAmount = 0
         if effect["type"] in ("-hp", "-mp", "-all", "passive"):
             if effect["type"] != "passive":
                 amount, a, r, v = [([0, 0] if effect["type"] == "-all" else 0) for i in range(4)]
@@ -75,10 +76,10 @@ class Entity():
 
             deflect = True if self.guard == "deflect" else False
 
-            if self.guard == "block": return f'but {self.name} blocks the attack.'
-            if self.guard == "counter": return
-            if not h: return 'but misses.'
-            if not d: return f'but {self.name} dodges.'
+            if self.guard == "block": return f'but {self.name} blocks the attack.', 0
+            if self.guard == "counter": return f'but {self.name} counters, ', 0
+            if not h: return 'but misses.', 0
+            if not d: return f'but {self.name} dodges.', 0
 
             if effect["type"] == "-all":
                 if type(effect["value"][0]) is list: a[0] = randint(effect["value"][0][0], effect["value"][0][1])
@@ -93,6 +94,7 @@ class Entity():
                 amount = [1 if amount[0] < 1 else amount[0], 1 if amount[1] < 1 else amount[1]]
 
                 self.hp -= amount[0]*h*d
+                hpAmount = amount[0]*h*d*-1
                 if self.hp < 0: self.hp = 0
                 self.mp -= amount[1]*h*d
                 if self.mp < 0: self.mp = 0
@@ -109,6 +111,7 @@ class Entity():
 
                 if effect["type"] == "-hp":
                     self.hp -= amount*h*d
+                    hpAmount = amount*h*d*-1
                     if self.hp < 0: self.hp = 0
                     text = f'dealing {c("red")}{amount} ♥{reset} {critical}damage'
                 else:
@@ -126,6 +129,7 @@ class Entity():
                 if amount[1] + self.mp > self.stats["max mp"]: amount[1] = self.stats["max mp"] - self.mp
 
                 self.hp += amount[0]
+                hpAmount = amount[0]
                 self.mp += amount[1]
                 text = f'healing {c("red")}{amount[0]} ♥{reset} and {c("blue")}{amount[1]} ♦{reset}'
             else:
@@ -136,6 +140,7 @@ class Entity():
                 if effect["type"] == "hp":
                     if amount + self.hp > self.stats["max hp"]: amount = self.stats["max hp"] - self.hp
                     self.hp += amount
+                    hpAmount = amount
                     text = f'healing {c("red")}{amount} ♥{reset}'
                 else:
                     if amount + self.mp > self.stats["max mp"]: amount = self.stats["max mp"] - self.mp
@@ -151,7 +156,7 @@ class Entity():
                 text += " and "
                 text += self.addPassive(passive)
         else: text += "."
-        return text
+        return text, hpAmount
 
     def addPassive(self, passive):
         passive.update({"dodge": 0, "hit": 100})

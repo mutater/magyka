@@ -503,14 +503,20 @@ def displayPlayerStats():
     displayPlayerGold()
     displayPlayerPassives()
 
-def displayBattleStats(player, enemy):
+def displayBattleStats(player, enemy, playerDamage = 0, enemyDamage = 0):
+        if playerDamage > 0: playerDamageText = " +" + str(playerDamage)
+        elif playerDamage < 0: playerDamageText = " " + str(playerDamage)
+        else: playerDamageText = ""
+        if enemyDamage > 0: enemyDamageText = " +" + str(enemyDamage)
+        elif enemyDamage < 0: enemyDamageText = " " + str(enemyDamage)
+        else: enemyDamageText = ""
         print(f'\n -= {player.name} Versus {enemy.name} [Lvl {enemy.level}] =-')
         print(f'\n {player.name}')
-        displayPlayerHP()
-        displayPlayerMP()
+        print(f' {c("red")}♥ {drawBar(player.stats["max hp"], player.hp, "red", 20)} {player.hp}/{player.stats["max hp"]}{playerDamageText}')
+        print(f' {c("blue")}♦ {drawBar(player.stats["max mp"], player.mp, "blue", 20)} {player.mp}/{player.stats["max mp"]}')
         displayPlayerPassives()
         print(f'\n {enemy.name} [Lvl {enemy.level}]')
-        print(f' {c("red")}♥ {drawBar(enemy.stats["max hp"], enemy.hp, "red", 20)} {enemy.hp}/{enemy.stats["max hp"]}')
+        print(f' {c("red")}♥ {drawBar(enemy.stats["max hp"], enemy.hp, "red", 20)} {enemy.hp}/{enemy.stats["max hp"]}{enemyDamageText}')
         print(f' {c("blue")}♦ {drawBar(enemy.stats["max mp"], enemy.mp, "blue", 20)} {enemy.mp}/{enemy.stats["max mp"]}')
         if len(enemy.passives) > 0:
             print(" ", end="")
@@ -725,29 +731,40 @@ def s_battle(enemy):
 
     while 1:
         player.guard = ""
+        text = [""]
+        playerDamage, enemyDamage = 0, 0
         while 1:
             clear()
-            usedItem = False
-
             displayBattleStats(player, enemy)
-
+            
+            usedItem = False
             canUseMagic = False if player.equipment["tome"] == "" or player.mp < player.equipment["tome"]["mana"] else True
 
             options(["Attack", (c("dark gray") if not canUseMagic else "") + "Magic", "Guard", "Item", "Flee"])
             option = command(back = False, options = "amgif" if canUseMagic else "agif")
 
+            if enemy.guard == "counter":
+                text[0], playerDamage = player.defend(enemy.attack(), enemy.stats)
+                text[0] = f'\n {player.name} attacks {enemy.name}, ' + evalText(text[0])
+                break
             if option == "a":
-                text = enemy.defend(player.attack(), player.stats)
-                print(f'\n {player.name} attacks {enemy.name}, ' + evalText(text))
+                text[0], enemyDamage = enemy.defend(player.attack(), player.stats)
+                text[0] = f'\n {player.name} attacks {enemy.name}, ' + evalText(text[0])
                 break
             elif option == "m":
+                text[0] = f'\n {player.name} casts {player.equipment["tome"]["attackName"]} on {player.name if player.equipment["tome"]["target"] == "self" else enemy.name}, '
                 for effect in player.get_magic():
-                    if "passive" in effect:
-                        passive = passives[effect["passive"]]
+                    if "passive" in effect: passive = passives[effect["passive"]]
+                    else: passive = False
+                    
+                    if player.equipment["tome"]["target"] == "self":
+                        tempText, tempDamage = player.defend(effect, player.stats, passive=passive)
+                        playerDamage += tempDamage
+                        text[0] += evalText(tempText)
                     else:
-                        passive = False
-                    text = player.defend(effect, player.stats, passive=passive) if player.equipment["tome"]["target"] == "self" else enemy.defend(effect, player.stats, passive=passive)
-                    print(f'\n {player.name} casts {player.equipment["tome"]["attackName"]} on {player.name if player.equipment["tome"]["target"] == "self" else enemy.name}, ' + evalText(text))
+                        tempText, tempDamage = enemy.defend(effect, player.stats, passive=passive)
+                        enemyDamage += tempDamage
+                        text[0] += evalText(tempText)
                 player.mp -= player.equipment["tome"]["mana"]
                 break
             elif option == "g":
@@ -755,7 +772,7 @@ def s_battle(enemy):
                 if guardState <= 3: player.guard = "deflect"
                 elif guardState == 4: player.guard = "block"
                 else: player.guard = "counter"
-                print(f'\n {player.name} lowers into a defensive stance.')
+                text[0] = f'\n {player.name} lowers into a defensive stance.'
                 break
             elif option == "i":
                 page = 1
@@ -794,28 +811,29 @@ def s_battle(enemy):
 
                             usedItem = False
                             if option1 == "u":
-                                usedItem = True
-                                clear()
-                                displayBattleStats(player, enemy)
-
-                                text = ""
+                                text[0] = f'\n {player.name} {item["useVerb"]} {displayItem(item["name"], item["rarity"], 1)}{"" if item["target"] == "self" else " on " + enemy.name}, '
                                 for effect in item["effect"]:
-                                    if "passive" in effect:
-                                        passive = newPassive(effect["passive"])
+                                    if "passive" in effect: passive = passives[effect["passive"]]
+                                    else: passive = False
+                                    
+                                    if item["target"] == "self":
+                                        tempText, tempDamage = player.defend(effect, player.stats, passive=passive)
+                                        playerDamage += tempDamage
+                                        text[0] += evalText(tempText)
                                     else:
-                                        passive = False
-                                    text += player.defend(effect, player.stats, passive=passive) if item["target"] == "self" else enemy.defend(effect, player.stats, passive=passive)
-                                
-                                onEnemy = '' if item["target"] == "self" else f' on {enemy.name}'
-                                print(f'\n {player.name} {item["useVerb"]} {displayItem(item["name"], item["rarity"], 1)}{onEnemy}, ' + evalText(text))
+                                        tempText, tempDamage = enemy.defend(effect, player.stats, passive=passive)
+                                        enemyDamage += tempDamage
+                                        text[0] += evalText(tempText)
 
                                 player.removeItem(item)
 
+                                itemFound = False
                                 for i in itemLog:
                                     if i[0]["name"] == item["name"]:
                                         i[1] += 1
+                                        itemFound = True
                                         break
-                                itemLog.append([item, 1])
+                                if not itemFound: itemLog.append([item, 1])
                                 break
                             elif option1 == "B": break
                         if usedItem: break
@@ -834,8 +852,9 @@ def s_battle(enemy):
 
                     if option == "y":
                         if randint(1, 3) == 1:
-                            print(f'\n While fleeing, {player.name} loses {c("yellow")}●{reset} {enemy.gold//4 if player.gold - enemy.gold//4 >= 0 else player.gold}.')
-                            player.gold -= enemy.gold//4 if player.gold - enemy.gold//4 >= 0 else player.gold
+                            goldLoss = enemy.gold//4 if player.gold - enemy.gold//4 >= 0 else player.gold
+                            print(f'\n While fleeing, {player.name} loses {c("yellow")}●{reset} {goldLoss}.')
+                            player.gold -= goldLoss
                             pressEnter()
                             returnToScreen("s_explore")
                             return
@@ -848,29 +867,26 @@ def s_battle(enemy):
             if returnTo(): return
             if usedItem: break
 
-        if enemy.hp <= 0 or player.hp <= 0: break
-        text = player.update()
-        if text != []:
-            for line in text:
-                print(evalText(line))
+        text += player.update()
+        clear()
+        displayBattleStats(player, enemy, playerDamage=playerDamage, enemyDamage=enemyDamage)
+        playerDamage, enemyDamage = 0, 0
+        for line in text:
+            print(evalText(line))
         if enemy.hp <= 0 or player.hp <= 0: break
         pressEnter()
 
-        enemy.guard = ""
-        clear()
-
-        displayBattleStats(player, enemy)
-
         # LOGIC FOR ENEMY ATTACK
         enemy.guard = ""
+        text = [""]
         attackType = randint(1,5)
         if attackType <= 2: attackType = "attack"
         elif attackType <= 4: attackType = "magic"
         else: attackType = "guard"
 
         if player.guard == "counter":
-            text = enemy.defend(player.attack(), enemy.stats)
-            print(f'\n {player.name} counters {enemy.name}, ' + evalText(text))
+            text[0], enemyDamage = enemy.defend(player.attack(), player.stats)
+            text[0] = f'\n {player.name} attacks {enemy.name}, ' + evalText(text[0])
             attackType = ""
         if attackType == "magic":
             if enemy.magic != None:
@@ -882,8 +898,17 @@ def s_battle(enemy):
                     magic = castable[randint(1, len(castable))]
 
                     for effect in magic["effect"]:
-                        text = enemy.defend(effect, enemy.stats) if magic["target"] == "self" else player.defend(effect, enemy.stats)
-                        print(f'\n {enemy.name} casts {magic["attackName"]} on {enemy.name if magic["target"] == "self" else player.name}, ' + evalText(text))
+                        if "passive" in effect: passive = passives[effect["passive"]]
+                        else: passive = False
+                        
+                        if magic["target"] == "self":
+                            tempText, tempDamage = enemy.defend(effect, enemy.stats, passive=passive)
+                            enemyDamage += tempDamage
+                            text[0] += evalText(tempText)
+                        else:
+                            tempText, tempDamage = player.defend(effect, enemy.stats, passive=passive)
+                            playerDamage += tempDamage
+                            text[0] += evalText(tempText)
                     enemy.mp -= magic["mana"]
             else: attackType = "attack"
         if attackType == "guard":
@@ -895,14 +920,14 @@ def s_battle(enemy):
                 print(f'\n {enemy.name} lowers into a defensive stance.')
             else: attackType = "attack"
         if attackType == "attack":
-            text = player.defend(enemy.attack(), enemy.stats)
-            print(f'\n {enemy.name} attacks {player.name}, ' + evalText(text))
+            text[0], playerDamage = player.defend(enemy.attack(), enemy.stats)
+            text[0] = f'\n {enemy.name} attacks {player.name}, ' + evalText(text[0])
 
-        if enemy.hp <= 0 or player.hp <= 0: break
-        text = enemy.update()
-        if text != []:
-            for line in text:
-                print(evalText(line))
+        text += player.update()
+        clear()
+        displayBattleStats(player, enemy, playerDamage=playerDamage, enemyDamage=enemyDamage)
+        for line in text:
+            print(evalText(line))
         if enemy.hp <= 0 or player.hp <= 0: break
         pressEnter()
     pressEnter()
@@ -914,7 +939,7 @@ def s_battle(enemy):
 
         levelDifference = enemy.level - player.level
         if levelDifference == 0: lootMultiplier = 1
-        else: lootMultiplier = max(round(1.4 ** levelDifference, 2), 0.6)
+        else: lootMultiplier = max(round(1.25 ** levelDifference, 2), 0.6)
         xp = math.ceil(enemy.xp * lootMultiplier)
         gold = math.ceil(randint(math.ceil(enemy.gold*0.9), math.ceil(enemy.gold*1.1)) * lootMultiplier)
         items = []
@@ -1110,17 +1135,20 @@ def s_sell(item):
         displayItemStats(item)
         print(f'\n Sell value: {c("yellow")}● {reset}{round(item["value"] * 0.66)}')
 
-        print(f'\n Type the quantity of items to be sold.')
+        print(f'\n Type the quantity of items to be sold ({player.numOfItems(item["name"])} available).')
 
         option = command(True, "numeric")
 
         if option in tuple(map(str, range(1, player.numOfItems(item["name"]) + 1))):
             player.removeItem(item, int(option))
             player.gold += round(item["value"] * 0.66) * int(option)
-            print(f'\n Sold {displayItem(item["name"], item["rarity"], int(option))}.')
+            print(f'\n Sold {displayItem(item["name"], item["rarity"], 0 if int(option) == 1 and item["type"] == "equipment" else int(option))}.')
             pressEnter()
             break
         elif option == "B": break
+        else:
+            print("\n You cannot sell that many.")
+            pressEnter()
         if returnTo(): return
 
 
@@ -1218,16 +1246,18 @@ def s_inspect(item, equipped):
             player.equip(item)
             break
         elif item["type"] == "consumable" and option == "u" and item["target"] == "self":
+            text = []
             for effect in item["effect"]:
                 if "passive" in effect:
-                    if type(effect["passive"]) is list:
-                        passive = [newPassive(p) for p in effect["passive"]]
-                    else:
-                        passive = newPassive(effect["passive"])
+                    if type(effect["passive"]) is list: passive = [newPassive(p) for p in effect["passive"]]
+                    else: passive = newPassive(effect["passive"])
                 else:
                     passive = False
-                text = player.defend(newPassive(effect["name"]) if effect["type"] == "passive" else effect, passive=passive)
-                print(f'\n {player.name} {item["useVerb"]} {displayItem(item["name"], item["rarity"], 1)}, ' + evalText(text))
+                tempText, playerDamage = player.defend(newPassive(effect["name"]) if effect["type"] == "passive" else effect, passive=passive)
+                text.append(tempText)
+            text[0] = f'\n {player.name} {item["useVerb"]} {displayItem(item["name"], item["rarity"], 1)}, ' + text[0]
+            for line in text:
+                print(evalText(line))
             pressEnter()
             player.removeItem(item)
             if player.numOfItems(item["name"]) <= 0: break
@@ -1290,25 +1320,32 @@ def s_craft(recipe):
         print(f'\n Sell Price: {c("yellow")}● {reset}{item["value"]}')
         
         craftable = True
+        numCraftable = 0
         print(f'\n Requires:\n')
         for i in range(len(recipe["ingredients"])):
-            if player.numOfItems(recipe["ingredients"][i][0]) < recipe["ingredients"][i][1]:
-                print(f' {player.numOfItems(recipe["ingredients"][i][0])}/{recipe["ingredients"][i][1]} {displayItem(recipe["ingredients"][i][0], items[recipe["ingredients"][i][0]]["rarity"], recipe["ingredients"][i][1])} ( NOT ENOUGH )')
+            playerIngredientCount = player.numOfItems(recipe["ingredients"][i][0])
+            recipeIngredientRequirement = recipe["ingredients"][i][1]
+            if playerIngredientCount < recipeIngredientRequirement:
                 craftable = False
-            else:
-                print(f' {player.numOfItems(recipe["ingredients"][i][0])}/{recipe["ingredients"][i][1]} {displayItem(recipe["ingredients"][i][0], items[recipe["ingredients"][i][0]]["rarity"], recipe["ingredients"][i][1])}')
+            elif playerIngredientCount // recipeIngredientRequirement < numCraftable:
+                numCraftable = playerIngredientCount // recipeIngredientRequirement
+            print(f' {recipeIngredientRequirement}x {displayItem(recipe["ingredients"][i][0], items[recipe["ingredients"][i][0]]["rarity"], 0)} ({playerIngredientCount}/{recipeIngredientRequirement})')
         
-        options(["Craft"] if craftable else [])
-        option = command(False, "alphabetic", options = "c" if craftable else "")
+        if item["type"] == "equipment" and craftable: numCraftable = 1
+        print(f'\n Type the quantity of items to be crafted ({numCraftable} craftable).')
+        option = command(True, "numeric")
         
-        if option == "c":
+        if option in "".join(tuple(map(str, range(0, numCraftable + 1)))):
             for i in recipe["ingredients"]:
-                player.removeItem(newItem(i[0]), i[1])
-            player.addItem(item, recipe["quantity"])
+                player.removeItem(newItem(i[0]), i[1] * int(option))
+            player.addItem(item, recipe["quantity"] * int(option))
             print(f'\n Crafted {displayItem(item["name"], item["rarity"], (recipe["quantity"] if item["type"] in stackableItems else 0))}!')
             pressEnter()
             break
         elif option == "B": break
+        else:
+            print("\n You cannot craft that many.")
+            pressEnter()
         if returnTo(): return
 
 def s_stats():
@@ -1555,4 +1592,4 @@ except Exception as err:
     # Restart Program
     pressEnter()
     if settings["fullscreen"]: fullscreen()
-    subprocess.call([r'run.bat'])
+    os.execv(sys.executable, ['python'] + sys.argv)
