@@ -9,10 +9,12 @@
       [100, "Gray Wolf"],
       [75, "Crazed Magician"],
       [100, "Tree Man"],
-      [100, "Mud Golem"],
-      [75, "Bandit"],
-      [75, "Forest Golem"],
-      [75, "Baby Wood Dragon"]
+      [75, "Bandit"]
+    ],
+    "slime garden": [
+      [100, "Green Slime"],
+      [100, "Blue Slime"],
+      [100, "Red Slime"]
     ]
   }
 }

@@ -1,7 +1,3 @@
-"""
-ADD DRINKS TO TAVERN
-"""
-
 # ::::::.    :::.::::::::::::::::::  :::.      :::     ::::::::::::.,::::::  
 # ;;;`;;;;,  `;;;;;;;;;;;;;;'''';;;  ;;`;;     ;;;     ;;;'`````;;;;;;;''''  
 # [[[  [[[[[. '[[[[[     [[     [[[ ,[[ '[[,   [[[     [[[    .n[[' [[cccc   
@@ -9,9 +5,19 @@ ADD DRINKS TO TAVERN
 # 888  888    Y88888     88,    888 888   888,o88oo,.__888,888bo,_  888oo,__ 
 # MMM  MMM     YMMMM     MMM    MMM YMM   ""` """"YUMMMMMM `""*UMM  """"YUMMM
 
+"""
+TODO
+Have functions for displaying any entity's hp and mp by passing the entity as a parameter.
+Have tavern give random quests after giving set quests
+Add some sort of craftable slime items
+"""
 
 
 
+import win32gui
+
+print("\n Loading...")
+windowID = win32gui.GetForegroundWindow()
 
 import copy
 import inspect
@@ -22,19 +28,16 @@ import msvcrt
 import os
 import pickle
 import re
+import sqlite3
 import string
-import subprocess
 import sys
 import time
 import traceback
-import win32gui
-print("\n Loading...")
-from data.Entity import *
-from data.Item import *
-from data.Effect import *
-from data.Globals import *
 
-windowID = win32gui.GetForegroundWindow()
+from data.Effect import *
+from data.Entity import *
+from data.Globals import *
+from data.Item import *
 
 # .::::::' ...    ::::::.    :::.  .,-:::::  :::::::::::::::    ...     :::.    :::. .::::::. 
 # ;;;''''  ;;     ;;;`;;;;,  `;;;,;;;'````'  ;;;;;;;;'''';;; .;;;;;;;.  `;;;;,  `;;;;;;`    ` 
@@ -66,6 +69,8 @@ def ifNone(value, backup):
 def clear():
     os.system("cls")
     global screen
+    global windowID
+    windowID = win32gui.GetForegroundWindow()
     screen = inspect.stack()[1][3]
     setCursorVisible(False)
     os.system(f'mode con: cols={str(os.get_terminal_size()).split(", lines=")[0].replace("os.terminal_size(columns=", "")} lines={str(os.get_terminal_size()).split(", lines=")[1].replace(")", "")}')
@@ -92,6 +97,12 @@ def evalTextAsList(path, splitter = "|"):
 
 def printEvalText(string):
     print(evalText(string))
+
+def dictFactory(cursor, row):
+    d = {}
+    for idx, col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d
 
 
 # :::::  :::::  :: ::  :: ::   :::   ::  :  ::::   :::::
@@ -202,73 +213,80 @@ def command(input = False, mode = "alphabetic", back = True, silent = False, low
     if a == "": return ""
     if not mode == "command": return (str.lower(a).strip() if lower else a.strip())
 
+    global devMode
+    if a == "asdfjkl;":
+        devMode = devMode == False
+        return "D"
+    if a == "asdfjkl;s":
+        devMode = True
+        a = "s"
+    if not devMode:
+        print(c("light red") + "\n No cheating for you!" + reset)
+        pressEnter()
+        return "D"
+
     a1 = a.split(" ", 1)
     a2 = a.split(" ", 2)
 
-    if a1[0] == "equip":
-        if a1[1] in items:
-            try:
-                if player.equipment[items[a1[1]]["slot"]] != "": player.unequip(items[a1[1]]["slot"])
-                player.equip(newItem(a1[1]))
-            except:
-                print(c("light red") + "\n That didn't work, stupid." + reset)
-                pressEnter()
-    elif a1[0] == "exec":
-        try: exec(a1[1])
-        except:
-            print(c("light red") + "\n " + str(sys.exc_info()[0]) + " " + str(sys.exc_info()[1]))
-            pressEnter()
-    elif a1[0] == "execp":
-        try: print("\n " + str(eval(a1[1])))
-        except:
-            print(c("light red") + "\n " + str(sys.exc_info()[0]) + " " + str(sys.exc_info()[1]) + reset)
-        pressEnter()
-    elif a == "flee":
-        returnToScreen("s_explore")
-    elif a1[0] == "fight":
-        if a1[1] in enemies:
-            try: 
-                s_battle(newEnemy(a1[1]))
-            except:
-                print(c("light red") + "\n That didn't work, stupid." + reset)
-                pressEnter()
-    elif a1[0] == "get":
-        a1s = a1[1].split(", ")
-        try: player.getDrops(int(a1s[0]), int(a1s[1]))
-        except:
-            print(c("light red") + "\n That didn't work, stupid." + reset)
-            pressEnter()
-    elif a1[0] == "give":
-        a1s = a1[1].split(", ")
-        if a1s[0] == "all":
-            for item in items:
-                player.addItem(newItem(item))
-        if a1s[0] in items:
-            try:
-                for i in range((int(a1s[1]) if len(a1s) == 2 else 1)):
-                    player.addItem(newItem(a1s[0]))
-            except:
-                print(c("light red") + "\n That didn't work, stupid." + reset)
-                pressEnter()
-    elif a == "levelup":
-        player.getDrops(player.mxp - player.xp, 0)
-    elif a1[0] == "name":
-        player.name = a1[1].strip()
-    elif a == "quit":
-        sys.exit()
-    elif a == "clear passives":
-        player.passives = []
-        player.updateStats()
-    elif a == "restore":
-        player.hp, player.mp = player.stats["max hp"], player.stats["max mp"]
+    if a1[0] == "fight":
+        s_battle(newEnemy(a1[1]))
+    elif a == "s":
+        player.name = "Developer"
+        session = sqlite3.connect("data\\data.db")
+        session.row_factory = dictFactory
+        devItems = [item["name"] for item in session.cursor().execute("select * from items where name like ':%'").fetchall()]
+        for item in devItems:
+            player.addItem(newItem(item))
+        session.close()
+        s_camp()
     elif a == "restart":
         if settings["fullscreen"]: fullscreen()
         os.execv(sys.executable, ['python'] + sys.argv)
-    elif a == "s":
-        player.name = "Developer"
-        s_camp()
-    else:
-        print(c("light red") + "\n That's not a command, stupid." + reset)
+    
+    try:
+        if a1[0] == "equip":
+            if a1[1] in items:
+                if player.equipment[items[a1[1]]["slot"]] != "": player.unequip(items[a1[1]]["slot"])
+                player.equip(newItem(a1[1]))
+        elif a1[0] == "exec":
+            try: exec(a1[1])
+            except:
+                print(c("light red") + "\n " + str(sys.exc_info()[0]) + " " + str(sys.exc_info()[1]))
+                pressEnter()
+        elif a1[0] == "execp":
+            print("\n " + str(eval(a1[1])))
+            pressEnter()
+        elif a1[0] == "finish":
+            for i in range(len(player.quests)):
+                if player.quests[i]["name"] == a1[1]:
+                    player.finishQuest(i)
+        elif a == "flee":
+            returnToScreen("s_explore")
+        elif a1[0] == "give":
+            a1s = a1[1].split(", ")
+            if a1s[0] == "all":
+                for item in items:
+                    player.addItem(newItem(item), (int(a1s[1]) if len(a1s) == 2 else 1))
+            if a1s[0] in items:
+                player.addItem(newItem(a1s[0]), (int(a1s[1]) if len(a1s) == 2 else 1))
+        elif a1[0] == "gold":
+            player.gold += int(a1[1])
+        elif a1[0] == "name":
+            player.name = a1[1].strip()
+        elif a == "quit":
+            sys.exit()
+        elif a == "clear passives":
+            player.passives = []
+            player.updateStats()
+        elif a == "restore":
+            player.hp, player.mp = player.stats["max hp"], player.stats["max mp"]
+        elif a1[0] == "xp":
+            player.xp += int(a1[1])
+        else:
+            print(c("light red") + "\n That's not a command, stupid." + reset)
+            pressEnter()
+    except Exception as err:
+        printError()
         pressEnter()
 
     return "D"
@@ -443,45 +461,58 @@ def displayEffect(effects):
     for stat in ("crit", "hit", "dodge"):
         if stat in effects: print(f' {abs(effects[stat]["value"])}% {"Increased" if effects[stat]["value"] > 0 else "Decreased"} {stat.capitalize()} Chance')
 
+def displayPassive(effect):
+    if effect["buff"]:
+        effectColor = "light green"
+    else:
+        effectColor = "light red"
+    
+    if type(effect["turns"]) is list:
+        turnText = f'{effect["turns"][0]} - {effect["turns"][1]} turns'
+    else:
+        turnText = f'{effect["turns"]} turn{"s" if effect["turns"] > 1 else ""}'
+    
+    print(f'\n Applies {c(effectColor)}{effect["name"]}{reset} for {turnText}')
+    if "crit" in effect: print(f' - {effect["crit"]}% critical strike chance')
+    if "hit" in effect: print(f' - {effect["hit"]}% hit chance')
+    if "dodge" in effect: print(f' - Undodgeable')
+
 def displayItemStats(item):
     print("\n " + displayItem(item["name"], item["rarity"]))
     print("  " + item["description"])
-    print(" " + item["rarity"].capitalize())
+    print("  " + item["rarity"].capitalize())
 
     effects = {}
     p_passives = []
     if item["type"] != "item":
         for effect in item["effect"]:
             if effect["type"] == "passive":
+                print(passives)
                 p_passives.append(passives[effect["name"]])
             else:
+                if "passive" in effect:
+                    p_passives.append(newPassive(effect["passive"]))
                 effects.update({effect["type"]: effect})
     if item["type"] == "equipment" and item["slot"] == "tome": print(f'\n Costs {c("blue")}{item["mana"]} ♦{reset}')
     displayEffect(effects)
     for effect in p_passives:
-        if effect["buff"]:
-            effectColor = "light green"
-        else:
-            effectColor = "light red"
-        
-        if type(effect["turns"]) is list:
-            turnText = f'{effect["turns"][0]} - {effect["turns"][1]} turns'
-        else:
-            turnText = f'{effect["turns"]} turn{"s" if effect["turns"] > 1 else ""}'
-        
-        print(f'\n Applies {c(effectColor)}{effect["name"]}{reset} for {turnText}')
-        if "crit" in effect: print(f' - {effect["crit"]}% critical strike chance')
-        if "hit" in effect: print(f' - {effect["hit"]}% hit chance')
-        if "dodge" in effect: print(f' - Undodgeable')
+        displayPassive(effect)
+
+def displayQuest(quest, owned):
+    print("\n " + displayItem(quest["name"], quest["rarity"]))
+    print("\n Objectives:")
+    for objective in quest["objective"]:
+        if owned: print(f'  - {c("dark gray") if objective["complete"] else ""}{string.capwords(objective["type"])}{" " + str(objective["quantity"]) + "x" if objective["quantity"] > 1 else ""} {objective["name"]} ({objective["status"]}/{objective["quantity"]}){reset}')
+        else: print(f'  - {string.capwords(objective["type"])}{" " + str(objective["quantity"]) + "x" if objective["quantity"] > 1 else ""} {objective["name"]}')
 
 def displayPlayerTitle():
     print(f' {player.name} [Lvl {player.level}]')
 
 def displayPlayerHP():
-    print(f' {c("red")}♥ {drawBar(player.stats["max hp"], player.hp, "red", 20)} {player.hp}/{player.stats["max hp"]}')
+    print(f' {c("red")}♥ {drawBar(player.stats["max hp"], player.hp, "red", 32)} {player.hp}/{player.stats["max hp"]}')
 
 def displayPlayerMP():
-    print(f' {c("blue")}♦ {drawBar(player.stats["max mp"], player.mp, "blue", 20)} {player.mp}/{player.stats["max mp"]}')
+    print(f' {c("blue")}♦ {drawBar(player.stats["max mp"], player.mp, "blue", 32)} {player.mp}/{player.stats["max mp"]}')
 
 def displayPlayerXP():
     print(f' XP: {c("green")}◌{reset} {player.xp}/{player.mxp}')
@@ -512,15 +543,26 @@ def displayBattleStats(player, enemy, playerDamage = 0, enemyDamage = 0):
         else: enemyDamageText = ""
         print(f'\n -= {player.name} Versus {enemy.name} [Lvl {enemy.level}] =-')
         print(f'\n {player.name}')
-        print(f' {c("red")}♥ {drawBar(player.stats["max hp"], player.hp, "red", 20)} {player.hp}/{player.stats["max hp"]}{playerDamageText}')
-        print(f' {c("blue")}♦ {drawBar(player.stats["max mp"], player.mp, "blue", 20)} {player.mp}/{player.stats["max mp"]}')
+        print(f' {c("red")}♥ {drawBar(player.stats["max hp"], player.hp, "red", 32)} {player.hp}/{player.stats["max hp"]}{playerDamageText}')
+        print(f' {c("blue")}♦ {drawBar(player.stats["max mp"], player.mp, "blue", 32)} {player.mp}/{player.stats["max mp"]}')
         displayPlayerPassives()
         print(f'\n {enemy.name} [Lvl {enemy.level}]')
-        print(f' {c("red")}♥ {drawBar(enemy.stats["max hp"], enemy.hp, "red", 20)} {enemy.hp}/{enemy.stats["max hp"]}{enemyDamageText}')
-        print(f' {c("blue")}♦ {drawBar(enemy.stats["max mp"], enemy.mp, "blue", 20)} {enemy.mp}/{enemy.stats["max mp"]}')
+        print(f' {c("red")}♥ {drawBar(enemy.stats["max hp"], enemy.hp, "red", 32)} {enemy.hp}/{enemy.stats["max hp"]}{enemyDamageText}')
+        print(f' {c("blue")}♦ {drawBar(enemy.stats["max mp"], enemy.mp, "blue", 32)} {enemy.mp}/{enemy.stats["max mp"]}')
         if len(enemy.passives) > 0:
             print(" ", end="")
             print(", ".join([f'{c("light green" if passive["buff"] else "light red")}{passive["name"]}{reset} ({passive["turns"]})' for passive in enemy.passives]))
+
+def printError():
+    errType, errValue, errTraceback = sys.exc_info()
+    trace_back = traceback.extract_tb(errTraceback)
+    stackTrace = list()
+    for trace in trace_back:
+        stackTrace.append(f'{trace[2]} [{trace[1]}]: {trace[3]}')
+    print("\n Exception at " + time.ctime(time.time()))
+    print(" " + str(errType.__name__) + ": " + str(errValue))
+    print(" " + str(stackTrace[-1]))
+    print(" " + str(stackTrace[:-2]))
 
 
 
@@ -588,6 +630,7 @@ def s_newGame():
 
 def s_continue():
     global saves, player
+    page = 1
     while 1:
         clear()
 
@@ -597,13 +640,13 @@ def s_continue():
         if len(saves) > 0: print("")
         else: print("\n " + c("dark gray") + "- Empty -" + reset)
 
-        for i in range(len(saves)):
+        for i in range(-10 + 10*page, 10*page if 10*page < len(saves) else len(saves)):
             print(f' {i}) {saves[i][1]} | {saves[i][0].name} [Lvl {saves[i][0].level}]')
 
         option = command(False, "optionumeric", options = "".join(tuple(map(str, range(0, len(saves))))))
 
-        if option in tuple(map(str, range(0, len(saves)))):
-            player = saves[int(option)][0]
+        if option in tuple(map(str, range(0, len(saves)+ (page-1) * 10 + 1))):
+            player = saves[int(option) + (page-1) * 10][0]
             s_camp()
         elif option in ("B"): break
         if returnTo(): break
@@ -661,19 +704,31 @@ def s_camp():
 
 
 def s_explore():
+    page = 1
     while 1:
         clear()
 
         print("\n -= Explore =-")
         displayPlayerStats()
         printEvalText(openText(f'data//text//screens//{player.location} explore.txt'))
+        print("\n Discovered Locations:\n")
+        locations = player.locations[player.location]
+        
+        for i in range(-10 + 10*page, 10*page if 10*page < len(locations) else len(locations)):
+            print(f' {str(i)[:-1]}({str(i)[-1]}) {string.capwords(locations[i])}')
 
-        options(["Hunt", c("dark gray") + "Search", c("dark gray") + "Location", c("dark gray") + "Map"])
-        option = command(options = "hslm")
+        if len(locations) == 0:
+            print(" " + c("dark gray") + "- No Locations Discovered -" + reset)
 
-        if option == "h":
-            areaEnemies = loadEncounter(player.location, "hunt")
-            
+        next = len(locations) > page*10 + 1
+        previous = page != 1
+
+        options(["Search", c("dark gray") + "Map"] + (["Next"] if next else []) + (["Previous"] if previous else []))
+        option = command(False, "optionumeric", options = "sm" + ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(locations))))))
+
+        if option in tuple(map(str, range(0, len(locations) + (page-1) * 10 + 1))) + tuple(["s"]):
+            areaEnemies = loadEncounter(player.location, "hunt" if option == "s" else locations[int(option) + (page-1) * 10])
+                
             weight = 0
             level = randint(1, 3)
             if level == 1: level = player.level - 1 if player.level > 1 else 1
@@ -703,12 +758,17 @@ def s_explore():
                 weight += areaEnemies[i][0] - weight
 
             areaEnemies = dict(areaEnemies[::-1])
-            enemyNum = randint(1, weight)
+            try:
+                enemyNum = randint(1, weight)
+            except:
+                print("\n You don't spot any monsters. You're too low of a level.")
+                pressEnter()
+                continue
             for enemy in areaEnemies:
                 if enemyNum <= enemy:
                     enemy = areaEnemies[enemy]
                     break
-
+            
             print(f'\n You spot {enemy.name} [Lvl {enemy.level}]. Do you fight?')
 
             options(["Yes", "No"])
@@ -723,8 +783,6 @@ def s_explore():
                     print(f'\n You quiety slip away from {enemy.name} [Lvl {enemy.level}].')
                     pressEnter()
                     break
-        elif option == "s": pass
-        elif option == "l": pass
         elif option == "m": pass
         elif option == "B": break
         if returnTo(): break
@@ -732,11 +790,33 @@ def s_explore():
 def s_battle(enemy):
     itemLog = []
     if type(enemy.level) is list: enemy.level = enemy.level[0]
+    
+    def attack(target, effectList, offense, defense, tags = False):
+        if tags == None: tags = []
+        for effect in effectList:
+            if "passive" in effect: passive = newPassive(effect["passive"])
+            else: passive = False
+            
+            defenseDamage = 0
+            offenseDamage = 0
+            
+            if target == "self": text, defenseDamage = offense.defend(effect, offense.stats, (tags if not tags == False else effect["tags"]), passive)
+            else:
+                text, offenseDamage = defense.defend(effect, offense.stats, (tags if not tags == False else effect["tags"]), passive)
+                for tag in (tags if not tags == False else effect["tags"]):
+                    if tag.split(":")[0] == "lifesteal":
+                        heal = math.ceil(abs(offenseDamage)/int(tag.split(":")[1]))
+                        if heal > 0:
+                            text += f' {offense.name} lifesteals {c("red")}{heal} ♥{reset}.'
+                            offense.defend({"type": "hp", "value": heal})
+                            defenseDamage += heal            
+            return evalText(text), defenseDamage, offenseDamage
 
     while 1:
         player.guard = ""
         text = [""]
         playerDamage, enemyDamage = 0, 0
+        over = False
         while 1:
             clear()
             displayBattleStats(player, enemy)
@@ -752,23 +832,18 @@ def s_battle(enemy):
                 text[0] = f'\n {player.name} attacks {enemy.name}, ' + evalText(text[0])
                 break
             if option == "a":
-                text[0], enemyDamage = enemy.defend(player.attack(), player.stats)
+                tempText, defenseDamage, offenseDamage = attack("enemy", [player.attack()], player, enemy, player.equipment["weapon"]["tags"])
                 text[0] = f'\n {player.name} attacks {enemy.name}, ' + evalText(text[0])
+                text[0] += tempText
+                playerDamage += defenseDamage
+                enemyDamage += offenseDamage
                 break
             elif option == "m":
-                text[0] = f'\n {player.name} casts {player.equipment["tome"]["attackName"]} on {player.name if player.equipment["tome"]["target"] == "self" else enemy.name}, '
-                for effect in player.get_magic():
-                    if "passive" in effect: passive = passives[effect["passive"]]
-                    else: passive = False
-                    
-                    if player.equipment["tome"]["target"] == "self":
-                        tempText, tempDamage = player.defend(effect, player.stats, passive=passive)
-                        playerDamage += tempDamage
-                        text[0] += evalText(tempText)
-                    else:
-                        tempText, tempDamage = enemy.defend(effect, player.stats, passive=passive)
-                        enemyDamage += tempDamage
-                        text[0] += evalText(tempText)
+                tempText, defenseDamage, offenseDamage = attack(player.equipment["tome"]["target"], player.get_magic(), player, enemy, player.equipment["tome"]["tags"])
+                text[0] = f'\n {player.name} casts {player.equipment["tome"]["text"]} on {player.name if player.equipment["tome"]["target"] == "self" else enemy.name}, '
+                text[0] += tempText
+                playerDamage += defenseDamage
+                enemyDamage += offenseDamage
                 player.mp -= player.equipment["tome"]["mana"]
                 break
             elif option == "g":
@@ -799,7 +874,7 @@ def s_battle(enemy):
                     options((["Next"] if next else []) + (["Previous"] if previous else []))
                     option = command(False, "optionumeric", options = ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(itemList))))))
 
-                    if option in tuple(map(str, range(0, len(itemList)))):
+                    if option in tuple(map(str, range(0, len(itemList) + (page-1) * 10 + 1))):
                         item = itemList[int(option) + (page-1) * 10][0]
                         while 1:
                             clear()
@@ -816,21 +891,13 @@ def s_battle(enemy):
                             usedItem = False
                             if option1 == "u":
                                 usedItem = True
-                                text[0] = f'\n {player.name} {item["useVerb"]} {displayItem(item["name"], item["rarity"], 1)}{"" if item["target"] == "self" else " on " + enemy.name}, '
-                                for effect in item["effect"]:
-                                    if "passive" in effect: passive = passives[effect["passive"]]
-                                    else: passive = False
-                                    
-                                    if item["target"] == "self":
-                                        tempText, tempDamage = player.defend(effect, player.stats, passive=passive)
-                                        playerDamage += tempDamage
-                                        text[0] += evalText(tempText)
-                                    else:
-                                        tempText, tempDamage = enemy.defend(effect, player.stats, passive=passive)
-                                        enemyDamage += tempDamage
-                                        text[0] += evalText(tempText)
+                                tempText, defenseDamage, offenseDamage = attack(item["target"], item["effect"], player, enemy, item["tags"])
+                                text[0] = f'\n {player.name} {item["text"]} {displayItem(item["name"], item["rarity"], 1)}{"" if item["target"] == "self" else " on " + enemy.name}, '
+                                text[0] += tempText
+                                playerDamage += defenseDamage
+                                enemyDamage += offenseDamage
 
-                                player.removeItem(item)
+                                if "infinite" not in item["tags"]: player.removeItem(item)
 
                                 itemFound = False
                                 for i in itemLog:
@@ -856,7 +923,7 @@ def s_battle(enemy):
                     option = command(options = "y")
 
                     if option == "y":
-                        if randint(1, 3) == 1:
+                        if randint(1, 2) == 1:
                             goldLoss = enemy.gold//4 if player.gold - enemy.gold//4 >= 0 else player.gold
                             print(f'\n While fleeing, {player.name} loses {c("yellow")}●{reset} {goldLoss}.')
                             player.gold -= goldLoss
@@ -872,18 +939,21 @@ def s_battle(enemy):
             if returnTo(): return
             if usedItem: break
 
-        text += player.update()
+        if enemy.hp <= 0 or player.hp <= 0: over = True
+        tempText, tempDamage = player.update()
+        text += tempText
+        playerDamage += tempDamage
         clear()
         displayBattleStats(player, enemy, playerDamage=playerDamage, enemyDamage=enemyDamage)
-        playerDamage, enemyDamage = 0, 0
         for line in text:
             print(evalText(line))
-        if enemy.hp <= 0 or player.hp <= 0: break
+        if enemy.hp <= 0 or player.hp <= 0 or over: break
         pressEnter()
 
         # LOGIC FOR ENEMY ATTACK
         enemy.guard = ""
         text = [""]
+        playerDamage, enemyDamage = 0, 0
         attackType = randint(1,5)
         if attackType <= 2: attackType = "attack"
         elif attackType <= 4: attackType = "magic"
@@ -891,7 +961,7 @@ def s_battle(enemy):
 
         if player.guard == "counter":
             text[0], enemyDamage = enemy.defend(player.attack(), player.stats)
-            text[0] = f'\n {player.name} attacks {enemy.name}, ' + evalText(text[0])
+            text[0] = f'\n {player.name} counters {enemy.name}, ' + evalText(text[0])
             attackType = ""
         if attackType == "magic":
             if enemy.magic != None:
@@ -901,19 +971,11 @@ def s_battle(enemy):
                 if len(castable) == 0: attackType = "attack"
                 else:
                     magic = castable[randint(1, len(castable))]
-
-                    for effect in magic["effect"]:
-                        if "passive" in effect: passive = passives[effect["passive"]]
-                        else: passive = False
-                        
-                        if magic["target"] == "self":
-                            tempText, tempDamage = enemy.defend(effect, enemy.stats, passive=passive)
-                            enemyDamage += tempDamage
-                            text[0] += evalText(tempText)
-                        else:
-                            tempText, tempDamage = player.defend(effect, enemy.stats, passive=passive)
-                            playerDamage += tempDamage
-                            text[0] += evalText(tempText)
+                    tempText, defenseDamage, offenseDamage = attack(magic["target"], magic["effect"], enemy, player)
+                    text[0] = f'\n {enemy.name} casts {magic["text"]} on {player.name}, '
+                    text[0] += tempText
+                    enemyDamage += defenseDamage
+                    playerDamage += offenseDamage
                     enemy.mp -= magic["mana"]
             else: attackType = "attack"
         if attackType == "guard":
@@ -925,74 +987,134 @@ def s_battle(enemy):
                 print(f'\n {enemy.name} lowers into a defensive stance.')
             else: attackType = "attack"
         if attackType == "attack":
-            text[0], playerDamage = player.defend(enemy.attack(), enemy.stats)
-            text[0] = f'\n {enemy.name} attacks {player.name}, ' + evalText(text[0])
+            tempText, defenseDamage, offenseDamage = attack("enemy", [enemy.attack()], enemy, player, enemy.tags)
+            text[0] = f'\n {enemy.name} {enemy.text} {player.name}, ' + evalText(text[0])
+            text[0] += tempText
+            enemyDamage += defenseDamage
+            playerDamage += offenseDamage
 
-        text += player.update()
+        if enemy.hp <= 0 or player.hp <= 0: over = True
+        tempText, tempDamage = enemy.update()
+        text += tempText
+        enemyDamage += tempDamage
         clear()
         displayBattleStats(player, enemy, playerDamage=playerDamage, enemyDamage=enemyDamage)
         for line in text:
             print(evalText(line))
-        if enemy.hp <= 0 or player.hp <= 0: break
+        if enemy.hp <= 0 or player.hp <= 0 or over: break
         pressEnter()
     pressEnter()
     
-    if enemy.hp <= 0:
+    if enemy.hp <= 0: s_victory(enemy, itemLog)
+    else: s_defeat(enemy, itemLog)
+
+def s_victory(enemy, itemLog):
+    clear()
+    print("\n -= Victory =-")
+    player.updateQuests(enemy=enemy)
+
+    levelDifference = enemy.level - player.level
+    if levelDifference == 0: lootMultiplier = 1
+    else: lootMultiplier = max(round(1.25 ** levelDifference, 2), 0.6)
+    xp = math.ceil(enemy.xp * lootMultiplier)
+    gold = math.ceil(randint(math.ceil(enemy.gold*0.9), math.ceil(enemy.gold*1.1)) * lootMultiplier)
+    items = []
+    if enemy.items != None:
+        for item in enemy.items:
+            if randint(1, 100) <= item[2]:
+                if type(item[1]) is list: items.append([newItem(item[0]), randint(item[1][0], item[1][1])])
+                else: items.append([newItem(item[0]), item[1]])
+
+    for item in items:
+        player.addItem(item[0], item[1])
+    player.gold += gold
+    player.xp += xp
+    print(f'\n You defeated {enemy.name} [Lvl {enemy.level}] in battle!')
+    print("\n Items used: " + (c("gray") + "- None -" + reset if len(itemLog) < 1 else ""))
+
+    for item in itemLog:
+        print(f' - {displayItem(item[0]["name"], item[0]["rarity"], item[1])}')
+
+    itemLog = []
+    print("\n Obtained: ")
+    for item in items:
+        print(f' - {displayItem(item[0]["name"], item[0]["rarity"], item[1])}')
+    print(f' - XP: {c("green")}◌{reset} {xp} (x{lootMultiplier})')
+    print(f' - Gold: {c("yellow")}●{reset} {gold} (x{lootMultiplier})')
+    if player.completedQuests != []:
+        print("\n ! COMPLETED QUEST !")
+        for quest in player.completedQuests:
+            print(f'  - Completed {displayItem(quest["name"], quest["rarity"])}')
+        player.completedQuests = []
+    
+    pressEnter()
+    if player.levelsGained > 0: s_levelUp()
+
+def s_defeat(enemy, itemLog):
+    clear()
+
+    print("\n -= Defeat =-")
+    print("\n Defeated by:")
+    print(f'\n {enemy.name} [Lvl {enemy.level}]')
+    print(f' {c("red")}♥ {drawBar(enemy.stats["max hp"], enemy.hp, "red", 32)} {enemy.hp}/{enemy.stats["max hp"]}')
+    print(f' {c("blue")}♦ {drawBar(enemy.stats["max mp"], enemy.mp, "blue", 32)} {enemy.mp}/{enemy.stats["max mp"]}')
+    
+    if len(enemy.passives) > 0:
+        print(" ", end="")
+        print(", ".join([f'{c("light green" if passive["buff"] else "light red")}{passive["name"]}{reset} ({passive["turns"]})' for passive in enemy.passives]))
+    print("\n Items used: " + (c("gray") + "- None -" + reset if len(itemLog) < 1 else ""))
+
+    for item in itemLog:
+        print(f' - {displayItem(item[0]["name"], item[0]["rarity"], item[1])}')
+
+    itemLog = []
+    player.addPassive(newPassive("Charon's Curse"))
+    player.hp = player.stats["max hp"]
+    player.mp = player.stats["max mp"]//3
+    pressEnter()
+
+def s_levelUp():
+    while 1:
         clear()
-
-        print("\n -= Victory =-")
-
-        levelDifference = enemy.level - player.level
-        if levelDifference == 0: lootMultiplier = 1
-        else: lootMultiplier = max(round(1.25 ** levelDifference, 2), 0.6)
-        xp = math.ceil(enemy.xp * lootMultiplier)
-        gold = math.ceil(randint(math.ceil(enemy.gold*0.9), math.ceil(enemy.gold*1.1)) * lootMultiplier)
-        items = []
-        if enemy.items != None:
-            for item in enemy.items:
-                if randint(1, 100) <= item["chance"]:
-                    if type(item["quantity"]) is list: items.append([newItem(item["name"]), randint(item["quantity"][0], item["quantity"][1])])
-                    else: items.append([newItem(item["name"]), item["quantity"]])
-
-        if player.getDrops(xp, gold, items): print(f'\n {player.name} Leveled up to level {player.level}!')
-        print(f'\n You defeated {enemy.name} [Lvl {enemy.level}] in battle!')
-        print("\n Items used: " + (c("gray") + "- None -" + reset if len(itemLog) < 1 else ""))
-
-        for item in itemLog:
-            print(f' - {displayItem(item[0]["name"], item[0]["rarity"], item[1])}')
-
-        itemLog = []
-        print("\n Obtained: ")
-        for item in items:
-            print(f' - {displayItem(item[0]["name"], item[0]["rarity"], item[1])}')
-        print(f' - XP: {c("green")}◌{reset} {xp} (x{lootMultiplier})')
-        print(f' - Gold: {c("yellow")}●{reset} {gold} (x{lootMultiplier})')
-        pressEnter()
-        return
-    else:
-        clear()
-
-        print("\n -= Defeat =-")
-        print("\n Defeated by:")
-        print(f'\n {enemy.name} [Lvl {enemy.level}]')
-        print(f' {c("red")}♥ {drawBar(enemy.stats["max hp"], enemy.hp, "red", 20)} {enemy.hp}/{enemy.stats["max hp"]}')
-        print(f' {c("blue")}♦ {drawBar(enemy.stats["max mp"], enemy.mp, "blue", 20)} {enemy.mp}/{enemy.stats["max mp"]}')
+        print(f'\n -= Level Up =-')
+        print(f'\n {player.name} leveled up to level {player.level - player.levelsGained + 1}!')
+        print("\n Choose an attribute to spend a point in, or pick a random attribute.")
         
-        if len(enemy.passives) > 0:
-            print(" ", end="")
-            print(", ".join([f'{c("light green" if passive["buff"] else "light red")}{passive["name"]}{reset} ({passive["turns"]})' for passive in enemy.passives]))
-        print("\n Items used: " + (c("gray") + "- None -" + reset if len(itemLog) < 1 else ""))
-
-        for item in itemLog:
-            print(f' - {displayItem(item[0]["name"], item[0]["rarity"], item[1])}')
-
-        itemLog = []
-        player.addPassive(newPassive("Charon's Curse"))
-        player.updateStats()
-        player.hp = player.stats["max hp"]
-        player.mp = player.stats["max mp"]//3
-        pressEnter()
-        return
+        options(["Health", "Mana", "Vitality", "Dodge Chance", "Crit Chance", "Random"])
+        option = command(False, "alphabetic", options = "hsvdcr", back = False)
+        
+        if option == "r":
+            option = "hmvdc"[randint(0, 6)]
+        
+        if option == "h":
+            player.baseStats["max hp"] = math.ceil(player.baseStats["max hp"] * 1.05)
+            player.updateStats()
+            player.hp = player.stats["max hp"]
+        elif option == "m":
+            player.baseStats["max mp"] = math.ceil(player.baseStats["max mp"] * 1.05)
+            player.updateStats()
+            player.mp = player.stats["max mp"]
+        elif option == "s":
+            player.baseStats["strength"] += 1
+            player.updateStats()
+        elif option == "i":
+            player.baseStats["intelligence"] += 1
+            player.updateStats()
+        elif option == "v":
+            player.baseStats["vitality"] += 1
+            player.updateStats
+        elif option == "d":
+            player.baseStats["dodge"] += 3
+            player.updateStats()
+        elif option == "c":
+            player.baseStats["crit"] += 4
+            player.updateStats()
+        else: continue
+        
+        player.levelsGained -= 1
+        
+        if player.levelsGained <= 0:
+            return
 
 
 # :::::  :::::  :   :  ::  :
@@ -1030,8 +1152,8 @@ def s_tavern():
 
         print(f'\n Price to rest: {c("yellow")}● {reset}{price}.')
 
-        options(["Rest", "Drink", c("dark gray") + "Quest", c("dark gray") + "Gamble"])
-        option = command(False, "alphabetic", options = "rd")
+        options(["Rest", "Quest", c("dark gray") + "Gamble"])
+        option = command(False, "alphabetic", options = "rq")
 
         if option == "r":
             if player.gold >= price:
@@ -1045,8 +1167,51 @@ def s_tavern():
             else:
                 print(f'\n {c("yellow")}Barkeep:{reset} You don\'t have enough coin to stay.')
                 pressEnter()
-        elif option == "d": s_store("tavern")
+        elif option == "q": s_quest()
+        elif option == "g": pass
         elif option == "B": break
+        if returnTo(): break
+
+def s_quest():
+    while 1:
+        clear()
+        print("\n -= Quest =-")
+        
+        quest = None
+        questInProgress = False
+        
+        for q in quests[player.location]:
+            if q["name"] not in player.completedMainQuests[player.location]:
+                quest = copy.deepcopy(q)
+                quest.update({"main": True})
+                if quest.get("location") == None: quest.update({"location": [player.location]})
+                break
+        
+        for q in player.quests:
+            if q["name"] == quest["name"]:
+                questInProgress = True
+                break
+        
+        if not quest:
+            pass#random quest generation here (happens after main quests are finished)
+        
+        if quest != None:
+            displayQuest(quest, False)
+            if questInProgress: print("\n Quest in progress.")
+            else: print("\n Do you accept the quest, adventurer?")
+        else:
+            questInProgress = True
+            print("\n No quests at this time. Come back later!")
+        
+        options([] if questInProgress else ["Yes", "No"])
+        option = command(False, "alphabetic", options=("" if questInProgress else "yn"))
+        
+        if option == "y":
+            player.addQuest(quest)
+            print("\n Quest added: " + displayItem(quest["name"], quest["rarity"]))
+            pressEnter()
+            break
+        elif option in ("n", "B"): break
         if returnTo(): break
 
 def s_store(store):
@@ -1054,13 +1219,21 @@ def s_store(store):
     while 1:
         clear()
         storeData = loadStore(player.location, store)
+        itemList = []
         
-        itemList = [newItem(item) for item in storeData["inventory"]]
+        for item in storeData["inventory"]:
+            if item in items:
+                itemList.append(newItem(item))
+            else:
+                print(f' "{item}" does not exist.')
         next = False if len(itemList) < (page+1)*10 else True
         previous = False if page == 1 else True
 
         print(f'\n -= {store.capitalize()} =-')
         printEvalText(storeData["description"])
+        print("\n Equipment:\n")
+        for i in range(len(slotList)):
+            if player.equipment[slotList[i]] != "": print(f'  - {displayItem(player.equipment[slotList[i]]["name"], player.equipment[slotList[i]]["rarity"])}')
         print("")
         displayPlayerGold()
         print("")
@@ -1073,7 +1246,7 @@ def s_store(store):
         options((["Next"] if next else []) + (["Previous"] if previous else []))
         option = command(False, "optionumeric", options = ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(itemList))))))
 
-        if option in tuple(map(str, range(0, len(itemList)))): s_purchase(itemList[int(option)])
+        if option in tuple(map(str, range(0, len(itemList) + (page-1) * 10 + 1))): s_purchase(itemList[int(option) + (page-1) * 10])
         elif option == "n" and next: page += 1
         elif option == "p" and previous: page -= 1
         elif option == "B": break
@@ -1089,20 +1262,23 @@ def s_purchase(item):
         displayItemStats(item)
         print(f'\n Cost: {c("yellow")}● {reset}{item["value"]}')
         displayPlayerGold()
+        print(f'\n Currently owned: {player.numOfItems(item["name"])}')
 
-        print(f'\n Type the quantity of items to be purchased.')
+        print(f'\n Type the quantity of items to be purchased ({player.gold // item["value"]} can be bought).')
 
         option = command(True, "numeric")
 
-        if option in tuple(map(str, range(1, player.gold // item["value"] + 1))):
-            if player.gold // item["value"] >= 1:
-                player.addItem(item, int(option))
-                player.gold -= item["value"] * int(option)
-                print(f'\n {displayItem(item["name"], item["rarity"], int(option))} added to your inventory.')
-            else: print(f'\n {c("light red")}You don\'t have enough gold to buy {item["name"]} x{int(option)}.')
+        if option == "B": break
+        elif option == "D": pass
+        elif int(option) <= player.gold // item["value"] and int(option) > 0:
+            player.addItem(item, int(option))
+            player.gold -= item["value"] * int(option)
+            print(f'\n {displayItem(item["name"], item["rarity"], int(option))} added to your inventory.')
             pressEnter()
             break
-        elif option == "B": break
+        else:
+            print(f'\n {c("light red")}You don\'t have enough gold to buy {item["name"]} x{int(option)}.')
+            pressEnter()
         if returnTo(): break
 
 def s_market():
@@ -1123,7 +1299,7 @@ def s_market():
         options((["Next"] if next else []) + (["Previous"] if previous else []))
         option = command(False, "optionumeric", options = ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(player.inventory))))))
 
-        if option in tuple(map(str, range(0, len(player.inventory)))):
+        if option in tuple(map(str, range(0, len(player.inventory) + (page-1) * 10 + 1))):
             s_sell(player.inventory[int(option) + (page-1) * 10][0])
         elif option == "n" and next: page += 1
         elif option == "p" and previous: page -= 1
@@ -1151,7 +1327,7 @@ def s_sell(item):
             pressEnter()
             break
         elif option == "B": break
-        else:
+        elif option != "D":
             print("\n You cannot sell that many.")
             pressEnter()
         if returnTo(): return
@@ -1171,12 +1347,13 @@ def s_character():
         print("\n -= Character =-")
         displayPlayerStats()
 
-        options(["Inventory", "Equipment", "Crafting", "Stats"])
-        option = command(options = "iecs")
+        options(["Inventory", "Equipment", "Crafting", "Quests", "Stats"])
+        option = command(options = "iecqs")
 
         if option == "i": s_inventory()
         elif option == "e": s_equipment()
         elif option == "c": s_crafting()
+        elif option == "q": s_quests()
         elif option == "s": s_stats()
         elif option == "B": break
         if returnTo(): break
@@ -1200,7 +1377,7 @@ def s_inventory():
         options((["Next"] if next else []) + (["Previous"] if previous else []))
         option = command(False, "optionumeric", options = ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(player.inventory))))))
 
-        if option in tuple(map(str, range(0, len(player.inventory)))):
+        if option in tuple(map(str, range(0, len(player.inventory) + (page-1) * 10 + 1))):
             s_inspect(player.inventory[int(option) + (page-1) * 10][0], False)
         elif option == "n" and next: page += 1
         elif option == "p" and previous: page -= 1
@@ -1260,11 +1437,11 @@ def s_inspect(item, equipped):
                     passive = False
                 tempText, playerDamage = player.defend(newPassive(effect["name"]) if effect["type"] == "passive" else effect, passive=passive)
                 text.append(tempText)
-            text[0] = f'\n {player.name} {item["useVerb"]} {displayItem(item["name"], item["rarity"], 1)}, ' + text[0]
+            text[0] = f'\n {player.name} {item["text"]} {displayItem(item["name"], item["rarity"], 1)}, ' + text[0]
             for line in text:
                 print(evalText(line))
             pressEnter()
-            player.removeItem(item)
+            if "infinite" not in item["tags"]: player.removeItem(item)
             if player.numOfItems(item["name"]) <= 0: break
         elif option == "d":
             if player.numOfItems(item["name"]) > 1:
@@ -1306,7 +1483,7 @@ def s_crafting():
         options((["Next"] if next else []) + (["Previous"] if previous else []))
         option = command(False, "optionumeric", options = ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(unlockedRecipes))))))
 
-        if option in tuple(map(str, range(0, len(unlockedRecipes)))):
+        if option in tuple(map(str, range(0, len(unlockedRecipes) + (page-1) * 10 + 1))):
             s_craft(unlockedRecipes[int(option) + (page-1) * 10])
         elif option == "n" and next: page += 1
         elif option == "p" and previous: page -= 1
@@ -1325,13 +1502,14 @@ def s_craft(recipe):
         print(f'\n Sell Price: {c("yellow")}● {reset}{item["value"]}')
         
         craftable = True
-        numCraftable = 0
+        numCraftable = 999999999
         print(f'\n Requires:\n')
         for i in range(len(recipe["ingredients"])):
             playerIngredientCount = player.numOfItems(recipe["ingredients"][i][0])
             recipeIngredientRequirement = recipe["ingredients"][i][1]
             if playerIngredientCount < recipeIngredientRequirement:
                 craftable = False
+                numCraftable = 0
             elif playerIngredientCount // recipeIngredientRequirement < numCraftable:
                 numCraftable = playerIngredientCount // recipeIngredientRequirement
             print(f' {recipeIngredientRequirement}x {displayItem(recipe["ingredients"][i][0], items[recipe["ingredients"][i][0]]["rarity"], 0)} ({playerIngredientCount}/{recipeIngredientRequirement})')
@@ -1340,17 +1518,57 @@ def s_craft(recipe):
         print(f'\n Type the quantity of items to be crafted ({numCraftable} craftable).')
         option = command(True, "numeric")
         
-        if option in "".join(tuple(map(str, range(0, numCraftable + 1)))):
+        if option == "B": break
+        elif option == "D": continue
+        elif int(option) <= numCraftable:
             for i in recipe["ingredients"]:
                 player.removeItem(newItem(i[0]), i[1] * int(option))
             player.addItem(item, recipe["quantity"] * int(option))
-            print(f'\n Crafted {displayItem(item["name"], item["rarity"], (recipe["quantity"] if item["type"] in stackableItems else 0))}!')
+            print(f'\n Crafted {displayItem(item["name"], item["rarity"], (int(option) * recipe["quantity"] if item["type"] in stackableItems else 0))}!')
             pressEnter()
             break
-        elif option == "B": break
         else:
             print("\n You cannot craft that many.")
             pressEnter()
+        if returnTo(): return
+
+def s_quests():
+    page = 1
+    while 1:
+        clear()
+        print("\n -= Quests =-\n")
+        
+        for i in range(-10 + 10*page, 10*page if 10*page < len(player.quests) else len(player.quests)):
+            print(f' {str(i)[:-1]}({str(i)[-1]}) {displayItem(player.quests[i]["name"], player.quests[i]["rarity"], 0)}')
+
+        if len(player.quests) == 0:
+            print(" " + c("dark gray") + "- No Quests -" + reset)
+
+        next = len(player.quests) > page*10 + 1
+        previous = page != 1
+
+        options((["Next"] if next else []) + (["Previous"] if previous else []))
+        option = command(False, "optionumeric", options = ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(player.quests))))))
+
+        if option in tuple(map(str, range(0, len(player.quests) + (page-1) * 10 + 1))):
+            s_inspectQuest(player.quests[int(option) + (page-1) * 10])
+        elif option == "n" and next: page += 1
+        elif option == "p" and previous: page -= 1
+        elif option == "B": break
+        if returnTo(): return
+
+def s_inspectQuest(quest):
+    while 1:
+        clear()
+        print("\n -= Inspect Quest =-")
+        displayQuest(quest, True)
+        
+        options(["Remove"])
+        option = command(False, "alphabetic", options="r")
+        
+        if option == "r":
+            pass#remove quest
+        elif option == "B": break
         if returnTo(): return
 
 def s_stats():
@@ -1393,7 +1611,7 @@ def s_stats():
         options((["Next"] if next else []) + (["Previous"] if previous else []))
         option = command(False, "optionumeric", options = ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(player.passives))))))
         
-        if option in tuple(map(str, range(0, len(player.passives)))):
+        if option in tuple(map(str, range(0, len(player.passives) + (page-1) * 10 + 1))):
             clear()
             print(f'\n -= Inspecting {c("light green" if player.passives[int(option) + (page-1) * 10]["buff"] else "light red")}{player.passives[int(option) + (page-1) * 10]["name"]}{reset} =-')
             print("  " + player.passives[int(option) + (page-1) * 10]["description"])
@@ -1431,17 +1649,22 @@ def s_save():
         if len(saves) == 0:
             print(" " + c("dark gray") + "- Empty -" + reset)
 
-        options(["Create", "Delete"])
-        option = command(False, "optionumeric", options = "cd" + "".join(tuple(map(str, range(0, len(saves))))))
+        next = len(saves) > page*10 + 1
+        previous = page != 1
+
+        options((["Next"] if next else []) + (["Previous"] if previous else []) + ["Create", "Delete"])
+        option = command(False, "optionumeric", options = "cd" + ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(saves))))))
 
         if option in tuple(map(str, range(0, len(saves)))):
-            pickle.dump(player, open("data\\saves\\" + saves[int(option)][1], "wb"))
+            pickle.dump(player, open("data\\saves\\" + saves[int(option) + (page-1) * 10][1], "wb"))
             saves = [[pickle.load(open("data\\saves\\" + file, "rb")), file] for file in os.listdir("data\\saves") if not file.endswith(".txt")]
             print("\n File saved successfully!")
             pressEnter()
             break
         elif option == "c": s_create()
         elif option == "d": s_delete()
+        elif option == "n" and next: page += 1
+        elif option == "p" and previous: page -= 1
         elif option == "B": break
         if returnTo(): break
 
@@ -1462,6 +1685,7 @@ def s_create():
         option = command(True, "alphanumeric")
 
         if option == "B": break
+        elif option == "D": pass
         elif not re.match("[\w\s]", option) or len(option) < 2:
             print("\n Your name cannot be \"" + option + "\".")
             pressEnter()
@@ -1478,19 +1702,23 @@ def s_delete():
     while 1:
         clear()
 
-        print("\n -= Delete =-")
+        print("\n -= Delete =-\n")
 
-        if len(saves) > 0: print("")
-        else: print("\n " + c("dark gray") + "- Empty -" + reset)
-
-        for i in range(len(saves)):
+        for i in range(-10 + 10*page, 10*page if 10*page < len(saves) else len(saves)):
             print(f' {i}) {saves[i][1]} | {saves[i][0].name} [Lvl {saves[i][0].level}]')
 
-        option = command(False, "numeric", options = "".join(tuple(map(str, range(0, len(saves))))))
+        if len(saves) == 0:
+            print(" " + c("dark gray") + "- Empty -" + reset)
+
+        next = len(saves) > page*10 + 1
+        previous = page != 1
+
+        options((["Next"] if next else []) + (["Previous"] if previous else []) + ["Create", "Delete"])
+        option = command(False, "optionumeric", options = ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(saves))))))
 
         if option == "B": break
-        elif option in tuple(map(str, range(0, len(saves)))):
-            os.remove("data\\saves\\" + saves[int(option)][1])
+        elif option in tuple(map(str, range(0, len(saves) - (page-1) * 10 + 1))):
+            os.remove("data\\saves\\" + saves[int(option) + (page-1) * 10][1])
             saves = [[pickle.load(open("data\\saves\\" + file, "rb")), file] for file in os.listdir("data\\saves") if not file.endswith(".txt")]
             print("\n File deleted successfully!")
             pressEnter()
@@ -1543,13 +1771,73 @@ try:
         saves = [[pickle.load(open("data\\saves\\" + file, "rb")), file] for file in os.listdir("data\\saves") if not file.endswith(".txt")]
 
         def newItem(name):
-            return copy.deepcopy(items[name])
+            session = sqlite3.connect("data\\data.db")
+            session.row_factory = dictFactory
+            cur = session.cursor()
+            item = cur.execute('select * from items where name="' + name + '"').fetchone()
+            session.close()
+            jsonLoads = ["effect", "tags"]
+            for load in jsonLoads:
+                try:
+                    if item[load]: item[load] = json.loads(item[load])
+                except Exception as err:
+                    print(" Error trying to load item '" + name + "'.")
+                    print(" Passed value: '" + item[load] + "'.")
+                    printError()
+                    pressEnter()
+            if item["tags"] == None: item["tags"] = []
+            return item
+        session = sqlite3.connect("data\\data.db")
+        session.row_factory = dictFactory
+        items = {item["name"]: newItem(item["name"]) for item in session.cursor().execute("select * from items").fetchall()}
+        session.close()
 
         def newEnemy(name):
-            return Enemy(enemies[name])
+            session = sqlite3.connect("data\\data.db")
+            session.row_factory = dictFactory
+            cur = session.cursor()
+            enemy = cur.execute('select * from enemies where name="' + name + '"').fetchone()
+            session.close()
+            jsonLoads = ["stats", "level", "items", "tags"]
+            for load in jsonLoads:
+                try:
+                    if enemy[load]: enemy[load] = json.loads(enemy[load])
+                except Exception as err:
+                    print(" Error trying to load enemy '" + enemy["name"] + "'.")
+                    print(" Passed value: '" + enemy[load] + "'.")
+                    printError()
+                    pressEnter()
+            return Enemy(enemy)
         
         def newPassive(name):
-            return copy.deepcopy(passives[name])
+            session = sqlite3.connect("data\\data.db")
+            session.row_factory = dictFactory
+            cur = session.cursor()
+            passive = cur.execute('select * from passives where name="' + name + '"').fetchone()
+            session.close()
+            jsonLoads = ["effect", "tags", "turns"]
+            for load in jsonLoads:
+                if passive[load]:
+                    try:
+                        passive[load] = json.loads(passive[load])
+                    except Exception as err:
+                        print(" Error trying to load passive '" + passive["name"] + "'.")
+                        print(" Passed value: '" + passive[load] + "'.")
+                        printError()
+                        pressEnter()
+            return passive
+        session = sqlite3.connect("data\\data.db")
+        session.row_factory = dictFactory
+        passives = [passive["name"] for passive in session.cursor().execute("select * from passives").fetchall()]
+        session.close()
+        
+        session = sqlite3.connect("data\\data.db")
+        session.row_factory = dictFactory
+        recipes = [recipe for recipe in session.cursor().execute("select * from recipes").fetchall()]
+        for recipe in recipes:
+            recipe["ingredients"] = json.loads(recipe["ingredients"])
+        session.close()
+        
         
         def loadStore(location, storeType):
             return stores[location][storeType]
@@ -1557,26 +1845,14 @@ try:
         def loadEncounter(location, area):
             return [[enemy[0]*2, newEnemy(enemy[1])] for enemy in encounters[location][area]]
     
-        with open("data\\items.json", "r") as itemFile:
-            items = json.load(itemFile)
-        items = {item["name"]: item for item in items}
-
-        with open("data\\enemies.json", "r") as enemyFile:
-            enemies = json.load(enemyFile)
-        enemies = {enemy["name"]: enemy for enemy in enemies}
-        
         with open("data\\encounters.json", "r") as encounterFile:
             encounters = json.load(encounterFile)
-        
-        with open("data\\recipes.json", "r") as recipeFile:
-            recipes = json.load(recipeFile)
-        
+    
         with open("data\\stores.json", "r") as storeFile:
             stores = json.load(storeFile)
         
-        with open("data\\passives.json", "r") as passiveFile:
-            passives = json.load(passiveFile)
-        passives = {passive["name"]: passive for passive in passives}
+        with open("data\\quests.json", "r") as questFile:
+            quests = json.load(questFile)
         
         with open("data\\settings.json", "r+") as settingsFile:
             settings = json.load(settingsFile)
@@ -1586,15 +1862,8 @@ try:
         player = Player({"weapon": newItem("Tarnished Sword"),"tome": "","head": "","chest": newItem("Patched Shirt"),"legs": newItem("Patched Jeans"),"feet": "","accessory": ""})
         s_mainMenu()
 except Exception as err:
-    # Get Exception
-    errType, errValue, errTraceback = sys.exc_info()
-    trace_back = traceback.extract_tb(errTraceback)
-    stackTrace = list()
-    for trace in trace_back:
-        stackTrace.append(f'{trace[2]} [{trace[1]}]: {trace[3]}')
-    print("\nException at " + time.ctime(time.time()) + "\n " + str(errType.__name__) + ": " + str(errValue) + "\n " + str(stackTrace[-1]) + "\n " + str(stackTrace[:-2]))
-
-    # Restart Program
+    printError()
+    
     pressEnter()
     if settings["fullscreen"]: fullscreen()
     os.execv(sys.executable, ['python'] + sys.argv)

@@ -1,0 +1,17 @@
+{
+  "fordsville": [
+    {
+      "name": "Pest Exterminator",
+      "rarity": "common",
+      "objective": [{"type": "kill", "name": "Moss Gnome", "quantity": 2}, {"type": "kill", "name": "Wood Bat", "quantity": 2}],
+      "reward": {"xp": 8, "gold": 15}
+    },
+    {
+      "name": "Slime Hunt",
+      "rarity": "common",
+      "objective": [{"type": "kill", "name": "Green Slime", "quantity": 3}, {"type": "kill", "name": "Blue Slime", "quantity": 2}],
+      "reward": {"xp": 10, "gold": 25},
+      "location": ["fordsville", "slime garden"]
+    }
+  ]
+}

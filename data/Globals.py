@@ -60,7 +60,7 @@ colors = {
 }
 reset = "\x1b[0m" if platform().split("-")[1] == "10" else ""
 
-devMode = True
+devMode = False
 textSpeed = 0.03
 returnToScreenName = ""
 returnToScreenBool = False
