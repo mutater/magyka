@@ -23,6 +23,7 @@ import copy
 import inspect
 import json
 import keyboard
+import numpy
 import math
 import msvcrt
 import os
@@ -38,6 +39,7 @@ from data.Effect import *
 from data.Entity import *
 from data.Globals import *
 from data.Item import *
+from PIL import Image
 
 # .::::::' ...    ::::::.    :::.  .,-:::::  :::::::::::::::    ...     :::.    :::. .::::::. 
 # ;;;''''  ;;     ;;;`;;;;,  `;;;,;;;'````'  ;;;;;;;;'''';;; .;;;;;;;.  `;;;;,  `;;;;;;`    ` 
@@ -314,9 +316,7 @@ def pressEnter(prompt = f'\n {c("option")}[Press Enter]{reset}'):
         else: break
 
 def fullscreen():
-    keyboard.remove_hotkey("alt + enter")
     keyboard.press_and_release("alt + enter")
-    keyboard.add_hotkey("alt + enter", blockAltEnter)
 
 
 # :::::  :::::  :::::  :   :  :::::  ::  :
@@ -505,17 +505,74 @@ def displayQuest(quest, owned):
         if owned: print(f'  - {c("dark gray") if objective["complete"] else ""}{string.capwords(objective["type"])}{" " + str(objective["quantity"]) + "x" if objective["quantity"] > 1 else ""} {objective["name"]} ({objective["status"]}/{objective["quantity"]}){reset}')
         else: print(f'  - {string.capwords(objective["type"])}{" " + str(objective["quantity"]) + "x" if objective["quantity"] > 1 else ""} {objective["name"]}')
 
+def displayImage(path, color, imgSize = 128):
+    gscale = ' .-:=!noS#8▓'
+    cols = os.get_terminal_size()[0]
+    rows = os.get_terminal_size()[1]
+    imgSize = int(imgSize / (64 / rows))
+    
+    image = Image.open(path).convert('L')
+    W, H = image.size[0], image.size[1]
+    w = W/imgSize
+    h = w/0.43
+    r = int(H/h)
+    aimg = []
+    
+    for j in range(r):
+        y1 = int(j*h)
+        y2 = int((j+1)*h)
+        
+        if j == r-1: y2 = H
+        aimg.append("")
+        
+        for i in range(imgSize):
+            x1 = int(i*w)
+            x2 = int((i+1)*w)
+            
+            if i == imgSize-1: x2 = W
+            
+            img = image.crop((x1, y1, x2, y2))
+            im = numpy.array(img)
+            width, height = im.shape
+            avg = int(numpy.average(im.reshape(width*height)))
+            gsval = gscale[int((avg*(len(gscale)-1))/255)]
+            aimg[j] += gsval
+    
+    string = aimg
+    stringCols = len(string[0])
+    for i in range(len(string) - 1, -1, -1):
+        if string[i].count(" ") >= stringCols:
+            string.pop(i)
+    stringRows = len(string)
+    space = round((cols - stringCols) / 2)
+    lower = 1
+    if rows >= 60: upper = rows - stringRows - lower - 1
+    else: upper = 0
+    
+    print("\n"*upper)
+    if color != False: print(c(color), end="")
+    for line in string:
+        print(" "*space + line)
+    print(reset + "\n"*lower)
+    print(c("gray") + "#"*cols + reset)
+
 def displayPlayerTitle():
     print(f' {player.name} [Lvl {player.level}]')
 
-def displayPlayerHP():
-    print(f' {c("red")}♥ {drawBar(player.stats["max hp"], player.hp, "red", 32)} {player.hp}/{player.stats["max hp"]}')
+def returnHpBar(entity, text=True, length=32):
+    bar = f' {c("red")}♥ {drawBar(entity.stats["max hp"], entity.hp, "red", length)}'
+    if text: bar += f'{entity.hp}/{entity.stats["max hp"]}'
+    return bar
 
-def displayPlayerMP():
-    print(f' {c("blue")}♦ {drawBar(player.stats["max mp"], player.mp, "blue", 32)} {player.mp}/{player.stats["max mp"]}')
+def returnMpBar(entity, text=True, length=32):
+    bar = f' {c("blue")}♥ {drawBar(entity.stats["max mp"], entity.mp, "blue", length)}'
+    if text: bar += f'{entity.mp}/{entity.stats["max mp"]}'
+    return bar
 
-def displayPlayerXP():
-    print(f' XP: {c("green")}◌{reset} {player.xp}/{player.mxp}')
+def returnXpBar():
+    bar = f' {c("blue")}♥ {drawBar(entity.stats["max mp"], entity.mp, "blue", length)}'
+    if text: bar += f'{entity.mp}/{entity.stats["max mp"]}'
+    return bar
 
 def displayPlayerGold():
     print(f' Gold: {c("yellow")}● {reset}{player.gold}')
@@ -1756,17 +1813,10 @@ def s_quit():
 
 try:
     if __name__ == "__main__":
-        os.system("mode con: cols=150 lines=40") # Leaves 28 lines of space if there's a header and 3 options
         os.system("title=Magyka")
+        os.system("mode con: cols=150 lines=40")
 
         print("\n Loading...")
-
-        def blockAltEnter():
-            keyboard.press_and_release("f11")
-
-        keyboard.press_and_release("windows + up")
-        keyboard.block_key("f11")
-        keyboard.add_hotkey("alt + enter", blockAltEnter)
 
         saves = [[pickle.load(open("data\\saves\\" + file, "rb")), file] for file in os.listdir("data\\saves") if not file.endswith(".txt")]
 
@@ -1860,7 +1910,12 @@ try:
         if settings["fullscreen"]: fullscreen()
         
         player = Player({"weapon": newItem("Tarnished Sword"),"tome": "","head": "","chest": newItem("Patched Shirt"),"legs": newItem("Patched Jeans"),"feet": "","accessory": ""})
-        s_mainMenu()
+        while 1:
+            clear()
+            enemy = newEnemy("Green Slime")
+            displayImage("data\\image\\enemies\\" + enemy.name + ".png", enemy.color, imgSize=128)
+            pressEnter()
+        #s_mainMenu()
 except Exception as err:
     printError()
     

@@ -388,4 +388,5 @@ class Enemy(Entity):
         self.text = kwargs["text"]
         self.magic = kwargs.get("magic")
         self.tags = kwargs.get("tags")
+        self.color = kwargs.get("color")
         self.levelDifference = 0
