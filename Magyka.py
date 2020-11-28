@@ -6,15 +6,14 @@
 # MMM  MMM     YMMMM     MMM    MMM YMM   ""` """"YUMMMMMM `""*UMM  """"YUMMM
 
 """
-TODO
-Have functions for displaying any entity's hp and mp by passing the entity as a parameter.
 Have tavern give random quests after giving set quests
 Add some sort of craftable slime items
 """
 
 
-
-import win32gui
+from data.Globals import *
+if system == "Windows": import win32gui
+else: import wnck
 
 print("\n Loading...")
 windowID = win32gui.GetForegroundWindow()
@@ -37,7 +36,6 @@ import traceback
 
 from data.Effect import *
 from data.Entity import *
-from data.Globals import *
 from data.Item import *
 from PIL import Image
 
@@ -68,14 +66,23 @@ def ifNone(value, backup):
 # :      :      :      :   :  :   :    :    :  ::  :   :
 # :::::  :::::  :::::  :   :  :   :  :::::  :   :  :::::
 
+if system == "Windows":
+    def getWindowName():
+        return (win32gui.GetWindowText(win32gui.GetForegroundWindow()))
+else:
+    def getWindowName():
+        screen = wnck.screen_get_default()
+        screen.force_update()
+        window = screen.get_active_window()
+        if window is not None:
+            pid = window.get_pid()
+            with open("/proc/{pid}/cmdline".format(pid=pid)) as f:
+                active_window_name = f.read()
+
 def clear():
-    os.system("cls")
+    os.system(clearCommand)
     global screen
-    global windowID
-    windowID = win32gui.GetForegroundWindow()
     screen = inspect.stack()[1][3]
-    setCursorVisible(False)
-    os.system(f'mode con: cols={str(os.get_terminal_size()).split(", lines=")[0].replace("os.terminal_size(columns=", "")} lines={str(os.get_terminal_size()).split(", lines=")[1].replace(")", "")}')
     setCursorVisible(False)
 
 
@@ -131,7 +138,7 @@ def command(input = False, mode = "alphabetic", back = True, silent = False, low
     sys.stdout.flush()
     while 1:
         key = keyboard.read_event()
-        if key.event_type == "down" and win32gui.GetForegroundWindow() == windowID:
+        if key.event_type == "down" and getWindowName() == "Magyka":
             if callback != "" and keyboard.is_pressed(callback): return "D"
             if not any([keyboard.is_pressed(key) for key in ["ctrl", "alt", "win"]]):
                 if len(key.name) == 1 and (mode == "command" or mode == "all" or (re.match("[0-9]", key.name) and mode in ("numeric", "optionumeric", "alphanumeric")) or (re.match("[A-Za-z\_\s\/]", key.name) and mode in ("alphabetic", "optionumeric", "alphanumeric"))):
