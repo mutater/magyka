@@ -11,20 +11,23 @@ Add some sort of craftable slime items
 """
 
 
+# Os specific module importing
+
 from data.Globals import *
-if system == "Windows": import win32gui
-else: import wnck
+if system == "Windows":
+    import win32gui, keyboard
+else:
+    import tty, termios
+    orig_settings = termios.tcgetattr(sys.stdin)
+    tty.setcbreak(sys.stdin)
 
 print("\n Loading...")
-windowID = win32gui.GetForegroundWindow()
 
 import copy
 import inspect
 import json
-import keyboard
 import numpy
 import math
-import msvcrt
 import os
 import pickle
 import re
@@ -71,19 +74,17 @@ if system == "Windows":
         return (win32gui.GetWindowText(win32gui.GetForegroundWindow()))
 else:
     def getWindowName():
-        screen = wnck.screen_get_default()
-        screen.force_update()
-        window = screen.get_active_window()
-        if window is not None:
-            pid = window.get_pid()
-            with open("/proc/{pid}/cmdline".format(pid=pid)) as f:
-                active_window_name = f.read()
+        return "Magyka"
 
 def clear():
     os.system(clearCommand)
     global screen
     screen = inspect.stack()[1][3]
     setCursorVisible(False)
+
+def exitGame():
+    if system != "Windows": termios.tcsetattr(sys.stdin, termios.TCSADRAIN, orig_settings)
+    sys.exit()
 
 
 # :::::  :::::  :::::  :: ::   :::   :::::  :::::  :::::  ::  :  :::::
@@ -120,6 +121,18 @@ def dictFactory(cursor, row):
 # :      :   :  :   :  :   :  :   :  :  ::  :   :      :
 # :::::  :::::  :   :  :   :  :   :  :   :  ::::   :::::
 
+
+def get_key():
+    if system == "Windows": return keyboard.read_event()
+    else:
+        key = sys.stdin.read(1)[0]
+        if key == "\n": return "enter"
+        elif key == " ": return "space"
+        else: return key
+
+def wait_to_key(key):
+    while 1:
+        if getWindowName() == "Magyka" and get_key() == key: break
 
 def command(input = False, mode = "alphabetic", back = True, silent = False, lower = True, options = "", prompt = "", callback = ""):
     if input:
@@ -241,7 +254,7 @@ def command(input = False, mode = "alphabetic", back = True, silent = False, low
         s_battle(newEnemy(a1[1]))
     elif a == "s":
         player.name = "Developer"
-        session = sqlite3.connect("data\\data.db")
+        session = sqlite3.connect("data/data.db")
         session.row_factory = dictFactory
         devItems = [item["name"] for item in session.cursor().execute("select * from items where name like ':%'").fetchall()]
         for item in devItems:
@@ -316,11 +329,10 @@ def options(names):
     print(reset, end="")
 
 def pressEnter(prompt = f'\n {c("option")}[Press Enter]{reset}'):
+    setCursorVisible(False)
     print(prompt)
-    keyboard.wait("enter")
-    while 1:
-        if not win32gui.GetForegroundWindow() == windowID: keyboard.wait("enter")
-        else: break
+    wait_to_key("enter")
+    setCursorVisible(True)
 
 def fullscreen():
     keyboard.press_and_release("alt + enter")
@@ -377,7 +389,6 @@ def write(text, speed = textSpeed):
         if not canSkip and not keyboard.is_pressed("enter"): canSkip = True
         if canSkip and keyboard.is_pressed("enter"): delay = 0
         sys.stdout.flush()
-        while msvcrt.kbhit(): msvcrt.getwch()
         i += 1
     print("\n")
 
@@ -666,7 +677,7 @@ def s_mainMenu():
         if option == "n": s_newGame()
         elif option == "c": s_continue()
         elif option == "o": s_options()
-        elif option == "q": sys.exit()
+        elif option == "q": exitGame()
         if returnTo(): break
 
 def s_newGame():
@@ -728,7 +739,7 @@ def s_options():
             fullscreen()
             settings["fullscreen"] = False if settings["fullscreen"] else True
         elif option == "B":
-            with open("data\\settings.json", "w+") as settingsFile:
+            with open("data/settings.json", "w+") as settingsFile:
                 json.dump(settings, settingsFile)
             break
 
@@ -1720,8 +1731,8 @@ def s_save():
         option = command(False, "optionumeric", options = "cd" + ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(saves))))))
 
         if option in tuple(map(str, range(0, len(saves)))):
-            pickle.dump(player, open("data\\saves\\" + saves[int(option) + (page-1) * 10][1], "wb"))
-            saves = [[pickle.load(open("data\\saves\\" + file, "rb")), file] for file in os.listdir("data\\saves") if not file.endswith(".txt")]
+            pickle.dump(player, open("data/saves/" + saves[int(option) + (page-1) * 10][1], "wb"))
+            saves = [[pickle.load(open("data/saves/" + file, "rb")), file] for file in os.listdir("data/saves") if not file.endswith(".txt")]
             print("\n File saved successfully!")
             pressEnter()
             break
@@ -1754,8 +1765,8 @@ def s_create():
             print("\n Your name cannot be \"" + option + "\".")
             pressEnter()
         else:
-            pickle.dump(player, open("data\\saves\\" + option.capitalize(), "wb"))
-            saves = [[pickle.load(open("data\\saves\\" + file, "rb")), file] for file in os.listdir("data\\saves") if not file.endswith(".txt")]
+            pickle.dump(player, open("data/saves/" + option.capitalize(), "wb"))
+            saves = [[pickle.load(open("data/saves/" + file, "rb")), file] for file in os.listdir("data/saves") if not file.endswith(".txt")]
             print("\n File saved successfully!")
             pressEnter()
             break
@@ -1782,8 +1793,8 @@ def s_delete():
 
         if option == "B": break
         elif option in tuple(map(str, range(0, len(saves) - (page-1) * 10 + 1))):
-            os.remove("data\\saves\\" + saves[int(option) + (page-1) * 10][1])
-            saves = [[pickle.load(open("data\\saves\\" + file, "rb")), file] for file in os.listdir("data\\saves") if not file.endswith(".txt")]
+            os.remove("data/saves/" + saves[int(option) + (page-1) * 10][1])
+            saves = [[pickle.load(open("data/saves/" + file, "rb")), file] for file in os.listdir("data/saves") if not file.endswith(".txt")]
             print("\n File deleted successfully!")
             pressEnter()
             break
@@ -1799,7 +1810,7 @@ def s_quit():
         options(["Yes"])
         option = command(options = "y")
 
-        if option == "y": sys.exit()
+        if option == "y": exitGame()
         elif option == "B": return
         if returnTo(): break
 
@@ -1819,16 +1830,16 @@ def s_quit():
 
 
 try:
-    if __name__ == "__main__":
+    if __name__ == "__main__":    
         os.system("title=Magyka")
-        os.system("mode con: cols=150 lines=40")
+        resizeConsole(150, 45)
 
-        print("\n Loading...")
+        print(os.listdir("data/saves"))
 
-        saves = [[pickle.load(open("data\\saves\\" + file, "rb")), file] for file in os.listdir("data\\saves") if not file.endswith(".txt")]
+        saves = [[pickle.load(open("data/saves/" + file, "rb")), file] for file in os.listdir("data/saves") if not file.endswith(".txt")]
 
         def newItem(name):
-            session = sqlite3.connect("data\\data.db")
+            session = sqlite3.connect("data/data.db")
             session.row_factory = dictFactory
             cur = session.cursor()
             item = cur.execute('select * from items where name="' + name + '"').fetchone()
@@ -1844,13 +1855,13 @@ try:
                     pressEnter()
             if item["tags"] == None: item["tags"] = []
             return item
-        session = sqlite3.connect("data\\data.db")
+        session = sqlite3.connect("data/data.db")
         session.row_factory = dictFactory
         items = {item["name"]: newItem(item["name"]) for item in session.cursor().execute("select * from items").fetchall()}
         session.close()
 
         def newEnemy(name):
-            session = sqlite3.connect("data\\data.db")
+            session = sqlite3.connect("data/data.db")
             session.row_factory = dictFactory
             cur = session.cursor()
             enemy = cur.execute('select * from enemies where name="' + name + '"').fetchone()
@@ -1867,7 +1878,7 @@ try:
             return Enemy(enemy)
         
         def newPassive(name):
-            session = sqlite3.connect("data\\data.db")
+            session = sqlite3.connect("data/data.db")
             session.row_factory = dictFactory
             cur = session.cursor()
             passive = cur.execute('select * from passives where name="' + name + '"').fetchone()
@@ -1883,12 +1894,12 @@ try:
                         printError()
                         pressEnter()
             return passive
-        session = sqlite3.connect("data\\data.db")
+        session = sqlite3.connect("data/data.db")
         session.row_factory = dictFactory
         passives = [passive["name"] for passive in session.cursor().execute("select * from passives").fetchall()]
         session.close()
         
-        session = sqlite3.connect("data\\data.db")
+        session = sqlite3.connect("data/data.db")
         session.row_factory = dictFactory
         recipes = [recipe for recipe in session.cursor().execute("select * from recipes").fetchall()]
         for recipe in recipes:
@@ -1902,16 +1913,16 @@ try:
         def loadEncounter(location, area):
             return [[enemy[0]*2, newEnemy(enemy[1])] for enemy in encounters[location][area]]
     
-        with open("data\\encounters.json", "r") as encounterFile:
+        with open("data/encounters.json", "r") as encounterFile:
             encounters = json.load(encounterFile)
     
-        with open("data\\stores.json", "r") as storeFile:
+        with open("data/stores.json", "r") as storeFile:
             stores = json.load(storeFile)
         
-        with open("data\\quests.json", "r") as questFile:
+        with open("data/quests.json", "r") as questFile:
             quests = json.load(questFile)
         
-        with open("data\\settings.json", "r+") as settingsFile:
+        with open("data/settings.json", "r+") as settingsFile:
             settings = json.load(settingsFile)
         
         if settings["fullscreen"]: fullscreen()
@@ -1920,12 +1931,10 @@ try:
         while 1:
             clear()
             enemy = newEnemy("Green Slime")
-            displayImage("data\\image\\enemies\\" + enemy.name + ".png", enemy.color, imgSize=128)
+            displayImage("data/image/enemies/" + enemy.name + ".png", enemy.color, imgSize=128)
             pressEnter()
         #s_mainMenu()
 except Exception as err:
     printError()
-    
     pressEnter()
-    if settings["fullscreen"]: fullscreen()
-    os.execv(sys.executable, ['python'] + sys.argv)
+    if system != "Windows": termios.tcsetattr(sys.stdin, termios.TCSADRAIN, orig_settings)

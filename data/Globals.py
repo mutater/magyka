@@ -32,6 +32,9 @@ def setCursorVisible(visible):
         print("\x1b[?25h" if visible else "\x1b[?25l", end = "")
         sys.stdout.flush()
 
+def resizeConsole(rows, cols):
+    if ansi: print(f'\x1b[8;{cols};{rows}t')
+
 colors = {
     "black": "232",
     "dark gray": "236",
