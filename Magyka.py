@@ -8,18 +8,15 @@
 """
 Have tavern give random quests after giving set quests
 Add some sort of craftable slime items
+Have terminal refresh occur after resizing is complete
 """
 
 
 # Os specific module importing
 
 from data.Globals import *
-if system == "Windows":
-    import win32gui, keyboard
-else:
-    import tty, termios
-    orig_settings = termios.tcgetattr(sys.stdin)
-    tty.setcbreak(sys.stdin)
+if system == "Windows": import win32gui, msvcrt
+else: import tty, termios, select
 
 print("\n Loading...")
 
@@ -123,89 +120,105 @@ def dictFactory(cursor, row):
 
 
 def get_key():
-    if system == "Windows": return keyboard.read_event()
+    key = ""
+    if system == "Windows":
+        if msvcrt.kbhit():
+            try:
+                key = msvcrt.getch().decode("utf-8")
+            except:
+                return ""
     else:
-        key = sys.stdin.read(1)[0]
-        if key == "\n": return "enter"
-        elif key == " ": return "space"
-        else: return key
+        if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
+            key = sys.stdin.read(1)[0]
+    
+    if key == "\n" or key == "\r": return "enter"
+    elif key == "\x1b": return "esc"
+    elif key == " ": return "space"
+    elif key == "\x08": return "backspace"
+    else: return key
 
 def wait_to_key(key):
     while 1:
         if getWindowName() == "Magyka" and get_key() == key: break
 
-def command(input = False, mode = "alphabetic", back = True, silent = False, lower = True, options = "", prompt = "", callback = ""):
+def command(input = False, mode="alphabetic", back=True, silent=False, lower=True, options="", prompt="", horizontal=False):
     if input:
         if mode == "command": print(f'\n{c("option")} Console >| {reset}', end = "")
         else: print(f'\n{c("option")} > {reset}', end = "")
         setCursorVisible(True)
-    elif silent: pass
-    elif mode == "none": print("\n Press ESC to go back.")
-    elif mode == "alphabetic": print("\n  -  Press a letter" + (", or ESC to go back." if back else "."))
-    elif mode == "numeric": print("\n  -  Press a number, or ESC to go back.")
-    elif mode == "optionumeric": print("\n  -  Press a number or letter, or ESC to go back.")
+    elif silent: helpText = ""
+    elif mode == "none": helpText = "- Press ESC to go back."
+    elif mode == "alphabetic": helpText = "- Press a letter" + (", or ESC to go back." if back else ".")
+    elif mode == "numeric": helpText = "- Press a number, or ESC to go back."
+    elif mode == "optionumeric": helpText = "- Press a number or letter, or ESC to go back."
+
+    if not input:
+        if horizontal: print("\n" + helpText.center(os.get_terminal_size()[0]))
+        else: print("\n  " + helpText)
 
     a = prompt
     loc = len(prompt)
     print(a, end = "")
     sys.stdout.flush()
+    terminalSize = os.get_terminal_size()
     while 1:
-        key = keyboard.read_event()
-        if key.event_type == "down" and getWindowName() == "Magyka":
-            if callback != "" and keyboard.is_pressed(callback): return "D"
-            if not any([keyboard.is_pressed(key) for key in ["ctrl", "alt", "win"]]):
-                if len(key.name) == 1 and (mode == "command" or mode == "all" or (re.match("[0-9]", key.name) and mode in ("numeric", "optionumeric", "alphanumeric")) or (re.match("[A-Za-z\_\s\/]", key.name) and mode in ("alphabetic", "optionumeric", "alphanumeric"))):
-                    if input:
-                        a = a[:loc] + key.name + a[loc:]
-                        loc += 1
-                        print(key.name + a[loc:], end = "")
-                        for i in range(len(a) - loc):
-                            print("\b", end = "")
-                        sys.stdout.flush()
-                    elif (re.match("[^A-Z]", key.name) or keyboard.is_pressed("shift")) and key.name in options:
-                        a = a[loc:] + key.name + a[:loc]
-                        break
-                if key.name == "space" and input:
-                    a = a[:loc] + " " + a[loc:]
+        key = get_key()
+        if terminalSize != os.get_terminal_size(): return "D"
+        if os.get_terminal_size()[0] < 120: resizeConsole(120, str(os.get_terminal_size()[1]))
+        if os.get_terminal_size()[1] < 30: resizeConsole(str(os.get_terminal_size()[0]), 30)
+        if getWindowName() == "Magyka":
+            if len(key) == 1 and (mode == "command" or mode == "all" or (re.match("[0-9]", key) and mode in ("numeric", "optionumeric", "alphanumeric")) or (re.match("[A-Za-z\_\s\/]", key) and mode in ("alphabetic", "optionumeric", "alphanumeric"))):
+                if input:
+                    a = a[:loc] + key + a[loc:]
                     loc += 1
-                    print(" " + a[loc:], end = "")
+                    print(key + a[loc:], end = "")
                     for i in range(len(a) - loc):
                         print("\b", end = "")
                     sys.stdout.flush()
-                if key.name == "left" and loc > 0:
-                    loc -= 1
-                    sys.stdout.write("\b")
-                    sys.stdout.flush()
-                if key.name == "right" and loc < len(a):
-                    loc += 1
-                    sys.stdout.write(a[loc-1])
-                    sys.stdout.flush()
-                if key.name == "backspace":
-                    if len(a) > 0:
-                        sys.stdout.write("\b" + a[loc:] + " ")
-                        for i in range(len(a) - loc + 1):
-                            print("\b", end = "")
-                        sys.stdout.flush()
-                        a = a[:loc-1] + a[loc:]
-                        loc -= 1
-                if key.name == "f11":
-                    return "D"
-                if key.name == "esc" and (len(a) == 0 or mode == "all") and back:
-                    return "B"
-                if key.name == "enter" and input:
-                    print("")
+                elif key in options or key.lower() in options:
+                    a = key
                     break
-                if key.name == "`" and mode != "command":
-                    a = ""
-                    print("\b \b", end = "")
+            if key == "space" and input:
+                a = a[:loc] + " " + a[loc:]
+                loc += 1
+                print(" " + a[loc:], end = "")
+                for i in range(len(a) - loc):
+                    print("\b", end = "")
+                sys.stdout.flush()
+            if key == "left" and loc > 0:
+                loc -= 1
+                sys.stdout.write("\b")
+                sys.stdout.flush()
+            if key == "right" and loc < len(a):
+                loc += 1
+                sys.stdout.write(a[loc-1])
+                sys.stdout.flush()
+            if key == "backspace":
+                if len(a) > 0:
+                    sys.stdout.write("\b" + a[loc:] + " ")
+                    for i in range(len(a) - loc + 1):
+                        print("\b", end = "")
                     sys.stdout.flush()
-                    command(True, "command")
-                    return "D"
-                if key.name == "`" and mode == "command":
-                    a = ""
-                    print("\b \b")
-                    return "D"
-            if key.name == "backspace" and keyboard.is_pressed("ctrl") and not keyboard.is_pressed("alt"):
+                    a = a[:loc-1] + a[loc:]
+                    loc -= 1
+            if key == "f11":
+                return "D"
+            if key == "esc" and (len(a) == 0 or mode == "all") and back:
+                return "B"
+            if key == "enter" and input:
+                print("")
+                break
+            if key == "`" and mode != "command":
+                a = ""
+                print("\b \b", end = "")
+                sys.stdout.flush()
+                command(True, "command")
+                return "D"
+            if key == "`" and mode == "command":
+                a = ""
+                print("\b \b")
+                return "D"
+            if key == "\x7f":
                 if len(a) > 0:
                     while not a[loc-1] == " ":
                         for i in range(len(a) - loc + 1):
@@ -220,32 +233,15 @@ def command(input = False, mode = "alphabetic", back = True, silent = False, low
                         sys.stdout.flush()
                         a = a[:loc-1] + a[loc:]
                         loc -= 1
-            if key.name == "backspace" and keyboard.is_pressed("ctrl") and keyboard.is_pressed("alt"):
-                for i in range(len(a)):
-                    sys.stdout.write("\b \b")
-                sys.stdout.flush()
-                a = ""
-            if key.name == "enter" and keyboard.is_pressed("alt"):
+            """if key == "enter" and keyboard.is_pressed("alt"):
                 return "D"
-            if key.name == "up" and keyboard.is_pressed("win"):
-                return "D"
+            if key == "up" and keyboard.is_pressed("win"):
+                return "D" """
 
     setCursorVisible(False)
 
     if a == "": return ""
     if not mode == "command": return (str.lower(a).strip() if lower else a.strip())
-
-    global devMode
-    if a == "asdfjkl;":
-        devMode = devMode == False
-        return "D"
-    if a == "asdfjkl;s":
-        devMode = True
-        a = "s"
-    if not devMode:
-        print(c("light red") + "\n No cheating for you!" + reset)
-        pressEnter()
-        return "D"
 
     a1 = a.split(" ", 1)
     a2 = a.split(" ", 2)
@@ -262,7 +258,7 @@ def command(input = False, mode = "alphabetic", back = True, silent = False, low
         session.close()
         s_camp()
     elif a == "restart":
-        if settings["fullscreen"]: fullscreen()
+        clear()
         os.execv(sys.executable, ['python'] + sys.argv)
     
     try:
@@ -296,7 +292,7 @@ def command(input = False, mode = "alphabetic", back = True, silent = False, low
         elif a1[0] == "name":
             player.name = a1[1].strip()
         elif a == "quit":
-            sys.exit()
+            exitGame()
         elif a == "clear passives":
             player.passives = []
             player.updateStats()
@@ -321,16 +317,26 @@ def command(input = False, mode = "alphabetic", back = True, silent = False, low
 # :::::  :   :  :      :::::    :
 
 
-def options(names):
+def options(names, horizontal=False):
     if len(names) > 0: print("")
-    for i in range(len(names)):
-        print(f' {c("option") + c("dark gray", True)}[{names[i][11 if ";" in names[i] else 0]}]{reset} {names[i]}')
-        if i < len(names)-1: print(f' {c("option") + c("dark gray", True)} | {reset}')
+    if horizontal:
+        text = ""
+        for i in range(len(names)):
+            text += f'{c("option") + c("dark gray", True)}[{names[i][11 if ";" in names[i] else 0]}]{reset} {names[i]}'
+            if i < len(names)-1:
+                text += "       "
+        print(text.center(os.get_terminal_size()[0] + text.count("\x1b") * 9))
+    else:
+        for i in range(len(names)):
+            print(f' {c("option") + c("dark gray", True)}[{names[i][11 if ";" in names[i] else 0]}]{reset} {names[i]}')
+            if i < len(names)-1:
+                print(f' {c("option") + c("dark gray", True)} |{reset}')
     print(reset, end="")
 
-def pressEnter(prompt = f'\n {c("option")}[Press Enter]{reset}'):
+def pressEnter(prompt = f'{c("option")}[Press Enter]', horizontal=False):
     setCursorVisible(False)
-    print(prompt)
+    if horizontal: print("\n" + prompt.center(os.get_terminal_size()[0] + prompt.count("\x1b") * 9) + reset)
+    else: print("\n " + prompt + reset)
     wait_to_key("enter")
     setCursorVisible(True)
 
@@ -369,7 +375,6 @@ def returnToScreen(screen):
 def write(text, speed = textSpeed):
     i = 0
     delay = speed
-    canSkip = not keyboard.is_pressed("enter")
     while i < len(text):
         if text[i:i+2] == "0m":
             print(reset, end="")
@@ -386,8 +391,7 @@ def write(text, speed = textSpeed):
         else:
             print(text[i], end="")
         time.sleep(delay)
-        if not canSkip and not keyboard.is_pressed("enter"): canSkip = True
-        if canSkip and keyboard.is_pressed("enter"): delay = 0
+        if get_key() == "enter": delay = 0
         sys.stdout.flush()
         i += 1
     print("\n")
@@ -523,13 +527,17 @@ def displayQuest(quest, owned):
         if owned: print(f'  - {c("dark gray") if objective["complete"] else ""}{string.capwords(objective["type"])}{" " + str(objective["quantity"]) + "x" if objective["quantity"] > 1 else ""} {objective["name"]} ({objective["status"]}/{objective["quantity"]}){reset}')
         else: print(f'  - {string.capwords(objective["type"])}{" " + str(objective["quantity"]) + "x" if objective["quantity"] > 1 else ""} {objective["name"]}')
 
-def displayImage(path, color, imgSize = 128):
+def displayImage(path, color, imgSize = 120):
     gscale = ' .-:=!noS#8▓'
     cols = os.get_terminal_size()[0]
     rows = os.get_terminal_size()[1]
-    imgSize = int(imgSize / (64 / rows))
+    imgSize = int(imgSize / (60 / rows))
+    if imgSize > 128: imgSize = 128
     
-    image = Image.open(path).convert('L')
+    try:
+        image = Image.open(path).convert('L')
+    except:
+        image = Image.open("data/image/Unknown.png").convert('L')
     W, H = image.size[0], image.size[1]
     w = W/imgSize
     h = w/0.43
@@ -559,12 +567,17 @@ def displayImage(path, color, imgSize = 128):
     string = aimg
     stringCols = len(string[0])
     for i in range(len(string) - 1, -1, -1):
-        if string[i].count(" ") >= stringCols:
+        delete = True
+        for character in '.-:=!noS#8▓':
+            if character in string[i]:
+                delete = False
+                break
+        if delete:
             string.pop(i)
     stringRows = len(string)
     space = round((cols - stringCols) / 2)
     lower = 1
-    if rows >= 60: upper = rows - stringRows - lower - 1
+    if rows >= 60: upper = 2
     else: upper = 0
     
     print("\n"*upper)
@@ -578,36 +591,36 @@ def displayPlayerTitle():
     print(f' {player.name} [Lvl {player.level}]')
 
 def returnHpBar(entity, text=True, length=32):
-    bar = f' {c("red")}♥ {drawBar(entity.stats["max hp"], entity.hp, "red", length)}'
-    if text: bar += f'{entity.hp}/{entity.stats["max hp"]}'
+    bar = f'{c("red")}{"♥ " if text else ""}{drawBar(entity.stats["max hp"], entity.hp, "red", length)}'
+    if text: bar += f' {entity.hp}/{entity.stats["max hp"]}'
     return bar
 
 def returnMpBar(entity, text=True, length=32):
-    bar = f' {c("blue")}♥ {drawBar(entity.stats["max mp"], entity.mp, "blue", length)}'
-    if text: bar += f'{entity.mp}/{entity.stats["max mp"]}'
+    bar = f'{c("blue")}{"♦ " if text else ""}{drawBar(entity.stats["max mp"], entity.mp, "blue", length)}'
+    if text: bar += f' {entity.mp}/{entity.stats["max mp"]}'
     return bar
 
-def returnXpBar():
-    bar = f' {c("blue")}♥ {drawBar(entity.stats["max mp"], entity.mp, "blue", length)}'
-    if text: bar += f'{entity.mp}/{entity.stats["max mp"]}'
+def returnXpBar(entity, text=True, length=32):
+    bar = f' {c("green")}• {drawBar(entity.mxp, entity.xp, "green", length)}'
+    if text: bar += f' {entity.xp}/{entity.mxp}'
     return bar
 
 def displayPlayerGold():
     print(f' Gold: {c("yellow")}● {reset}{player.gold}')
 
-def displayPlayerPassives():
-    if len(player.passives) > 0:
+def displayPassives(entity):
+    if len(entity.passives) > 0:
         print(" ", end="")
-        print(", ".join([f'{c("light green" if passive["buff"] else "light red")}{passive["name"]}{reset} ({passive["turns"]})' for passive in player.passives]))
+        print(", ".join([f'{c("light green" if passive["buff"] else "light red")}{passive["name"]}{reset} ({passive["turns"]})' for passive in entity.passives]))
 
 def displayPlayerStats():
     print("")
     displayPlayerTitle()
-    displayPlayerHP()
-    displayPlayerMP()
-    displayPlayerXP()
+    print("", returnHpBar(player))
+    print("", returnMpBar(player))
+    print(returnXpBar(player))
     displayPlayerGold()
-    displayPlayerPassives()
+    displayPassives(player)
 
 def displayBattleStats(player, enemy, playerDamage = 0, enemyDamage = 0):
         if playerDamage > 0: playerDamageText = " +" + str(playerDamage)
@@ -616,17 +629,29 @@ def displayBattleStats(player, enemy, playerDamage = 0, enemyDamage = 0):
         if enemyDamage > 0: enemyDamageText = " +" + str(enemyDamage)
         elif enemyDamage < 0: enemyDamageText = " " + str(enemyDamage)
         else: enemyDamageText = ""
-        print(f'\n -= {player.name} Versus {enemy.name} [Lvl {enemy.level}] =-')
-        print(f'\n {player.name}')
-        print(f' {c("red")}♥ {drawBar(player.stats["max hp"], player.hp, "red", 32)} {player.hp}/{player.stats["max hp"]}{playerDamageText}')
-        print(f' {c("blue")}♦ {drawBar(player.stats["max mp"], player.mp, "blue", 32)} {player.mp}/{player.stats["max mp"]}')
-        displayPlayerPassives()
-        print(f'\n {enemy.name} [Lvl {enemy.level}]')
-        print(f' {c("red")}♥ {drawBar(enemy.stats["max hp"], enemy.hp, "red", 32)} {enemy.hp}/{enemy.stats["max hp"]}{enemyDamageText}')
-        print(f' {c("blue")}♦ {drawBar(enemy.stats["max mp"], enemy.mp, "blue", 32)} {enemy.mp}/{enemy.stats["max mp"]}')
-        if len(enemy.passives) > 0:
-            print(" ", end="")
-            print(", ".join([f'{c("light green" if passive["buff"] else "light red")}{passive["name"]}{reset} ({passive["turns"]})' for passive in enemy.passives]))
+        displayImage("data/image/enemies/" + enemy.name + ".png", enemy.color, imgSize=128)
+        
+        cols = os.get_terminal_size()[0]
+        barWidth = cols // 4
+        if barWidth % 2 == 0: barWidth -= 1
+        leftPad, midPad = 0, 0
+        barPadding = (cols - barWidth * 2) // 3
+        if cols % 3 == 0: leftPad, midPad = barPadding, barPadding
+        elif cols % 2 == 0: leftPad, midPad = barPadding + 1, barPadding
+        else: leftPad, midPad = barPadding, barPadding + 1
+        
+        print("\n", " "*leftPad, f'- {player.name} -'.center(barWidth), " "*midPad, f'- {enemy.name} [Lvl {enemy.level}] -'.center(barWidth), sep="")
+        print(c("red"))
+        print(" "*leftPad, "♥".center(barWidth), " "*midPad, "♥".center(barWidth), sep="")
+        print(" "*leftPad, returnHpBar(player, text=False, length=barWidth), " "*midPad, returnHpBar(enemy, text=False, length=barWidth), sep="")
+        print(" "*leftPad, str(player.hp).rjust(barWidth // 2 - 1), " / ", str(player.stats["max hp"]).ljust(barWidth // 2 - 1), " "*midPad, str(enemy.hp).rjust(barWidth // 2 - 1), " / ", str(enemy.stats["max hp"]).ljust(barWidth // 2 - 1), sep="")
+        print(c("blue"))
+        print(" "*leftPad, "♦".center(barWidth), " "*midPad, "♦".center(barWidth), sep="")
+        print(" "*leftPad, returnMpBar(player, text=False, length=barWidth), " "*midPad, returnMpBar(enemy, text=False, length=barWidth), sep="")
+        print(" "*leftPad, str(player.mp).rjust(barWidth // 2 - 1), " / ", str(player.stats["max mp"]).ljust(barWidth // 2 - 1), " "*midPad, str(enemy.mp).rjust(barWidth // 2 - 1), " / ", str(enemy.stats["max mp"]).ljust(barWidth // 2 - 1), sep="")
+        displayPassives(player)
+        displayPassives(enemy)
+        print("")
 
 def printError():
     errType, errValue, errTraceback = sys.exc_info()
@@ -690,7 +715,12 @@ def s_newGame():
         option = command(True, "alphanumeric", back = False)
 
         if option == "" or option == None: print(c("light red") + "\n Your name cannot be empty." + reset)
-        elif len(option) >= 15: print(c("light red") + "\n Your name cannot be over 15 characters." + reset)
+        elif option == "D":
+            clear()
+            write(evalText(text[0]), 0)
+            continue
+        elif len(option) <= 2: print(c("light red") + "\n Your name cannot be less than 2 characters long." + reset)
+        elif len(option) >= 15: print(c("light red") + "\n Your name cannot be greater than 15 characters long." + reset)
         elif not re.match("[\w\s\ ]", option): print(c("light red") + "\n Your name contains illegal characters." + reset)
         else:
             player.name = (string.capwords(option))
@@ -899,8 +929,8 @@ def s_battle(enemy):
             usedItem = False
             canUseMagic = False if player.equipment["tome"] == "" or player.mp < player.equipment["tome"]["mana"] else True
 
-            options(["Attack", (c("dark gray") if not canUseMagic else "") + "Magic", "Guard", "Item", "Flee"])
-            option = command(back = False, options = "amgif" if canUseMagic else "agif")
+            options(["Attack", (c("dark gray") if not canUseMagic else "") + "Magic", "Guard", "Item", "Flee"], True)
+            option = command(back = False, options = "amgif" if canUseMagic else "agif", horizontal=True)
 
             if enemy.guard == "counter":
                 text[0], playerDamage = player.defend(enemy.attack(), enemy.stats)
@@ -1021,9 +1051,9 @@ def s_battle(enemy):
         clear()
         displayBattleStats(player, enemy, playerDamage=playerDamage, enemyDamage=enemyDamage)
         for line in text:
-            print(evalText(line))
+            print(evalText(line).center(os.get_terminal_size()[0] + evalText(line).count("\x1b") * 9))
         if enemy.hp <= 0 or player.hp <= 0 or over: break
-        pressEnter()
+        pressEnter(horizontal=True)
 
         # LOGIC FOR ENEMY ATTACK
         enemy.guard = ""
@@ -1075,10 +1105,10 @@ def s_battle(enemy):
         clear()
         displayBattleStats(player, enemy, playerDamage=playerDamage, enemyDamage=enemyDamage)
         for line in text:
-            print(evalText(line))
+            print(evalText(line).center(os.get_terminal_size()[0] + evalText(line).count("\x1b") * 9))
         if enemy.hp <= 0 or player.hp <= 0 or over: break
-        pressEnter()
-    pressEnter()
+        pressEnter(horizontal=True)
+    pressEnter(horizontal=True)
     
     if enemy.hp <= 0: s_victory(enemy, itemLog)
     else: s_defeat(enemy, itemLog)
@@ -1833,8 +1863,9 @@ try:
     if __name__ == "__main__":    
         os.system("title=Magyka")
         resizeConsole(150, 45)
-
-        print(os.listdir("data/saves"))
+        if system != "Windows":
+            orig_settings = termios.tcgetattr(sys.stdin)
+            tty.setcbreak(sys.stdin)
 
         saves = [[pickle.load(open("data/saves/" + file, "rb")), file] for file in os.listdir("data/saves") if not file.endswith(".txt")]
 
@@ -1928,12 +1959,7 @@ try:
         if settings["fullscreen"]: fullscreen()
         
         player = Player({"weapon": newItem("Tarnished Sword"),"tome": "","head": "","chest": newItem("Patched Shirt"),"legs": newItem("Patched Jeans"),"feet": "","accessory": ""})
-        while 1:
-            clear()
-            enemy = newEnemy("Green Slime")
-            displayImage("data/image/enemies/" + enemy.name + ".png", enemy.color, imgSize=128)
-            pressEnter()
-        #s_mainMenu()
+        s_mainMenu()
 except Exception as err:
     printError()
     pressEnter()
