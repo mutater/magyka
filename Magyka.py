@@ -531,7 +531,7 @@ def displayImage(path, color, imgSize = 120):
     cols = os.get_terminal_size()[0]
     rows = os.get_terminal_size()[1]
     colCaps = [150, 120, 100, 90, 80, 70, 60, 50, 40, 35, 30, 25, 20, 15, 10, 5, 1]
-    rowCaps = [45, 35, 25, 15, 10, 1]
+    rowCaps = [45, 40, 30, 20, 10, 1]
     
     for cap in colCaps:
         if cols >= cap and imgSize > cap:
@@ -543,7 +543,7 @@ def displayImage(path, color, imgSize = 120):
             imgSize = int(cap * 2)
             break
     
-    if cols >= colCaps[0] and rows >= rowCaps[0]: imgSIze = 120
+    if cols >= colCaps[0] and rows >= rowCaps[0]: imgSize = 120
     
     try:
         image = Image.open(path).convert('L')
@@ -640,6 +640,7 @@ def displayBattleStats(player, enemy, playerDamage = 0, enemyDamage = 0):
         displayImage("data/image/enemies/" + enemy.name + ".png", enemy.color, imgSize=128)
         
         cols = os.get_terminal_size()[0]
+        rows = os.get_terminal_size()[1]
         barWidth = int(cols // 3.4)
         if barWidth % 2 == 0: barWidth -= 1
         leftPad, midPad = 0, 0
@@ -656,11 +657,11 @@ def displayBattleStats(player, enemy, playerDamage = 0, enemyDamage = 0):
         else:
             print("\n", "  ", player.name, " vs ", enemy.name, sep="")
         print(c("red"))
-        print(" "*leftPad, "♥".center(barWidth), " "*midPad, "♥".center(barWidth), sep="")
+        if rows >= 42: print(" "*leftPad, "♥".center(barWidth), " "*midPad, "♥".center(barWidth), sep="")
         print(" "*leftPad, returnHpBar(player, text=False, length=barWidth), " "*midPad, returnHpBar(enemy, text=False, length=barWidth), sep="")
         print(" "*leftPad, str(player.hp).rjust(barWidth // 2 - 1), " / ", str(player.stats["max hp"]).ljust(barWidth // 2 - 1), " "*midPad, str(enemy.hp).rjust(barWidth // 2 - 1), " / ", str(enemy.stats["max hp"]).ljust(barWidth // 2 - 1), sep="")
         print(c("blue"))
-        print(" "*leftPad, "♦".center(barWidth), " "*midPad, "♦".center(barWidth), sep="")
+        if rows >= 42: print(" "*leftPad, "♦".center(barWidth), " "*midPad, "♦".center(barWidth), sep="")
         print(" "*leftPad, returnMpBar(player, text=False, length=barWidth), " "*midPad, returnMpBar(enemy, text=False, length=barWidth), sep="")
         print(" "*leftPad, str(player.mp).rjust(barWidth // 2 - 1), " / ", str(player.stats["max mp"]).ljust(barWidth // 2 - 1), " "*midPad, str(enemy.mp).rjust(barWidth // 2 - 1), " / ", str(enemy.stats["max mp"]).ljust(barWidth // 2 - 1), sep="")
         displayPassives(player)
@@ -935,10 +936,10 @@ def s_battle(enemy):
                     if tag.split(":")[0] == "lifesteal":
                         heal = math.ceil(abs(offenseDamage)/int(tag.split(":")[1]))
                         if heal > 0:
-                            text += f' {offense.name} lifesteals {c("red")}{heal} ♥{reset}.'
+                            text += ' {offense.name} lifesteals {c("red")}{heal} ♥{reset}.'
                             offense.defend({"type": "hp", "value": heal})
                             defenseDamage += heal            
-            return evalText(text), defenseDamage, offenseDamage
+            return text, defenseDamage, offenseDamage
 
     while 1:
         player.guard = ""
@@ -953,22 +954,22 @@ def s_battle(enemy):
             canUseMagic = False if player.equipment["tome"] == "" or player.mp < player.equipment["tome"]["mana"] else True
 
             options(["Attack", (c("dark gray") if not canUseMagic else "") + "Magic", "Guard", "Item", "Flee"], True)
-            option = command(back = False, options = "amgif" if canUseMagic else "agif", horizontal=True)
+            option = command(back = False, options = "amgif" if canUseMagic else "agif", horizontal=True, silent=True)
 
             if enemy.guard == "counter":
                 text[0], playerDamage = player.defend(enemy.attack(), enemy.stats)
-                text[0] = f'\n {player.name} attacks {enemy.name}, ' + evalText(text[0])
+                text[0] = f' {player.name} attacks {enemy.name}, ' + evalText(text[0])
                 break
             if option == "a":
                 tempText, defenseDamage, offenseDamage = attack("enemy", [player.attack()], player, enemy, player.equipment["weapon"]["tags"])
-                text[0] = f'\n {player.name} attacks {enemy.name}, ' + evalText(text[0])
+                text[0] = f' {player.name} attacks {enemy.name}, ' + evalText(text[0])
                 text[0] += tempText
                 playerDamage += defenseDamage
                 enemyDamage += offenseDamage
                 break
             elif option == "m":
                 tempText, defenseDamage, offenseDamage = attack(player.equipment["tome"]["target"], player.get_magic(), player, enemy, player.equipment["tome"]["tags"])
-                text[0] = f'\n {player.name} casts {player.equipment["tome"]["text"]} on {player.name if player.equipment["tome"]["target"] == "self" else enemy.name}, '
+                text[0] = f' {player.name} casts {player.equipment["tome"]["text"]} on {player.name if player.equipment["tome"]["target"] == "self" else enemy.name}, '
                 text[0] += tempText
                 playerDamage += defenseDamage
                 enemyDamage += offenseDamage
@@ -979,7 +980,7 @@ def s_battle(enemy):
                 if guardState <= 3: player.guard = "deflect"
                 elif guardState == 4: player.guard = "block"
                 else: player.guard = "counter"
-                text[0] = f'\n {player.name} lowers into a defensive stance.'
+                text[0] = f' {player.name} lowers into a defensive stance.'
                 break
             elif option == "i":
                 page = 1
@@ -1020,7 +1021,7 @@ def s_battle(enemy):
                             if option1 == "u":
                                 usedItem = True
                                 tempText, defenseDamage, offenseDamage = attack(item["target"], item["effect"], player, enemy, item["tags"])
-                                text[0] = f'\n {player.name} {item["text"]} {displayItem(item["name"], item["rarity"], 1)}{"" if item["target"] == "self" else " on " + enemy.name}, '
+                                text[0] = f' {player.name} {item["text"]} {displayItem(item["name"], item["rarity"], 1)}{"" if item["target"] == "self" else " on " + enemy.name}, '
                                 text[0] += tempText
                                 playerDamage += defenseDamage
                                 enemyDamage += offenseDamage
@@ -1074,7 +1075,8 @@ def s_battle(enemy):
         clear()
         displayBattleStats(player, enemy, playerDamage=playerDamage, enemyDamage=enemyDamage)
         for line in text:
-            print(evalText(line).center(os.get_terminal_size()[0] + evalText(line).count("\x1b") * 9))
+            printLine = evalText(line).center(os.get_terminal_size()[0] + evalText(line).count("\x1b[3") * 9 + line.count("{reset}") * 3)
+            print("\n", printLine, sep="")
         if enemy.hp <= 0 or player.hp <= 0 or over: break
         pressEnter(horizontal=True)
 
@@ -1089,7 +1091,7 @@ def s_battle(enemy):
 
         if player.guard == "counter":
             text[0], enemyDamage = enemy.defend(player.attack(), player.stats)
-            text[0] = f'\n {player.name} counters {enemy.name}, ' + evalText(text[0])
+            text[0] = f' {player.name} counters {enemy.name}, ' + evalText(text[0])
             attackType = ""
         if attackType == "magic":
             if enemy.magic != None:
@@ -1100,7 +1102,7 @@ def s_battle(enemy):
                 else:
                     magic = castable[randint(1, len(castable))]
                     tempText, defenseDamage, offenseDamage = attack(magic["target"], magic["effect"], enemy, player)
-                    text[0] = f'\n {enemy.name} casts {magic["text"]} on {player.name}, '
+                    text[0] = f' {enemy.name} casts {magic["text"]} on {player.name}, '
                     text[0] += tempText
                     enemyDamage += defenseDamage
                     playerDamage += offenseDamage
@@ -1112,11 +1114,11 @@ def s_battle(enemy):
                 if guardState <= 3: enemy.guard = "deflect"
                 elif guardState == 4: enemy.guard = "block"
                 else: enemy.guard = "counter"
-                print(f'\n {enemy.name} lowers into a defensive stance.')
+                print(f' {enemy.name} lowers into a defensive stance.')
             else: attackType = "attack"
         if attackType == "attack":
             tempText, defenseDamage, offenseDamage = attack("enemy", [enemy.attack()], enemy, player, enemy.tags)
-            text[0] = f'\n {enemy.name} {enemy.text} {player.name}, ' + evalText(text[0])
+            text[0] = f' {enemy.name} {enemy.text} {player.name}, ' + evalText(text[0])
             text[0] += tempText
             enemyDamage += defenseDamage
             playerDamage += offenseDamage
@@ -1128,7 +1130,8 @@ def s_battle(enemy):
         clear()
         displayBattleStats(player, enemy, playerDamage=playerDamage, enemyDamage=enemyDamage)
         for line in text:
-            print(evalText(line).center(os.get_terminal_size()[0] + evalText(line).count("\x1b") * 9))
+            printLine = evalText(line).center(os.get_terminal_size()[0] + evalText(line).count("\x1b[3") * 9 + line.count("{reset}") * 3)
+            print("\n", printLine, sep="")
         if enemy.hp <= 0 or player.hp <= 0 or over: break
         pressEnter(horizontal=True)
     pressEnter(horizontal=True)

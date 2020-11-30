@@ -133,7 +133,7 @@ class Entity():
                 self.__hp -= amount[0]*h*d
                 hpAmount = amount[0]*h*d*-1
                 self.__mp -= amount[1]*h*d
-                text = f'dealing {c("red")}{amount[0]} ♥{reset} and {c("blue")}{amount[1]} ♦{reset} {critical}damage'
+                text = 'dealing {c("red")}' + str(amount[0]) + ' ♥{reset} and {c("blue")}' + str(amount[1]) + ' ♦{reset} '+ critical + 'damage'
             elif effect["type"] in ("-hp", "-mp"):
                 if type(effect["value"]) is list: a = randint(effect["value"][0], effect["value"][1])
                 else: a = effect["value"]
@@ -147,10 +147,10 @@ class Entity():
                 if effect["type"] == "-hp":
                     self.__hp -= amount*h*d
                     hpAmount = amount*h*d*-1
-                    text = f'dealing {c("red")}{amount} ♥{reset} {critical}damage'
+                    text = 'dealing {c("red")}' + str(amount) + ' ♥{reset} '+ critical + 'damage'
                 else:
                     self.__mp -= amount*h*d
-                    text = f'dealing {c("blue")}{amount} ♦{reset} {critical}damage'
+                    text = 'dealing {c("blue")}' + str(amount) + ' ♦{reset} '+ critical + 'damage'
             elif effect["type"] == "passive":
                 text = self.addPassive(effect)
         elif effect["type"] in ("hp", "mp", "all"):
@@ -164,7 +164,7 @@ class Entity():
                 self.__hp += amount[0]
                 hpAmount = amount[0]
                 self.__mp += amount[1]
-                text = f'healing {c("red")}{amount[0]} ♥{reset} and {c("blue")}{amount[1]} ♦{reset}'
+                text = 'healing {c("red")}{amount[0]} ♥{reset} and {c("blue")}{amount[1]} ♦{reset}'
             else:
                 if "*" in effect: amount = (effect["value"] / 100) * self.__stats[stat]
                 else: amount = effect["value"]
@@ -174,11 +174,11 @@ class Entity():
                     if amount + self.__hp > self.__stats["max hp"]: amount = self.__stats["max hp"] - self.__hp
                     self.__hp += amount
                     hpAmount = amount
-                    text = f'healing {c("red")}{amount} ♥{reset}'
+                    text = 'healing {c("red")}' + str(amount) + ' ♥{reset}'
                 else:
                     if amount + self.__mp > self.__stats["max mp"]: amount = self.__stats["max mp"] - self.__mp
                     self.__mp += amount
-                    text = f'healing {c("blue")}{amount} ♦{reset}'
+                    text = 'healing {c("blue")}' + str(amount) + ' ♦{reset}'
         if passive != False:
             if type(passive) is list:
                 for i in range(len(passive)):
@@ -213,7 +213,7 @@ class Entity():
         for passive in self.passives:
             for effect in passive["effect"]:
                 if effect["type"] in ("-hp", "-mp", "-all", "hp", "mp", "all"):
-                    prefix = f'\n {c("light green" if passive["buff"] else "light red")}{passive["name"]}{reset} persists, '
+                    prefix = f' {c("light green" if passive["buff"] else "light red")}{passive["name"]}{reset} persists, '
                     suffix, tempDamage = self.defend(effect)
                     tempDamage += tempDamage
                     text.append(prefix + suffix)
@@ -221,7 +221,7 @@ class Entity():
             passive["turns"] -= 1
             if passive["turns"] <= 0:
                 self.passives.remove(passive)
-                text.append(f'\n {passive["name"]} wears off.')
+                text.append(f' {passive["name"]} wears off.')
                 continue
         return text, tempDamage
 
