@@ -80,6 +80,7 @@ def clear():
     setCursorVisible(False)
 
 def exitGame():
+    clear()
     if system != "Windows": termios.tcsetattr(sys.stdin, termios.TCSADRAIN, orig_settings)
     sys.exit()
 
@@ -687,9 +688,14 @@ def s_mainMenu():
         if i == 1: write("\n Welcome to the world of...")
         else: print("\n Welcome to the world of...\n")
 
-        title = openTextAsList("data//text//magyka title.txt", splitter = "\n")
-        for i in range(len(title)):
-            print(cc(["026", "012", "006", "039", "045", "019", "020", "021", "004", "027", "026", "012", "006", "039", "000", "039", "006", "012"][i]) + title[i] + reset)
+        if os.get_terminal_size()[0] >= 103:
+            title = openTextAsList("data/text/magyka title.txt", splitter="\n")
+            for i in range(len(title)):
+                print(cc(["026", "012", "006", "039", "045", "019", "020", "021", "004", "027", "026", "012", "006", "039", "000", "039", "006", "012"][i]) + title[i] + reset)
+        else:
+            title = openTextAsList("data/text/magyka title small.txt", splitter="\n")
+            for i in range(len(title)):
+                print(cc(["026", "026", "006", "045", "020", "004", "026", "006", "000", "039"][i]) + title[i] + reset)
 
         options(["New Game", "Continue", "Options", "Quit"])
         option = command(back = False, options = "ncoq")

@@ -1,7 +1,10 @@
 # - Magyka - # - By Vincent G, aka Mutater - #
 
-Run magyka.exe to play the game.
+WINDOWS: Run magyka.exe to play
 You can create a shortcut for easier access to the game :)
+
+LINUX: Use command "bash run.sh" to play
+You can also use "source venv/bin/activate" and "python Magyka.py" to run :)
 
 Credits to:
 
