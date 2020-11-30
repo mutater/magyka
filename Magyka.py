@@ -530,8 +530,20 @@ def displayImage(path, color, imgSize = 120):
     gscale = ' .-:=!noS#8▓'
     cols = os.get_terminal_size()[0]
     rows = os.get_terminal_size()[1]
-    imgSize = int(imgSize // (60 / (int((rows - 15) ** 1.2) if cols >= 120 else int(cols / 2.5))))
-    if imgSize > 120: imgSize = 120
+    colCaps = [150, 120, 100, 90, 80, 70, 60, 50, 40, 35, 30, 25, 20, 15, 10, 5, 1]
+    rowCaps = [45, 35, 25, 15, 10, 1]
+    
+    for cap in colCaps:
+        if cols >= cap and imgSize > cap:
+            imgSize = cap
+            break
+    
+    for cap in rowCaps:
+        if rows >= cap and imgSize / 2 > cap:
+            imgSize = int(cap * 2)
+            break
+    
+    if cols >= colCaps[0] and rows >= rowCaps[0]: imgSIze = 120
     
     try:
         image = Image.open(path).convert('L')
@@ -628,15 +640,21 @@ def displayBattleStats(player, enemy, playerDamage = 0, enemyDamage = 0):
         displayImage("data/image/enemies/" + enemy.name + ".png", enemy.color, imgSize=128)
         
         cols = os.get_terminal_size()[0]
-        barWidth = cols // 4
+        barWidth = int(cols // 3.4)
         if barWidth % 2 == 0: barWidth -= 1
         leftPad, midPad = 0, 0
-        barPadding = (cols - barWidth * 2) // 3
+        barPadding = int((cols - barWidth * 2) / 3)
         if cols % 3 == 0: leftPad, midPad = barPadding, barPadding
         elif cols % 2 == 0: leftPad, midPad = barPadding + 1, barPadding
         else: leftPad, midPad = barPadding, barPadding + 1
         
-        print("\n", f'- {player.name} -'.center(math.ceil(cols/2)), f'- {enemy.name} [Lvl {enemy.level}] -'.center(int(cols/2)), sep="")
+        
+        playerTitle = f'- {player.name} -'
+        enemyTitle = f'- {enemy.name} [Lvl {enemy.level}] -'
+        if len(playerTitle) <= barWidth and len(enemyTitle) <= barWidth:
+            print("\n", " "*leftPad, playerTitle.center(barWidth), " "*midPad, enemyTitle.center(barWidth), sep="")
+        else:
+            print("\n", "  ", player.name, " vs ", enemy.name, sep="")
         print(c("red"))
         print(" "*leftPad, "♥".center(barWidth), " "*midPad, "♥".center(barWidth), sep="")
         print(" "*leftPad, returnHpBar(player, text=False, length=barWidth), " "*midPad, returnHpBar(enemy, text=False, length=barWidth), sep="")
@@ -695,7 +713,7 @@ def s_mainMenu():
         else:
             title = openTextAsList("data/text/magyka title small.txt", splitter="\n")
             for i in range(len(title)):
-                print(cc(["026", "026", "006", "045", "020", "004", "026", "006", "000", "039"][i]) + title[i] + reset)
+                print(cc(["026", "026", "006", "045", "018", "004", "026", "006", "000", "039"][i]) + title[i] + reset)
 
         options(["New Game", "Continue", "Options", "Quit"])
         option = command(back = False, options = "ncoq")
