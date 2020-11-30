@@ -207,13 +207,13 @@ def command(input = False, mode="alphabetic", back=True, silent=False, lower=Tru
             if key == "enter" and input:
                 print("")
                 break
-            if key == "`" and mode != "command":
+            if key in ("`", "~") and mode != "command":
                 a = ""
                 print("\b \b", end = "")
                 sys.stdout.flush()
                 command(True, "command")
                 return "D"
-            if key == "`" and mode == "command":
+            if key in ("`", "~") and mode == "command":
                 a = ""
                 print("\b \b")
                 return "D"
@@ -763,6 +763,10 @@ def s_options():
 
         print("\n -= Options =-\n")
         print(f' {c("option")}1){reset} Fullscreen: ({c("light green") + "ON" if settings["fullscreen"] else c("light red") + "OFF"}{reset})')
+        
+        while 1:
+            key = get_key()
+            if key != "": print(key)
 
         option = command(False, "numeric", options = "1")
 
