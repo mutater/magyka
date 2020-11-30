@@ -164,8 +164,6 @@ def command(input = False, mode="alphabetic", back=True, silent=False, lower=Tru
     while 1:
         key = get_key()
         if terminalSize != os.get_terminal_size(): return "D"
-        if os.get_terminal_size()[0] < 120: resizeConsole(120, str(os.get_terminal_size()[1]))
-        if os.get_terminal_size()[1] < 30: resizeConsole(str(os.get_terminal_size()[0]), 30)
         if getWindowName() == "Magyka":
             if len(key) == 1 and (mode == "command" or mode == "all" or (re.match("[0-9]", key) and mode in ("numeric", "optionumeric", "alphanumeric")) or (re.match("[A-Za-z\_\s\/]", key) and mode in ("alphabetic", "optionumeric", "alphanumeric"))):
                 if input:
@@ -324,7 +322,7 @@ def options(names, horizontal=False):
         for i in range(len(names)):
             text += f'{c("option") + c("dark gray", True)}[{names[i][11 if ";" in names[i] else 0]}]{reset} {names[i]}'
             if i < len(names)-1:
-                text += "       "
+                text += "       " if os.get_terminal_size()[0] > 74 else "  "
         print(text.center(os.get_terminal_size()[0] + text.count("\x1b") * 9))
     else:
         for i in range(len(names)):
@@ -531,8 +529,8 @@ def displayImage(path, color, imgSize = 120):
     gscale = ' .-:=!noS#8▓'
     cols = os.get_terminal_size()[0]
     rows = os.get_terminal_size()[1]
-    imgSize = int(imgSize / (60 / rows))
-    if imgSize > 128: imgSize = 128
+    imgSize = int(imgSize // (60 / (int((rows - 15) ** 1.2) if cols >= 120 else int(cols / 2.5))))
+    if imgSize > 120: imgSize = 120
     
     try:
         image = Image.open(path).convert('L')
@@ -575,17 +573,14 @@ def displayImage(path, color, imgSize = 120):
         if delete:
             string.pop(i)
     stringRows = len(string)
-    space = round((cols - stringCols) / 2)
-    lower = 1
-    if rows >= 60: upper = 2
-    else: upper = 0
+    space = int((cols - stringCols) // 2)
     
-    print("\n"*upper)
+    print("")
     if color != False: print(c(color), end="")
     for line in string:
         print(" "*space + line)
-    print(reset + "\n"*lower)
-    print(c("gray") + "#"*cols + reset)
+    print(reset)
+    print(c("dark gray") + "~"*cols + reset)
 
 def displayPlayerTitle():
     print(f' {player.name} [Lvl {player.level}]')
@@ -1862,7 +1857,6 @@ def s_quit():
 try:
     if __name__ == "__main__":    
         os.system("title=Magyka")
-        resizeConsole(150, 45)
         if system != "Windows":
             orig_settings = termios.tcgetattr(sys.stdin)
             tty.setcbreak(sys.stdin)
