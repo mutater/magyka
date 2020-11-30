@@ -636,7 +636,7 @@ def displayBattleStats(player, enemy, playerDamage = 0, enemyDamage = 0):
         elif cols % 2 == 0: leftPad, midPad = barPadding + 1, barPadding
         else: leftPad, midPad = barPadding, barPadding + 1
         
-        print("\n", " "*leftPad, f'- {player.name} -'.center(barWidth), " "*midPad, f'- {enemy.name} [Lvl {enemy.level}] -'.center(barWidth), sep="")
+        print("\n", f'- {player.name} -'.center(int(cols/2)), f'- {enemy.name} [Lvl {enemy.level}] -'.center(int(cols/2)), sep="")
         print(c("red"))
         print(" "*leftPad, "♥".center(barWidth), " "*midPad, "♥".center(barWidth), sep="")
         print(" "*leftPad, returnHpBar(player, text=False, length=barWidth), " "*midPad, returnHpBar(enemy, text=False, length=barWidth), sep="")
