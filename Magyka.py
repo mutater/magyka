@@ -282,13 +282,6 @@ def devCommand(a):
         s_battle(newEnemy(a1[1]))
     elif a == "s":
         player.name = "Developer"
-        session = sqlite3.connect("data/data.db")
-        session.row_factory = dictFactory
-        devItems = [item["name"] for item in session.cursor().execute("select * from items where name like ':%'").fetchall()]
-        for item in devItems:
-            player.addItem(newItem(item))
-        session.close()
-        devCommand("enchant weapon Advanced Sharpness, 6")
         s_camp()
     elif a == "restart":
         clear()
@@ -315,10 +308,17 @@ def devCommand(a):
             returnToScreen("s_explore")
         elif a1[0] == "give":
             a1s = a1[1].split(", ")
-            if a1s[0] == "all":
+            if a1s[0] == "dev":
+                session = sqlite3.connect("data/data.db")
+                session.row_factory = dictFactory
+                devItems = [item["name"] for item in session.cursor().execute("select * from items where name like ':%'").fetchall()]
+                for item in devItems:
+                    player.addItem(newItem(item))
+                session.close()
+            elif a1s[0] == "all":
                 for item in items:
                     player.addItem(newItem(item), (int(a1s[1]) if len(a1s) == 2 else 1))
-            if a1s[0] in items:
+            elif a1s[0] in items:
                 player.addItem(newItem(a1s[0]), (int(a1s[1]) if len(a1s) == 2 else 1))
         elif a2[0] == "enchant":
             a2s = a2[2].split(", ")
@@ -453,69 +453,71 @@ def displayItem(name, rarity, quantity = 0):
     if rarity == "legendary": return c("light orange") + name + reset + amt
     if rarity == "mythical": return c("lightish red") + name + reset + amt
 
-def displayEffect(effect, begin=" "):
-    if "-hp" in effect or "-mp" in effect or "-all" in effect:
-        if "-hp" in effect:
-            if type(effect["-hp"]["value"]) is list:
-                damage = f'{c("red")}{effect["-hp"]["value"][0]} - {effect["-hp"]["value"][1]}{"%" if "*" in effect["-hp"] else ""} ♥{reset}'
+def displayEffect(effects, notes=False, extraSpace=False):
+    begin = " "
+    noteBegin = " - "
+    if notes: begin, noteBegin = "  - ", "  - "
+    if extraSpace: begin, noteBegin = "   - ", "   - "
+    if not notes: print("")
+    if "-hp" in effects or "-mp" in effects or "-all" in effects:
+        if "-hp" in effects:
+            if type(effects["-hp"]["value"]) is list:
+                damage = f'{c("red")}{effects["-hp"]["value"][0]} - {effects["-hp"]["value"][1]}{"%" if "*" in effects["-hp"] else ""} ♥{reset}'
             else:
-                damage = f'{c("red")}{effect["-hp"]["value"]}{"%" if "*" in effect["-hp"] else ""} ♥{reset}'
+                damage = f'{c("red")}{effects["-hp"]["value"]}{"%" if "*" in effects["-hp"] else ""} ♥{reset}'
             effect = "-hp"
-        if "-mp" in effect:
-            if type(effect["-mp"]["value"]) is list:
-                damage = f'{c("blue")}{effect["-mp"]["value"][0]} - {effect["-mp"]["value"][1]}{"%" if "*" in effect["-mp"] else ""} ♦{reset}'
+        if "-mp" in effects:
+            if type(effects["-mp"]["value"]) is list:
+                damage = f'{c("blue")}{effects["-mp"]["value"][0]} - {effects["-mp"]["value"][1]}{"%" if "*" in effects["-mp"] else ""} ♦{reset}'
             else:
-                damage = f'{c("blue")}{effect["-mp"]["value"]}{"%" if "*" in effect["-mp"] else ""} ♦{reset}'
+                damage = f'{c("blue")}{effects["-mp"]["value"]}{"%" if "*" in effects["-mp"] else ""} ♦{reset}'
             effect = "-mp"
-        if "-all" in effect:
-            if type(effect["-all"]["value"][0]) is list:
-                damage = f'{c("red")}{effect["-all"]["value"][0][0]} - {effect["-all"]["value"][0][1]}{"%" if "*" in effect["-all"] else ""} ♥{reset} and '
+        if "-all" in effects:
+            if type(effects["-all"]["value"][0]) is list:
+                damage = f'{c("red")}{effects["-all"]["value"][0][0]} - {effects["-all"]["value"][0][1]}{"%" if "*" in effects["-all"] else ""} ♥{reset} and '
             else:
-                damage = f'{c("red")}{effect["-all"]["value"][0]}{"%" if "*" in effect["-all"] else ""} ♥{reset} and '
-            if type(effect["-all"]["value"][1]) is list:
-                damage += f'{c("blue")}{effect["-all"]["value"][1][0]} - {effect["-all"]["value"][1][1]}{"%" if "*" in effect["-all"] else ""} ♦{reset}'
+                damage = f'{c("red")}{effects["-all"]["value"][0]}{"%" if "*" in effects["-all"] else ""} ♥{reset} and '
+            if type(effects["-all"]["value"][1]) is list:
+                damage += f'{c("blue")}{effects["-all"]["value"][1][0]} - {effects["-all"]["value"][1][1]}{"%" if "*" in effects["-all"] else ""} ♦{reset}'
             else:
-                damage += f'{c("blue")}{effect["-all"]["value"][1]}{"%" if "*" in effect["-all"] else ""} ♦{reset}'
+                damage += f'{c("blue")}{effects["-all"]["value"][1]}{"%" if "*" in effects["-all"] else ""} ♦{reset}'
             effect = "-all"
-        print(f'\n{begin}Deals {damage} damage.\n')
-        if "crit" in effect[effect]: print(f'{begin}- {effect[effect]["crit"]}% critical strike chance')
-        if "hit" in effect[effect]: print(f'{begin}- {effect[effect]["hit"]}% hit chance')
-        if "dodge" in effect[effect]: print(f'{begin}- Undodgeable')
-    if "hp" in effect or "mp" in effect or "all" in effect:
-        if "hp" in effect:
-            if type(effect["hp"]["value"]) is list:
-                heal = f'{c("red")}{effect["hp"]["value"][0]} - {effect["hp"]["value"][1]}{"%" if "*" in effect["hp"] else ""} ♥{reset}'
+        print(f'{begin}Deals {damage} damage.\n')
+    if "hp" in effects or "mp" in effects or "all" in effects:
+        if "hp" in effects:
+            if type(effects["hp"]["value"]) is list:
+                heal = f'{c("red")}{effects["hp"]["value"][0]} - {effects["hp"]["value"][1]}{"%" if "*" in effects["hp"] else ""} ♥{reset}'
             else:
-                heal = f'{c("red")}{effect["hp"]["value"]}{"%" if "*" in effect["hp"] else ""} ♥{reset}'
+                heal = f'{c("red")}{effects["hp"]["value"]}{"%" if "*" in effects["hp"] else ""} ♥{reset}'
             effect = "hp"
-        if "mp" in effect:
-            if type(effect["mp"]["value"]) is list:
-                heal = f'{c("blue")}{effect["mp"]["value"][0]} - {effect["mp"]["value"][1]}{"%" if "*" in effect["mp"] else ""} ♦{reset}'
+        if "mp" in effects:
+            if type(effects["mp"]["value"]) is list:
+                heal = f'{c("blue")}{effects["mp"]["value"][0]} - {effects["mp"]["value"][1]}{"%" if "*" in effects["mp"] else ""} ♦{reset}'
             else:
-                heal = f'{c("blue")}{effect["mp"]["value"]}{"%" if "*" in effect["mp"] else ""} ♦{reset}'
+                heal = f'{c("blue")}{effects["mp"]["value"]}{"%" if "*" in effects["mp"] else ""} ♦{reset}'
             effect = "mp"
-        if "all" in effect:
-            if type(effect["all"]["value"][0]) is list:
-                heal = f'{c("red")}{effect["all"]["value"][0][0]} - {effect["all"]["value"][0][1]}{"%" if "*" in effect["all"] else ""} ♥{reset} and '
+        if "all" in effects:
+            if type(effects["all"]["value"][0]) is list:
+                heal = f'{c("red")}{effects["all"]["value"][0][0]} - {effects["all"]["value"][0][1]}{"%" if "*" in effects["all"] else ""} ♥{reset} and '
             else:
-                heal = f'{c("red")}{effect["all"]["value"][0]}{"%" if "*" in effect["all"] else ""} ♥{reset} and '
-            if type(effect["all"]["value"][1]) is list:
-                heal += f'{c("blue")}{effect["all"]["value"][1][0]} - {effect["all"]["value"][1][1]}{"%" if "*" in effect["all"] else ""} ♦{reset}'
+                heal = f'{c("red")}{effects["all"]["value"][0]}{"%" if "*" in effects["all"] else ""} ♥{reset} and '
+            if type(effects["all"]["value"][1]) is list:
+                heal += f'{c("blue")}{effects["all"]["value"][1][0]} - {effects["all"]["value"][1][1]}{"%" if "*" in effects["all"] else ""} ♦{reset}'
             else:
-                heal += f'{c("blue")}{effect["all"]["value"][1]}{"%" if "*" in effect["all"] else ""} ♦{reset}'
+                heal += f'{c("blue")}{effects["all"]["value"][1]}{"%" if "*" in effects["all"] else ""} ♦{reset}'
             effect = "all"
-        print(f'\n{begin}Heals {heal}.\n')
-        if effect in ("hp", "all"): displayPlayerHP()
-        if effect in ("mp", "all"): displayPlayerMP()
-    if "attack" in effect:
-        if type(effect["attack"]["value"]) is list: print(f'\n{begin}{effect["attack"]["value"][0]} - {effect["attack"]["value"][1]} Damage.\n')
+        print(f'{begin}Heals {heal}')
+        if effect in ("hp", "all"): print(" " + returnHpBar(player) + "\n")
+        if effect in ("mp", "all"): print(" " + returnHpBar(player) + "\n")
+    if "attack" in effects:
+        if type(effects["attack"]["value"]) is list: print(f'{begin}{effects["attack"]["value"][0]} - {effects["attack"]["value"][1]} Damage.\n')
         else:
-            if "*" in effect["attack"]:
-                print(f'{begin}{abs(effect["attack"]["value"])}% {"Increased" if effect["attack"]["value"] > 0 else "Decreased"} Attack')
+            if "*" in effects["attack"]:
+                print(f'{begin}{abs(effects["attack"]["value"])}% {"Increased" if effects["attack"]["value"] > 0 else "Decreased"} Attack')
             else:
-                print(f'{begin}{"+" if effect["attack"]["value"] > 0 else ""}{effect["attack"]["value"]} Attack')
+                print(f'{begin}{"+" if effects["attack"]["value"] > 0 else ""}{effects["attack"]["value"]} Attack')
     for stat in ("armor", "strength", "intelligence", "vitality", "agility", "max hp", "max mp"):
-        if stat in effect:
+        if stat in effects:
             if stat == "max hp":
                 color, character = c("red"), " ♥"
             elif stat == "max mp":
@@ -523,12 +525,12 @@ def displayEffect(effect, begin=" "):
             else:
                 color, character = "", ""
             
-            if "*" in effect[stat]:
-                print(f'{begin}{abs(effect[stat]["value"])}% {"Increased" if effect[stat]["value"] > 0 else "Decreased"} {color}{stat.capitalize()}{character}{reset}')
+            if "*" in effects[stat]:
+                print(f'{noteBegin}{abs(effects[stat]["value"])}% {"Increased" if effects[stat]["value"] > 0 else "Decreased"} {color}{stat.capitalize()}{character}{reset}')
             else:
-                print(f'{begin}{"+" if effect[stat]["value"] > 0 else ""}{effect[stat]["value"]} {color}{stat.capitalize()}{character}{reset}')
+                print(f'{noteBegin}{"+" if effects[stat]["value"] > 0 else ""}{effects[stat]["value"]} {color}{stat.capitalize()}{character}{reset}')
     for stat in ("crit", "hit", "dodge"):
-        if stat in effect: print(f'{begin}{abs(effect[stat]["value"])}% {"Increased" if effect[stat]["value"] > 0 else "Decreased"} {stat.capitalize()} Chance')
+        if stat in effects: print(f'{noteBegin}{abs(effects[stat]["value"])}% {"Increased" if effects[stat]["value"] > 0 else "Decreased"} {stat.capitalize()} Chance')
 
 def displayPassive(effect):
     if effect["buff"]:
@@ -548,14 +550,14 @@ def displayPassive(effect):
 
 def displayItemStats(item):
     print("\n " + displayItem(item["name"], item["rarity"]))
-    print("  Modifier:    " + displayItem(item["modifier"]["name"], item["modifier"]["rarity"]))
-    print("  Rarity:      " + item["rarity"].capitalize())
-    print("  Description: \"" + item["description"] + "\"")
+    print(" Modifier:    " + displayItem(item["modifier"]["name"], item["modifier"]["rarity"]))
+    print(" Rarity:      " + item["rarity"].capitalize())
+    print(" Description: \"" + item["description"] + "\"")
     
     if item["enchantments"] != []:
         print(c("light blue") + "\n Enchantments:" + reset)
         for enchantment in item["enchantments"]:
-            print(f'  - {enchantment["name"]} {returnNumberNumeral(enchantment["level"])}')
+            print(f'  - {enchantment["name"]} {returnNumeral(enchantment["level"])}')
 
     effects = {}
     p_passives = []
@@ -711,7 +713,7 @@ def displayBattleStats(player, enemy, playerDamage = 0, enemyDamage = 0):
             print("\n", "  ", player.name, " vs ", enemy.name, sep="")
         print(c("red"))
         if rows >= 42: print(" "*leftPad, "♥".center(barWidth), " "*midPad, "♥".center(barWidth), sep="")
-        print(" "*leftPad, returnHpBar(player, text=False, length=barWidth), " "*midPad, returnHpBar(enemy, text=False, length=barWidth), sep="")
+        print(" "*leftPad, returnHpBar(player, text=False, length=barWidth), " ", playerDamageText.ljust(midPad), returnHpBar(enemy, text=False, length=barWidth), " ", enemyDamageText, sep="")
         print(" "*leftPad, str(player.hp).rjust(barWidth // 2 - 1), " / ", str(player.stats["max hp"]).ljust(barWidth // 2 - 1), " "*midPad, str(enemy.hp).rjust(barWidth // 2 - 1), " / ", str(enemy.stats["max hp"]).ljust(barWidth // 2 - 1), sep="")
         print(c("blue"))
         if rows >= 42: print(" "*leftPad, "♦".center(barWidth), " "*midPad, "♦".center(barWidth), sep="")
@@ -732,7 +734,7 @@ def printError():
     print(" " + str(stackTrace[-1]))
     print(" " + str(stackTrace[:-2]))
 
-def returnNumberNumeral(number):
+def returnNumeral(number):
     if number <= 3: return "I"*number
     elif number == 4: return "IV"
     elif number == 5: return "V"
@@ -777,12 +779,11 @@ def s_mainMenu():
             for i in range(len(title)):
                 print(cc(["026", "026", "006", "045", "018", "004", "026", "006", "000", "039"][i]) + title[i] + reset)
 
-        options(["New Game", "Continue", "Options", "Quit"])
-        option = command(back = False, options = "ncoq")
+        options(["New Game", "Continue", "Quit"])
+        option = command(back = False, options = "ncq")
 
         if option == "n": s_newGame()
         elif option == "c": s_continue()
-        elif option == "o": s_options()
         elif option == "q": exitGame()
         if returnTo(): break
 
@@ -837,23 +838,6 @@ def s_continue():
         elif option in ("B"): break
         if returnTo(): break
 
-def s_options():
-    while 1:
-        clear()
-
-        print("\n -= Options =-\n")
-        print(f' {c("option")}1){reset} Fullscreen: ({c("light green") + "ON" if settings["fullscreen"] else c("light red") + "OFF"}{reset})')
-
-        option = command(False, "numeric", options = "1")
-
-        if option == "1":
-            fullscreen()
-            settings["fullscreen"] = False if settings["fullscreen"] else True
-        elif option == "B":
-            with open("data/settings.json", "w+") as settingsFile:
-                json.dump(settings, settingsFile)
-            break
-
 
 # :::::   :::   :: ::  :::::
 # :      :   :  : : :  :   :
@@ -871,13 +855,12 @@ def s_camp():
         displayPlayerStats()
         printEvalText(openText("data//text//screens//camp.txt"))
         
-        options(["Explore", "Town", "Character", "Options", "Save", "Quit"])
+        options(["Explore", "Town", "Character", "Save", "Quit"])
         option = command(back = False, options = "etcosq")
 
         if option == "e": s_explore()
         elif option == "t": s_town()
         elif option == "c": s_character()
-        elif option == "o": s_options()
         elif option == "s": s_save()
         elif option == "q": s_quit()
 
@@ -1069,7 +1052,7 @@ def s_battle(enemy):
                             print(f'\n -= Inspect Consumable =-')
 
                             displayItemStats(item)
-                            print(f'\n Sell Price: {c("yellow")}● {reset}{item["value"]}')
+                            print(f'\n Value: {c("yellow")}● {reset}{item["value"]}')
 
                             options(["Use"])
                             option1 = command(False, "alphabetic", options = "u")
@@ -1350,12 +1333,12 @@ def s_tavern():
                 player.mp = player.stats["max mp"]
                 player.addPassive(newPassive("Well Rested"))
                 player.updateStats()
-                print(f'\n You feel well rested.')
+                print(f'\n You feel well rested. HP and MP restored to full!')
                 pressEnter()
             else:
                 print(f'\n {c("yellow")}Barkeep:{reset} You don\'t have enough coin to stay.')
                 pressEnter()
-        elif option == "q": s_quest()
+        elif option == "q": pass
         elif option == "g": pass
         elif option == "B": break
         if returnTo(): break
@@ -1598,7 +1581,7 @@ def s_inspect(item, equipped):
         print(f'\n -= Inspect {item["type"].capitalize()} =-')
 
         displayItemStats(item)
-        print(f'\n Sell Price: {c("yellow")}● {reset}{item["value"]}')
+        print(f' Value: {c("yellow")}● {reset}{item["value"]}')
 
         if item["type"] == "equipment":
             options((["Unequip"] if equipped else ["Equip", "Discard"]) + ["More Info"])
@@ -1661,17 +1644,17 @@ def s_inspectDetailed(modifier, enchantments):
         effects = {}
         for effect in modifier["effect"]:
             effects.update({effect["type"]: effect})
-        displayEffect(effects, begin = "  - ")
-        if modifier["name"] == "Normal": print(" No effect.")
+        displayEffect(effects, notes=True)
+        if modifier["name"] == "Normal": print("  - No effect.")
         
         if enchantments != []:
             print(c("light blue") + "\n Enchantments:" + reset)
             for enchantment in enchantments:
-                print(f'  {enchantment["name"]} {returnNumberNumeral(enchantment["level"])}:')
+                print(f'  {enchantment["name"]} {returnNumeral(enchantment["level"])}:')
                 effects = {}
                 for effect in enchantment["effect"]:
                     effects.update({effect["type"]: effect})
-                displayEffect(effects, begin = "   - ")
+                displayEffect(effects, notes=True, extraSpace=True)
         
         pressEnter()
         break
@@ -1713,7 +1696,7 @@ def s_craft(recipe):
         print(f'\n -= Inspect {item["type"].capitalize()} =-')
 
         displayItemStats(item)
-        print(f'\n Sell Price: {c("yellow")}● {reset}{item["value"]}')
+        print(f'\n Value: {c("yellow")}● {reset}{item["value"]}')
         
         craftable = True
         numCraftable = 999999999
@@ -1752,33 +1735,43 @@ def s_quests():
         clear()
         print("\n -= Quests =-\n")
         
-        for i in range(-10 + 10*page, 10*page if 10*page < len(player.quests) else len(player.quests)):
-            print(f' {str(i)[:-1]}({str(i)[-1]}) {displayItem(player.quests[i]["name"], player.quests[i]["rarity"], 0)}')
+        quests = copy.deepcopy(player.quests)
+        mainQuest = None
+        for quest in quests:
+            if quest.get("main") != None:
+                mainQuest = quest
+                quests.remove(quest)
+                break
+        
+        for i in range(-10 + 10*page, 10*page if 10*page < len(quests) else len(quests)):
+            print(f' {str(i)[:-1]}({str(i)[-1]}) {displayItem(quests[i]["name"], quests[i]["rarity"], 0)}')
 
-        if len(player.quests) == 0:
-            print(" " + c("dark gray") + "- No Quests -" + reset)
+        if len(quests) == 0:
+            print(" " + c("dark gray") + "- No Side Quests -" + reset)
 
-        next = len(player.quests) > page*10 + 1
+        next = len(quests) > page*10 + 1
         previous = page != 1
 
-        options((["Next"] if next else []) + (["Previous"] if previous else []))
-        option = command(False, "optionumeric", options = ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(player.quests))))))
+        options((["Next"] if next else []) + (["Previous"] if previous else []) + (["Main Quest"] if mainQuest != None else []))
+        option = command(False, "optionumeric", options = ("n" if next else "") + ("p" if previous else "") + ("m" if mainQuest != None else "") + "".join(tuple(map(str, range(0, len(quests))))))
 
-        if option in tuple(map(str, range(0, len(player.quests) + (page-1) * 10 + 1))):
-            s_inspectQuest(player.quests[int(option) + (page-1) * 10])
+        if option in tuple(map(str, range(0, len(quests) + (page-1) * 10 + 1))):
+            s_inspectQuest(quests[int(option) + (page-1) * 10])
+        elif option == "m":
+            s_inspectQuest(mainQuest, main=True)
         elif option == "n" and next: page += 1
         elif option == "p" and previous: page -= 1
         elif option == "B": break
         if returnTo(): return
 
-def s_inspectQuest(quest):
+def s_inspectQuest(quest, main=False):
     while 1:
         clear()
-        print("\n -= Inspect Quest =-")
+        print("\n -= Inspect Main Quest =-")
         displayQuest(quest, True)
         
-        options(["Remove"])
-        option = command(False, "alphabetic", options="r")
+        options(([] if main else ["Remove"]))
+        option = command(False, "alphabetic", options=("" if main else "r"))
         
         if option == "r":
             pass#remove quest
@@ -1909,6 +1902,7 @@ def s_create():
 
 def s_delete():
     global saves
+    page = 1
     while 1:
         clear()
 
@@ -1923,7 +1917,7 @@ def s_delete():
         next = len(saves) > page*10 + 1
         previous = page != 1
 
-        options((["Next"] if next else []) + (["Previous"] if previous else []) + ["Create", "Delete"])
+        options((["Next"] if next else []) + (["Previous"] if previous else []))
         option = command(False, "optionumeric", options = ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(saves))))))
 
         if option == "B": break
@@ -2114,7 +2108,7 @@ try:
         
         if settings["fullscreen"]: fullscreen()
         
-        player = Player({"weapon": newItem("Tarnished Sword"),"tome": "","head": "","chest": newItem("Patched Shirt"),"legs": newItem("Patched Jeans"),"feet": "","accessory": ""})
+        player = Player({"weapon": newItem("Tarnished Sword"),"tome": "","head": "","chest": newItem("Patched Shirt"),"legs": newItem("Patched Jeans"),"feet": "","accessory": ""}, quests["main"])
         s_mainMenu()
 except Exception as err:
     printError()

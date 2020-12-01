@@ -232,34 +232,32 @@ class Entity():
 
     def attack(self):
         attackSkill = {"type": "-hp", "value": [self.__stats["attack"][0] + self.__stats["strength"], self.__stats["attack"][1] + self.__stats["strength"]], "crit": self.__stats["crit"], "hit": self.__stats["hit"]}
-        if self.equipment["weapon"] != "":
+        if "weapon" in self.equipment and self.equipment["weapon"] != "":
             for effect in self.equipment["weapon"]["effect"]:
                 if effect["type"] == "passive": attackSkill.update({"passive": effect["value"]})
         return attackSkill
 
 class Player(Entity):
-    def __init__(self, equipment):
+    def __init__(self, equipment, mainQuests):
         super().__init__("", 7, 10, 1, [])
         self.__xp, self.mxp, self.gold = 0, 10, 0
         self.levelsGained = 0
         
         self.location = "fordsville"
-        self.locations = {
-            "fordsville": [
-            ]
-        }
-        self.quests = [
-            
-        ]
+        self.locations = {"fordsville": []}
+        self.quests = []
+        self.mainQuests = mainQuests
+        for quest in mainQuests:
+            quest.update({"main": True})
+        self.addQuest(mainQuests[0])
+        self.mainQuest = 0
         self.completedQuests = []
-        self.completedMainQuests = {
-            "fordsville": [
-            ]
-        }
+        
         self.inventory = []
         self.recipes = []
         self.equipment = equipment
         self.magic = None
+        
         self.updateStats()
     
     def getXp(self):
@@ -311,7 +309,9 @@ class Player(Entity):
     
     def finishQuest(self, index):
         quest = self.quests.pop(index)
-        if quest.get("main") != None: self.completedMainQuests[quest["location"][0]].append(quest["name"])
+        if quest.get("main") != None:
+            self.mainQuest += 1
+            self.addQuest(self.mainQuests[self.mainQuest])
         if "item" in quest["reward"]:
             for item in quest["reward"]["item"]:
                 self.addItem(item[0], item[1])

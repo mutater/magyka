@@ -1,3 +1,5 @@
 *.pyc
 *.zip
+data/saves/*
+!data/saves/yolo.txt
 venv/
