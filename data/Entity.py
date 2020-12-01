@@ -59,29 +59,34 @@ class Entity():
     def updateStats(self):
         bufferhp, buffermp = self.__hp - self.__stats["max hp"], self.__mp - self.__stats["max mp"]
         oldMaxHp, oldMaxMp = self.stats["max hp"], self.stats["max mp"]
-        for statName in self.__stats:
-            self.statChanges[statName] = [[0, 0], [0, 0], -1]
-            for slot in self.equipment:
-                if self.equipment[slot] == "": continue
-                for effect in self.equipment[slot]["effect"]:
-                    if effect["type"] != statName: continue
-                    if statName == "attack": self.__stats[statName] = effect["value"]
-                    elif "=" in effect: self.statChanges[statName][2] = effect["value"] if effect["value"] < self.statChanges[statName][2] else self.statChanges[statName][2]
-                    elif "*" in effect: self.statChanges[statName][0][1] += effect["value"]
-                    else: self.statChanges[statName][0][0] += effect["value"]
+        effects = []
+        self.statChanges = {statName: [[0, 0], [0, 0], -1] for statName in self.__stats}
+        for slot in self.equipment:
+            if self.equipment[slot] == "":
+                if slot == "weapon": self.__stats["attack"] = [1, 1]
+                continue
+            effects += self.equipment[slot]["effect"]
+            if slot == "weapon":
+                for effect in self.equipment["weapon"]["effect"]:
+                    if effect["type"] == "attack": self.__stats["attack"] = copy.deepcopy(effect["value"])
+        
         for passive in self.passives:
             if not type(passive["effect"]) is list: passive["effect"] = [passive["effect"]]
-            for effect in passive["effect"]:
-                if effect["type"] not in self.__stats or effect["type"] == "attack": continue
-                if "=" in effect: self.statChanges[effect["type"]][2] = effect["value"] if effect["value"] < self.statChanges[effect["type"]][2] else self.statChanges[effect["type"]][2]
-                elif "*" in effect: self.statChanges[effect["type"]][1][1] += effect["value"]
-                else: self.statChanges[effect["type"]][1][0] += effect["value"]
+            effects += passive["effect"]
+        
+        for effect in effects:
+            if effect["type"] not in self.__stats or effect["type"] == "attack": continue
+            if "=" in effect: self.statChanges[effect["type"]][2] = effect["value"] if effect["value"] < self.statChanges[effect["type"]][2] else self.statChanges[effect["type"]][2]
+            elif "*" in effect: self.statChanges[effect["type"]][1][1] += effect["value"]
+            else: self.statChanges[effect["type"]][1][0] += effect["value"]
+        
         for statName in self.__stats:
             if statName != "attack":
                 self.__stats[statName] = 0
                 self.__stats[statName] = self.baseStats[statName] + self.statChanges[statName][0][0] + self.statChanges[statName][1][0]
                 self.__stats[statName] += round(self.baseStats[statName] * (self.statChanges[statName][0][1] + self.statChanges[statName][1][1]) / 100)
                 if self.statChanges[statName][2] >= 0: self.__stats[statName] = self.statChanges[statName][2]
+        
         self.__hp, self.__mp = self.__stats["max hp"] + bufferhp, self.__stats["max mp"] + buffermp
         if self.__hp <= 0 and bufferhp != 0 and self.__stats["max hp"] - oldMaxHp != 0: self.__hp = 1
         if self.__mp <= 0 and buffermp != 0 and self.__stats["max mp"] - oldMaxMp != 0: self.__mp = 0
@@ -227,6 +232,9 @@ class Entity():
 
     def attack(self):
         attackSkill = {"type": "-hp", "value": [self.__stats["attack"][0] + self.__stats["strength"], self.__stats["attack"][1] + self.__stats["strength"]], "crit": self.__stats["crit"], "hit": self.__stats["hit"]}
+        if self.equipment["weapon"] != "":
+            for effect in self.equipment["weapon"]["effect"]:
+                if effect["type"] == "passive": attackSkill.update({"passive": effect["value"]})
         return attackSkill
 
 class Player(Entity):
@@ -349,6 +357,63 @@ class Player(Entity):
                     return
             return
 
+    def enchantEquipment(self, slot, enchantment):
+        enchantmentFound = False
+        for e in self.equipment[slot]["enchantments"]:
+            if e["name"] == enchantment["name"]:
+                enchantmentFound = True
+                if e["level"] == enchantment["level"] and e["level"] < 10: e["level"] += 1
+                elif e["level"] < enchantment["level"]: e["level"] = enchantment["level"]
+                break
+        if not enchantmentFound: self.equipment[slot]["enchantments"].append(enchantment)
+        self.updateEquipment(slot)
+    
+    def modifyEquipment(self, slot, modifier):
+        self.equipment[slot]["modifier"] = modifier
+        self.updateEquipment(slot)
+    
+    def updateEquipment(self, slot):
+        self.equipment[slot]["effect"] = copy.deepcopy(self.equipment[slot]["base effect"])
+        self.equipment[slot]["value"] = self.equipment[slot]["base value"]
+        
+        statNames = []
+        if self.equipment[slot]["modifier"]["effect"] != []: statNames = [effect["type"] for effect in self.equipment[slot]["modifier"]["effect"] if effect["type"] in self.stats]
+        if self.equipment[slot]["enchantments"] != []: statNames += [effect["type"] for effect in [enchantment["effect"] for enchantment in self.equipment[slot]["enchantments"]][0] if effect["type"] in self.stats]
+        effects = []
+        values = []
+        
+        values.append(self.equipment[slot]["modifier"]["value"])
+        
+        for effect in self.equipment[slot]["modifier"]["effect"]:
+            if effect["type"] in self.stats: effects.append(effect)
+        
+        for enchantment in self.equipment[slot]["enchantments"]:
+            values.append(enchantment["value"])
+            for effect in enchantment["effect"]:
+                if effect["type"] in self.stats: effects.append(effect)
+
+        for value in values:
+            if value[0] == "+": self.equipment[slot]["value"] += int(value[1:])
+            elif value[0] == "-": self.equipment[slot]["value"] -= int(value[1:])
+            elif value[0] == "*": self.equipment[slot]["value"] = round(float(value[1:]) * self.equipment[slot]["value"])
+
+        for statName in statNames:
+            for effect in self.equipment[slot]["effect"]:
+                if statName == effect["type"]: statNames = [statName for statName in statNames if statName != effect["type"]]
+
+        for e in effects:
+            for effect in self.equipment[slot]["effect"]:
+                if e["type"] == effect["type"]:
+                    if effect["type"] == "attack":
+                        for i in range(2):
+                            if "*" in effect: effect["value"][i] *= (e["value"] + 1)
+                            else: effect["value"][i] += e["value"]
+                    else:
+                        if "*" in effect: effect["value"] *= (e["value"] + 1)
+                        else: effect["value"] += e["value"]
+        
+        self.updateStats()
+
     def unequip(self, slot):
         self.addItem(self.equipment[slot])
         self.equipment[slot] = ""
@@ -359,6 +424,7 @@ class Player(Entity):
         self.equipment[item["slot"]] = item
         self.removeItem(item)
         if item["slot"] == "tome": self.magic = item["effect"]
+        self.updateEquipment(item["slot"])
         self.updateStats()
 
     def get_magic(self):

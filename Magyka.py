@@ -124,10 +124,12 @@ def get_key():
     key = ""
     if system == "Windows":
         if msvcrt.kbhit():
+            key = msvcrt.getch()
             try:
-                key = msvcrt.getch().decode("utf-8")
+                key = key.decode("utf-8")
             except:
-                return ""
+                if key == b'\xe0': key = "\xe0"
+                else: key = ""
     else:
         if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
             key = sys.stdin.read(1)[0]
@@ -136,6 +138,12 @@ def get_key():
     elif key == "\x1b": return "esc"
     elif key == " ": return "space"
     elif key == "\x08": return "backspace"
+    elif key == "\xe0":
+        key = msvcrt.getch().decode("utf-8")
+        if key == "K": return "left"
+        elif key == "M": return "right"
+        elif key == "H": return "up"
+        else: return "down"
     else: return key
 
 def wait_to_key(key):
@@ -162,6 +170,7 @@ def command(input = False, mode="alphabetic", back=True, silent=False, lower=Tru
     print(a, end = "")
     sys.stdout.flush()
     terminalSize = os.get_terminal_size()
+    historyPosition = len(commandHistory)
     while 1:
         key = get_key()
         if terminalSize != os.get_terminal_size(): return "D"
@@ -232,6 +241,21 @@ def command(input = False, mode="alphabetic", back=True, silent=False, lower=Tru
                         sys.stdout.flush()
                         a = a[:loc-1] + a[loc:]
                         loc -= 1
+            if (key == "up" or key == "down") and mode == "command":
+                print(" "*(len(a) - loc), end="")
+                print("\b \b"*len(a), end="")
+                sys.stdout.flush()
+                if historyPosition <= 0 and key == "up": historyPosition = 1
+                if historyPosition > len(commandHistory) and key == "down": len(commandHistory)
+                historyPosition += -1 if key == "up" else 1
+                if historyPosition < len(commandHistory):
+                    print(commandHistory[historyPosition], end="")
+                    sys.stdout.flush()
+                    a = commandHistory[historyPosition]
+                    loc = len(a)
+                else:
+                    a = ""
+                    loc = 1
             """if key == "enter" and keyboard.is_pressed("alt"):
                 return "D"
             if key == "up" and keyboard.is_pressed("win"):
@@ -242,8 +266,17 @@ def command(input = False, mode="alphabetic", back=True, silent=False, lower=Tru
     if a == "": return ""
     if not mode == "command": return (str.lower(a).strip() if lower else a.strip())
 
+    devCommand(a)
+
+    return "D"
+
+def devCommand(a):
+    global commandHistory
+    commandHistory.append(a)
+
     a1 = a.split(" ", 1)
     a2 = a.split(" ", 2)
+    a3 = a.split(" ", 3)
 
     if a1[0] == "fight":
         s_battle(newEnemy(a1[1]))
@@ -255,6 +288,7 @@ def command(input = False, mode="alphabetic", back=True, silent=False, lower=Tru
         for item in devItems:
             player.addItem(newItem(item))
         session.close()
+        devCommand("enchant weapon Advanced Sharpness, 6")
         s_camp()
     elif a == "restart":
         clear()
@@ -286,6 +320,11 @@ def command(input = False, mode="alphabetic", back=True, silent=False, lower=Tru
                     player.addItem(newItem(item), (int(a1s[1]) if len(a1s) == 2 else 1))
             if a1s[0] in items:
                 player.addItem(newItem(a1s[0]), (int(a1s[1]) if len(a1s) == 2 else 1))
+        elif a2[0] == "enchant":
+            a2s = a2[2].split(", ")
+            player.enchantEquipment(a2[1], newEnchantment(a2s[0], int(a2s[1])))
+        elif a2[0] == "modify":
+            player.modifyEquipment(a2[1], newModifier(a2[2]))
         elif a1[0] == "gold":
             player.gold += int(a1[1])
         elif a1[0] == "name":
@@ -295,6 +334,11 @@ def command(input = False, mode="alphabetic", back=True, silent=False, lower=Tru
         elif a == "clear passives":
             player.passives = []
             player.updateStats()
+        elif a == "clear inventory":
+            player.inventory = []
+        elif a == "clear equipment":
+            for slot in player.equipment:
+                player.equipment[slot] == ""
         elif a == "restore":
             player.hp, player.mp = player.stats["max hp"], player.stats["max mp"]
         elif a1[0] == "xp":
@@ -305,8 +349,6 @@ def command(input = False, mode="alphabetic", back=True, silent=False, lower=Tru
     except Exception as err:
         printError()
         pressEnter()
-
-    return "D"
 
 
 # :::::  ::  :  :::::  :   :  :::::
@@ -403,6 +445,7 @@ def drawBar(max, value, color, length):
 
 def displayItem(name, rarity, quantity = 0):
     amt = ("" if quantity == 0 else " x" + str(quantity))
+    if rarity == "garbage": return c("light red") + name + reset + amt
     if rarity == "common": return c("lightish gray") + name + reset + amt
     if rarity == "uncommon": return c("lightish green") + name + reset + amt
     if rarity == "rare": return c("light blue") + name + reset + amt
@@ -500,16 +543,21 @@ def displayPassive(effect):
 
 def displayItemStats(item):
     print("\n " + displayItem(item["name"], item["rarity"]))
-    print("  " + item["description"])
+    print("  " + displayItem(item["modifier"]["name"], item["modifier"]["rarity"]))
     print("  " + item["rarity"].capitalize())
+    print("  " + item["description"])
+    
+    if item["enchantments"] != []:
+        print(c("light blue") + "\n Enchantments:" + reset)
+        for enchantment in item["enchantments"]:
+            print(f'  - {enchantment["name"]} {returnNumberNumeral(enchantment["level"])}')
 
     effects = {}
     p_passives = []
     if item["type"] != "item":
         for effect in item["effect"]:
             if effect["type"] == "passive":
-                print(passives)
-                p_passives.append(passives[effect["name"]])
+                p_passives.append(effect["value"])
             else:
                 if "passive" in effect:
                     p_passives.append(newPassive(effect["passive"]))
@@ -621,14 +669,14 @@ def displayPassives(entity):
         print(" ", end="")
         print(", ".join([f'{c("light green" if passive["buff"] else "light red")}{passive["name"]}{reset} ({passive["turns"]})' for passive in entity.passives]))
 
-def displayPlayerStats():
+def displayPlayerStats(passives=True):
     print("")
     displayPlayerTitle()
     print("", returnHpBar(player))
     print("", returnMpBar(player))
     print(returnXpBar(player))
     displayPlayerGold()
-    displayPassives(player)
+    if passives: displayPassives(player)
 
 def displayBattleStats(player, enemy, playerDamage = 0, enemyDamage = 0):
         if playerDamage > 0: playerDamageText = " +" + str(playerDamage)
@@ -679,6 +727,14 @@ def printError():
     print(" " + str(stackTrace[-1]))
     print(" " + str(stackTrace[:-2]))
 
+def returnNumberNumeral(number):
+    if number <= 3: return "I"*number
+    elif number == 4: return "IV"
+    elif number == 5: return "V"
+    elif number <= 8: return "V" + "I"*(number-5)
+    elif number == 9: return "IX"
+    elif number == 10: return "X"
+    else: return str(number)
 
 
 #  .::::::.   .,-:::::  :::::::..   .,::::::  .,::::::  :::.    :::. .::::::. 
@@ -704,7 +760,7 @@ def s_mainMenu():
     while 1:
         i += 1
         clear()
-        if i == 1: write("\n Welcome to the world of...")
+        if i == 1: write("\n Welcome to the world of...", speed=0.01)
         else: print("\n Welcome to the world of...\n")
 
         if os.get_terminal_size()[0] >= 103:
@@ -782,10 +838,6 @@ def s_options():
 
         print("\n -= Options =-\n")
         print(f' {c("option")}1){reset} Fullscreen: ({c("light green") + "ON" if settings["fullscreen"] else c("light red") + "OFF"}{reset})')
-        
-        while 1:
-            key = get_key()
-            if key != "": print(key)
 
         option = command(False, "numeric", options = "1")
 
@@ -1543,7 +1595,7 @@ def s_inspect(item, equipped):
         print(f'\n Sell Price: {c("yellow")}● {reset}{item["value"]}')
 
         if item["type"] == "equipment":
-            options(["Unequip"] if equipped else ["Equip", "Discard"])
+            options(["Unequip"] if equipped else ["Equip", "More Info", "Discard"])
             option = command(False, "alphabetic", options = "u" if equipped else "ed")
         elif item["type"] == "consumable":
             options((["Use"] if item["target"] == "self" else []) + ["Discard"])
@@ -1590,8 +1642,20 @@ def s_inspect(item, equipped):
             else:
                 player.removeItem(item)
                 break
+        elif option == "m":
+            
         elif option == "B": break
         if returnTo(): break
+
+def s_inspectDetailed(modifier, enchantments):
+    while 1:
+        clear()
+        print("\n -= More Info =-")
+        
+        print(" " + displayItem(modifier["name"], modifier["rarity"]) + ":")
+        displayEffects(modifier["effects"])
+        
+        pressEnter()
 
 def s_crafting():
     page = 1
@@ -1717,11 +1781,7 @@ def s_stats():
         statNamePad = len(max(player.stats, key=len)) + 1
         statValuePad = len(max([str(player.stats[stat]) for stat in stats], key=len))
 
-        displayPlayerTitle()
-        displayPlayerHP()
-        displayPlayerMP()
-        displayPlayerXP()
-        displayPlayerGold()
+        displayPlayerStats(passives=False)
         print("")
         print(f' {"Attack".ljust(statNamePad)}: {(str(player.stats["attack"][0]) + " - " + str(player.stats["attack"][1])).ljust(statValuePad)}')
 
@@ -1894,13 +1954,79 @@ try:
 
         saves = [[pickle.load(open("data/saves/" + file, "rb")), file] for file in os.listdir("data/saves") if not file.endswith(".txt")]
 
-        def newItem(name):
+        def newPassive(name):
+            session = sqlite3.connect("data/data.db")
+            session.row_factory = dictFactory
+            cur = session.cursor()
+            passive = cur.execute('select * from passives where name="' + name + '"').fetchone()
+            session.close()
+            jsonLoads = ["effect", "tags", "turns"]
+            for load in jsonLoads:
+                try:
+                    if passive[load]: passive[load] = json.loads(passive[load])
+                except Exception as err:
+                    print(" Error trying to load passive '" + name + "'.")
+                    print(" Passed value: '" + passive[load] + "'.")
+                    printError()
+                    pressEnter()
+            return passive
+        session = sqlite3.connect("data/data.db")
+        session.row_factory = dictFactory
+        passives = [passive["name"] for passive in session.cursor().execute("select * from passives").fetchall()]
+        session.close()
+
+        def newEnchantment(name, level):
+            session = sqlite3.connect("data/data.db")
+            session.row_factory = dictFactory
+            cur = session.cursor()
+            enchantment = cur.execute('select * from enchantments where name="' + name + '"').fetchone()
+            session.close()
+            jsonLoads = ["effect", "level", "tags"]
+            for load in jsonLoads:
+                try:
+                    if enchantment[load]: enchantment[load] = json.loads(enchantment[load])
+                except Exception as err:
+                    print(" Error trying to load enchantment '" + name + "'.")
+                    print(" Passed value: '" + enchantment[load] + "'.")
+                    printError()
+                    pressEnter()
+            for effect in enchantment["effect"]:
+                for i in range(level):
+                    if enchantment["increase"][0] == "+": effect["value"] += int(enchantment["increase"][1:])
+                    elif enchantment["increase"][0] == "-": effect["value"] -= int(enchantment["increase"][1:])
+                    elif enchantment["increase"][0] == "*": effect["value"] *= round(float(value[1:]) * effect["value"])
+            enchantment["level"] = level
+            return enchantment
+        
+        def newModifier(name):
+            session = sqlite3.connect("data/data.db")
+            session.row_factory = dictFactory
+            cur = session.cursor()
+            modifier = cur.execute('select * from modifiers where name="' + name + '"').fetchone()
+            session.close()
+            if not modifier:
+                print(" Error trying to load modifier '" + name + "'.")
+                print(" Modifier doesn't exist.")
+                pressEnter()
+                return modifier
+            jsonLoads = ["effect", "tags"]
+            for load in jsonLoads:
+                try:
+                    if modifier[load]: modifier[load] = json.loads(modifier[load])
+                except Exception as err:
+                    print(" Error trying to load modifier '" + name + "'.")
+                    print(" Passed value: '" + modifier[load] + "'.")
+                    printError()
+                    pressEnter()
+            return modifier
+
+        def newItem(name, modifier=False):
             session = sqlite3.connect("data/data.db")
             session.row_factory = dictFactory
             cur = session.cursor()
             item = cur.execute('select * from items where name="' + name + '"').fetchone()
             session.close()
-            jsonLoads = ["effect", "tags"]
+            jsonLoads = ["effect", "tags", "enchantments"]
             for load in jsonLoads:
                 try:
                     if item[load]: item[load] = json.loads(item[load])
@@ -1910,6 +2036,15 @@ try:
                     printError()
                     pressEnter()
             if item["tags"] == None: item["tags"] = []
+            if item["enchantments"] == None: item["enchantments"] = []
+            if item["type"] == "equipment":
+                for effect in item["effect"]:
+                    if effect["type"] == "passive": effect["value"] = newPassive(effect["value"])
+            for i in range(len(item["enchantments"])):
+                item["enchantments"][i] = newEnchantment(item["enchantments"][i])
+            item.update({"modifier": newModifier("Normal")})
+            item["base effect"] = copy.deepcopy(item["effect"])
+            item["base value"] = item["value"]
             return item
         session = sqlite3.connect("data/data.db")
         session.row_factory = dictFactory
@@ -1933,35 +2068,12 @@ try:
                     pressEnter()
             return Enemy(enemy)
         
-        def newPassive(name):
-            session = sqlite3.connect("data/data.db")
-            session.row_factory = dictFactory
-            cur = session.cursor()
-            passive = cur.execute('select * from passives where name="' + name + '"').fetchone()
-            session.close()
-            jsonLoads = ["effect", "tags", "turns"]
-            for load in jsonLoads:
-                if passive[load]:
-                    try:
-                        passive[load] = json.loads(passive[load])
-                    except Exception as err:
-                        print(" Error trying to load passive '" + passive["name"] + "'.")
-                        print(" Passed value: '" + passive[load] + "'.")
-                        printError()
-                        pressEnter()
-            return passive
-        session = sqlite3.connect("data/data.db")
-        session.row_factory = dictFactory
-        passives = [passive["name"] for passive in session.cursor().execute("select * from passives").fetchall()]
-        session.close()
-        
         session = sqlite3.connect("data/data.db")
         session.row_factory = dictFactory
         recipes = [recipe for recipe in session.cursor().execute("select * from recipes").fetchall()]
         for recipe in recipes:
             recipe["ingredients"] = json.loads(recipe["ingredients"])
         session.close()
-        
         
         def loadStore(location, storeType):
             return stores[location][storeType]

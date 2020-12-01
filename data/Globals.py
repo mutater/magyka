@@ -66,3 +66,5 @@ textSpeed = 0.03
 returnToScreenName = ""
 returnToScreenBool = False
 screen = ""
+
+commandHistory = []
