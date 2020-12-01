@@ -366,43 +366,46 @@ class Player(Entity):
                 elif e["level"] < enchantment["level"]: e["level"] = enchantment["level"]
                 break
         if not enchantmentFound: self.equipment[slot]["enchantments"].append(enchantment)
-        self.updateEquipment(slot)
+        self.equipment[slot] = self.updateEquipment(self.equipment[slot])
+        self.updateStats()
     
     def modifyEquipment(self, slot, modifier):
         self.equipment[slot]["modifier"] = modifier
-        self.updateEquipment(slot)
+        self.equipment[slot] = self.updateEquipment(self.equipment[slot])
+        self.updateStats()
     
-    def updateEquipment(self, slot):
-        self.equipment[slot]["effect"] = copy.deepcopy(self.equipment[slot]["base effect"])
-        self.equipment[slot]["value"] = self.equipment[slot]["base value"]
+    def updateEquipment(self, item):
+        item = copy.deepcopy(item)
+        item["effect"] = copy.deepcopy(item["base effect"])
+        item["value"] = item["base value"]
         
         statNames = []
-        if self.equipment[slot]["modifier"]["effect"] != []: statNames = [effect["type"] for effect in self.equipment[slot]["modifier"]["effect"] if effect["type"] in self.stats]
-        if self.equipment[slot]["enchantments"] != []: statNames += [effect["type"] for effect in [enchantment["effect"] for enchantment in self.equipment[slot]["enchantments"]][0] if effect["type"] in self.stats]
+        if item["modifier"]["effect"] != []: statNames = [effect["type"] for effect in item["modifier"]["effect"] if effect["type"] in self.stats]
+        if item["enchantments"] != []: statNames += [effect["type"] for effect in [enchantment["effect"] for enchantment in item["enchantments"]][0] if effect["type"] in self.stats]
         effects = []
         values = []
         
-        values.append(self.equipment[slot]["modifier"]["value"])
+        values.append(item["modifier"]["value"])
         
-        for effect in self.equipment[slot]["modifier"]["effect"]:
+        for effect in item["modifier"]["effect"]:
             if effect["type"] in self.stats: effects.append(effect)
         
-        for enchantment in self.equipment[slot]["enchantments"]:
+        for enchantment in item["enchantments"]:
             values.append(enchantment["value"])
             for effect in enchantment["effect"]:
                 if effect["type"] in self.stats: effects.append(effect)
 
         for value in values:
-            if value[0] == "+": self.equipment[slot]["value"] += int(value[1:])
-            elif value[0] == "-": self.equipment[slot]["value"] -= int(value[1:])
-            elif value[0] == "*": self.equipment[slot]["value"] = round(float(value[1:]) * self.equipment[slot]["value"])
+            if value[0] == "+": item["value"] += int(value[1:])
+            elif value[0] == "-": item["value"] -= int(value[1:])
+            elif value[0] == "*": item["value"] = round(float(value[1:]) * item["value"])
 
         for statName in statNames:
-            for effect in self.equipment[slot]["effect"]:
+            for effect in item["effect"]:
                 if statName == effect["type"]: statNames = [statName for statName in statNames if statName != effect["type"]]
 
         for e in effects:
-            for effect in self.equipment[slot]["effect"]:
+            for effect in item["effect"]:
                 if e["type"] == effect["type"]:
                     if effect["type"] == "attack":
                         for i in range(2):
@@ -411,8 +414,7 @@ class Player(Entity):
                     else:
                         if "*" in effect: effect["value"] *= (e["value"] + 1)
                         else: effect["value"] += e["value"]
-        
-        self.updateStats()
+        return item
 
     def unequip(self, slot):
         self.addItem(self.equipment[slot])

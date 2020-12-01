@@ -453,64 +453,69 @@ def displayItem(name, rarity, quantity = 0):
     if rarity == "legendary": return c("light orange") + name + reset + amt
     if rarity == "mythical": return c("lightish red") + name + reset + amt
 
-def displayEffect(effects):
-    if "-hp" in effects or "-mp" in effects or "-all" in effects:
-        if "-hp" in effects:
-            if type(effects["-hp"]["value"]) is list:
-                damage = f'{c("red")}{effects["-hp"]["value"][0]} - {effects["-hp"]["value"][1]}{"%" if "*" in effects["-hp"] else ""} ♥{reset}'
+def displayEffect(effect, begin=" "):
+    if "-hp" in effect or "-mp" in effect or "-all" in effect:
+        if "-hp" in effect:
+            if type(effect["-hp"]["value"]) is list:
+                damage = f'{c("red")}{effect["-hp"]["value"][0]} - {effect["-hp"]["value"][1]}{"%" if "*" in effect["-hp"] else ""} ♥{reset}'
             else:
-                damage = f'{c("red")}{effects["-hp"]["value"]}{"%" if "*" in effects["-hp"] else ""} ♥{reset}'
+                damage = f'{c("red")}{effect["-hp"]["value"]}{"%" if "*" in effect["-hp"] else ""} ♥{reset}'
             effect = "-hp"
-        if "-mp" in effects:
-            if type(effects["-mp"]["value"]) is list:
-                damage = f'{c("blue")}{effects["-mp"]["value"][0]} - {effects["-mp"]["value"][1]}{"%" if "*" in effects["-mp"] else ""} ♦{reset}'
+        if "-mp" in effect:
+            if type(effect["-mp"]["value"]) is list:
+                damage = f'{c("blue")}{effect["-mp"]["value"][0]} - {effect["-mp"]["value"][1]}{"%" if "*" in effect["-mp"] else ""} ♦{reset}'
             else:
-                damage = f'{c("blue")}{effects["-mp"]["value"]}{"%" if "*" in effects["-mp"] else ""} ♦{reset}'
+                damage = f'{c("blue")}{effect["-mp"]["value"]}{"%" if "*" in effect["-mp"] else ""} ♦{reset}'
             effect = "-mp"
-        if "-all" in effects:
-            if type(effects["-all"]["value"][0]) is list:
-                damage = f'{c("red")}{effects["-all"]["value"][0][0]} - {effects["-all"]["value"][0][1]}{"%" if "*" in effects["-all"] else ""} ♥{reset} and '
+        if "-all" in effect:
+            if type(effect["-all"]["value"][0]) is list:
+                damage = f'{c("red")}{effect["-all"]["value"][0][0]} - {effect["-all"]["value"][0][1]}{"%" if "*" in effect["-all"] else ""} ♥{reset} and '
             else:
-                damage = f'{c("red")}{effects["-all"]["value"][0]}{"%" if "*" in effects["-all"] else ""} ♥{reset} and '
-            if type(effects["-all"]["value"][1]) is list:
-                damage += f'{c("blue")}{effects["-all"]["value"][1][0]} - {effects["-all"]["value"][1][1]}{"%" if "*" in effects["-all"] else ""} ♦{reset}'
+                damage = f'{c("red")}{effect["-all"]["value"][0]}{"%" if "*" in effect["-all"] else ""} ♥{reset} and '
+            if type(effect["-all"]["value"][1]) is list:
+                damage += f'{c("blue")}{effect["-all"]["value"][1][0]} - {effect["-all"]["value"][1][1]}{"%" if "*" in effect["-all"] else ""} ♦{reset}'
             else:
-                damage += f'{c("blue")}{effects["-all"]["value"][1]}{"%" if "*" in effects["-all"] else ""} ♦{reset}'
+                damage += f'{c("blue")}{effect["-all"]["value"][1]}{"%" if "*" in effect["-all"] else ""} ♦{reset}'
             effect = "-all"
-        print(f'\n Deals {damage} damage')
-        if "crit" in effects[effect]: print(f' - {effects[effect]["crit"]}% critical strike chance')
-        if "hit" in effects[effect]: print(f' - {effects[effect]["hit"]}% hit chance')
-        if "dodge" in effects[effect]: print(f' - Undodgeable')
-    if "hp" in effects or "mp" in effects or "all" in effects:
-        if "hp" in effects:
-            if type(effects["hp"]["value"]) is list:
-                heal = f'{c("red")}{effects["hp"]["value"][0]} - {effects["hp"]["value"][1]}{"%" if "*" in effects["hp"] else ""} ♥{reset}'
+        print(f'\n{begin}Deals {damage} damage.\n')
+        if "crit" in effect[effect]: print(f'{begin}- {effect[effect]["crit"]}% critical strike chance')
+        if "hit" in effect[effect]: print(f'{begin}- {effect[effect]["hit"]}% hit chance')
+        if "dodge" in effect[effect]: print(f'{begin}- Undodgeable')
+    if "hp" in effect or "mp" in effect or "all" in effect:
+        if "hp" in effect:
+            if type(effect["hp"]["value"]) is list:
+                heal = f'{c("red")}{effect["hp"]["value"][0]} - {effect["hp"]["value"][1]}{"%" if "*" in effect["hp"] else ""} ♥{reset}'
             else:
-                heal = f'{c("red")}{effects["hp"]["value"]}{"%" if "*" in effects["hp"] else ""} ♥{reset}'
+                heal = f'{c("red")}{effect["hp"]["value"]}{"%" if "*" in effect["hp"] else ""} ♥{reset}'
             effect = "hp"
-        if "mp" in effects:
-            if type(effects["mp"]["value"]) is list:
-                heal = f'{c("blue")}{effects["mp"]["value"][0]} - {effects["mp"]["value"][1]}{"%" if "*" in effects["mp"] else ""} ♦{reset}'
+        if "mp" in effect:
+            if type(effect["mp"]["value"]) is list:
+                heal = f'{c("blue")}{effect["mp"]["value"][0]} - {effect["mp"]["value"][1]}{"%" if "*" in effect["mp"] else ""} ♦{reset}'
             else:
-                heal = f'{c("blue")}{effects["mp"]["value"]}{"%" if "*" in effects["mp"] else ""} ♦{reset}'
+                heal = f'{c("blue")}{effect["mp"]["value"]}{"%" if "*" in effect["mp"] else ""} ♦{reset}'
             effect = "mp"
-        if "all" in effects:
-            if type(effects["all"]["value"][0]) is list:
-                heal = f'{c("red")}{effects["all"]["value"][0][0]} - {effects["all"]["value"][0][1]}{"%" if "*" in effects["all"] else ""} ♥{reset} and '
+        if "all" in effect:
+            if type(effect["all"]["value"][0]) is list:
+                heal = f'{c("red")}{effect["all"]["value"][0][0]} - {effect["all"]["value"][0][1]}{"%" if "*" in effect["all"] else ""} ♥{reset} and '
             else:
-                heal = f'{c("red")}{effects["all"]["value"][0]}{"%" if "*" in effects["all"] else ""} ♥{reset} and '
-            if type(effects["all"]["value"][1]) is list:
-                heal += f'{c("blue")}{effects["all"]["value"][1][0]} - {effects["all"]["value"][1][1]}{"%" if "*" in effects["all"] else ""} ♦{reset}'
+                heal = f'{c("red")}{effect["all"]["value"][0]}{"%" if "*" in effect["all"] else ""} ♥{reset} and '
+            if type(effect["all"]["value"][1]) is list:
+                heal += f'{c("blue")}{effect["all"]["value"][1][0]} - {effect["all"]["value"][1][1]}{"%" if "*" in effect["all"] else ""} ♦{reset}'
             else:
-                heal += f'{c("blue")}{effects["all"]["value"][1]}{"%" if "*" in effects["all"] else ""} ♦{reset}'
+                heal += f'{c("blue")}{effect["all"]["value"][1]}{"%" if "*" in effect["all"] else ""} ♦{reset}'
             effect = "all"
-        print(f'\n Heals {heal}')
+        print(f'\n{begin}Heals {heal}.\n')
         if effect in ("hp", "all"): displayPlayerHP()
         if effect in ("mp", "all"): displayPlayerMP()
-    if any([stat in effects for stat in player.stats]): print("")
-    if "attack" in effects: print(f' {effects["attack"]["value"][0]} - {effects["attack"]["value"][1]} Damage')
+    if "attack" in effect:
+        if type(effect["attack"]["value"]) is list: print(f'\n{begin}{effect["attack"]["value"][0]} - {effect["attack"]["value"][1]} Damage.\n')
+        else:
+            if "*" in effect["attack"]:
+                print(f'{begin}{abs(effect["attack"]["value"])}% {"Increased" if effect["attack"]["value"] > 0 else "Decreased"} Attack')
+            else:
+                print(f'{begin}{"+" if effect["attack"]["value"] > 0 else ""}{effect["attack"]["value"]} Attack')
     for stat in ("armor", "strength", "intelligence", "vitality", "agility", "max hp", "max mp"):
-        if stat in effects:
+        if stat in effect:
             if stat == "max hp":
                 color, character = c("red"), " ♥"
             elif stat == "max mp":
@@ -518,12 +523,12 @@ def displayEffect(effects):
             else:
                 color, character = "", ""
             
-            if "*" in effects[stat]:
-                print(f' {abs(effects[stat]["value"])}% {"Increased" if effects[stat]["value"] > 0 else "Decreased"} {color}{stat.capitalize()}{character}{reset}')
+            if "*" in effect[stat]:
+                print(f'{begin}{abs(effect[stat]["value"])}% {"Increased" if effect[stat]["value"] > 0 else "Decreased"} {color}{stat.capitalize()}{character}{reset}')
             else:
-                print(f' {"+" if effects[stat]["value"] > 0 else ""}{effects[stat]["value"]} {color}{stat.capitalize()}{character}{reset}')
+                print(f'{begin}{"+" if effect[stat]["value"] > 0 else ""}{effect[stat]["value"]} {color}{stat.capitalize()}{character}{reset}')
     for stat in ("crit", "hit", "dodge"):
-        if stat in effects: print(f' {abs(effects[stat]["value"])}% {"Increased" if effects[stat]["value"] > 0 else "Decreased"} {stat.capitalize()} Chance')
+        if stat in effect: print(f'{begin}{abs(effect[stat]["value"])}% {"Increased" if effect[stat]["value"] > 0 else "Decreased"} {stat.capitalize()} Chance')
 
 def displayPassive(effect):
     if effect["buff"]:
@@ -543,9 +548,9 @@ def displayPassive(effect):
 
 def displayItemStats(item):
     print("\n " + displayItem(item["name"], item["rarity"]))
-    print("  " + displayItem(item["modifier"]["name"], item["modifier"]["rarity"]))
-    print("  " + item["rarity"].capitalize())
-    print("  " + item["description"])
+    print("  Modifier:    " + displayItem(item["modifier"]["name"], item["modifier"]["rarity"]))
+    print("  Rarity:      " + item["rarity"].capitalize())
+    print("  Description: \"" + item["description"] + "\"")
     
     if item["enchantments"] != []:
         print(c("light blue") + "\n Enchantments:" + reset)
@@ -1587,6 +1592,7 @@ def s_equipment():
 def s_inspect(item, equipped):
     while 1:
         clear()
+        item = player.updateEquipment(item)
         player.updateStats()
 
         print(f'\n -= Inspect {item["type"].capitalize()} =-')
@@ -1595,8 +1601,8 @@ def s_inspect(item, equipped):
         print(f'\n Sell Price: {c("yellow")}● {reset}{item["value"]}')
 
         if item["type"] == "equipment":
-            options(["Unequip"] if equipped else ["Equip", "More Info", "Discard"])
-            option = command(False, "alphabetic", options = "u" if equipped else "ed")
+            options((["Unequip"] if equipped else ["Equip", "Discard"]) + ["More Info"])
+            option = command(False, "alphabetic", options = ("u" if equipped else "ed") + "m")
         elif item["type"] == "consumable":
             options((["Use"] if item["target"] == "self" else []) + ["Discard"])
             option = command(False, "alphabetic", options = ("u" if item["target"] == "self" else "") + "d")
@@ -1642,8 +1648,7 @@ def s_inspect(item, equipped):
             else:
                 player.removeItem(item)
                 break
-        elif option == "m":
-            
+        elif option == "m": s_inspectDetailed(item["modifier"], item["enchantments"])
         elif option == "B": break
         if returnTo(): break
 
@@ -1652,10 +1657,24 @@ def s_inspectDetailed(modifier, enchantments):
         clear()
         print("\n -= More Info =-")
         
-        print(" " + displayItem(modifier["name"], modifier["rarity"]) + ":")
-        displayEffects(modifier["effects"])
+        print("\n " + displayItem(modifier["name"], modifier["rarity"]) + ":")
+        effects = {}
+        for effect in modifier["effect"]:
+            effects.update({effect["type"]: effect})
+        displayEffect(effects, begin = "  - ")
+        if modifier["name"] == "Normal": print(" No effect.")
+        
+        if enchantments != []:
+            print(c("light blue") + "\n Enchantments:" + reset)
+            for enchantment in enchantments:
+                print(f'  {enchantment["name"]} {returnNumberNumeral(enchantment["level"])}:')
+                effects = {}
+                for effect in enchantment["effect"]:
+                    effects.update({effect["type"]: effect})
+                displayEffect(effects, begin = "   - ")
         
         pressEnter()
+        break
 
 def s_crafting():
     page = 1
