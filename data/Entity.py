@@ -1,4 +1,4 @@
-from random import randint
+import random
 import math, copy
 from .Globals import *
 
@@ -111,10 +111,10 @@ class Entity():
         if effect["type"] in ("-hp", "-mp", "-all", "passive"):
             if effect["type"] != "passive":
                 amount, a, r, v = [([0, 0] if effect["type"] == "-all" else 0) for i in range(4)]
-                crit = 2 if randint(1, 100) <= ifNone(ifIn("crit", effect, None), ifIn("crit", attackerStats, 0)) else 1
+                crit = 2 if random.randint(1, 100) <= ifNone(ifIn("crit", effect, None), ifIn("crit", attackerStats, 0)) else 1
                 critical = 'critical ' if crit == 2 else ''
-            h = 1 if randint(1, 100) <= ifNone(ifIn("hit", effect, None), ifIn("hit", attackerStats, 100)) else 0
-            d = 0 if randint(1, 100) <= self.__stats["dodge"] * ifNone(ifIn("dodge", effect, None), 1) else 1
+            h = 1 if random.randint(1, 100) <= ifNone(ifIn("hit", effect, None), ifIn("hit", attackerStats, 100)) else 0
+            d = 0 if random.randint(1, 100) <= self.__stats["dodge"] * ifNone(ifIn("dodge", effect, None), 1) else 1
 
             deflect = True if self.guard == "deflect" else False
 
@@ -124,12 +124,12 @@ class Entity():
             if not d: return f'but {self.name} dodges.', 0
 
             if effect["type"] == "-all":
-                if type(effect["value"][0]) is list: a[0] = randint(effect["value"][0][0], effect["value"][0][1])
+                if type(effect["value"][0]) is list: a[0] = random.randint(effect["value"][0][0], effect["value"][0][1])
                 else: a[0] = effect["value"][0]
-                if type(effect["value"][1]) is list: a[1] = randint(effect["value"][1][0], effect["value"][1][1])
+                if type(effect["value"][1]) is list: a[1] = random.randint(effect["value"][1][0], effect["value"][1][1])
                 else: a[1] = effect["value"][1]
                 r = (self.stats["armor"] / 2 + self.stats["vitality"]) / attackerStats["pierce"]
-                v = [randint(100 - attackerStats["variance"], 100 + attackerStats["variance"]) / 100, randint(100 - attackerStats["variance"], 100 + attackerStats["variance"]) / 100]
+                v = [random.randint(100 - attackerStats["variance"], 100 + attackerStats["variance"]) / 100, random.randint(100 - attackerStats["variance"], 100 + attackerStats["variance"]) / 100]
 
                 amount = [round((a[0] - r) * v[0] * crit), round((a[1] - r) * v[1] * crit)]
                 if deflect: amount = [round(amount[0] / 2), round(amount[1] / 2)]
@@ -140,10 +140,10 @@ class Entity():
                 self.__mp -= amount[1]*h*d
                 text = 'dealing {c("red")}' + str(amount[0]) + ' ♥{reset} and {c("blue")}' + str(amount[1]) + ' ♦{reset} '+ critical + 'damage'
             elif effect["type"] in ("-hp", "-mp"):
-                if type(effect["value"]) is list: a = randint(effect["value"][0], effect["value"][1])
+                if type(effect["value"]) is list: a = random.randint(effect["value"][0], effect["value"][1])
                 else: a = effect["value"]
                 r = (self.stats["armor"] / 2 + self.stats["vitality"]) / attackerStats["pierce"]
-                v = randint(100 - attackerStats["variance"], 100 + attackerStats["variance"]) / 100
+                v = random.randint(100 - attackerStats["variance"], 100 + attackerStats["variance"]) / 100
 
                 amount = round((a - r) * v * crit)
                 if deflect: amount = round(amount / 2)
@@ -199,7 +199,7 @@ class Entity():
     def addPassive(self, passive):
         passive.update({"dodge": 0, "hit": 100})
         passiveFound = False
-        if type(passive["turns"]) is list: turns = randint(passive["turns"][0], passive["turns"][1])
+        if type(passive["turns"]) is list: turns = random.randint(passive["turns"][0], passive["turns"][1])
         else: turns = passive["turns"]
         passive["turns"] = turns
         for p in self.passives:
@@ -258,6 +258,8 @@ class Player(Entity):
         self.equipment = equipment
         self.magic = None
         
+        for slot in self.equipment:
+            if self.equipment[slot] != "": self.equipment[slot] = self.updateEquipment(self.equipment[slot])
         self.updateStats()
     
     def getXp(self):
@@ -362,7 +364,7 @@ class Player(Entity):
         for e in self.equipment[slot]["enchantments"]:
             if e["name"] == enchantment["name"]:
                 enchantmentFound = True
-                if e["level"] == enchantment["level"] and e["level"] < 10: e["level"] += 1
+                if e["level"] == enchantment["level"] and e["level"] < e["maxLevel"]: e["level"] += 1
                 elif e["level"] < enchantment["level"]: e["level"] = enchantment["level"]
                 break
         if not enchantmentFound: self.equipment[slot]["enchantments"].append(enchantment)
@@ -377,23 +379,43 @@ class Player(Entity):
     def updateEquipment(self, item):
         item = copy.deepcopy(item)
         item["effect"] = copy.deepcopy(item["base effect"])
+        item["tags"] = copy.deepcopy(item["base tags"])
         item["value"] = item["base value"]
         
         statNames = []
-        if item["modifier"]["effect"] != []: statNames = [effect["type"] for effect in item["modifier"]["effect"] if effect["type"] in self.stats]
-        if item["enchantments"] != []: statNames += [effect["type"] for effect in [enchantment["effect"] for enchantment in item["enchantments"]][0] if effect["type"] in self.stats]
+        if item["modifier"]["effect"] != []: statNames = [effect["type"] for effect in item["modifier"]["effect"]]
+        if item["enchantments"] != []: statNames += [effect["type"] for effect in [enchantment["effect"] for enchantment in item["enchantments"]][0]]
         effects = []
+        tags = []
         values = []
         
         values.append(item["modifier"]["value"])
         
+        tags += item["modifier"]["tags"]
         for effect in item["modifier"]["effect"]:
             if effect["type"] in self.stats: effects.append(effect)
         
         for enchantment in item["enchantments"]:
+            tags += enchantment["tags"]
             values.append(enchantment["value"])
             for effect in enchantment["effect"]:
                 if effect["type"] in self.stats: effects.append(effect)
+
+        for tag in tags:
+            name = tag.split(":")[0]
+            try: value = tag.split(":")[1]
+            except: value = False
+            tagFound = False
+            for t in item["tags"]:
+                if name == t.split(":")[0]:
+                    if len(t.split(":")) == 1 or not value:
+                        tagFound = True
+                        break
+                    else:
+                        tagFound = True
+                        item["tags"].append(name + ":" + str(int(value) + int(t.split(":")[1])))
+                        item["tags"].remove(t)
+            if not tagFound: item["tags"].append(tag)
 
         for value in values:
             if value[0] == "+": item["value"] += int(value[1:])
@@ -401,18 +423,23 @@ class Player(Entity):
             elif value[0] == "*": item["value"] = round(float(value[1:]) * item["value"])
 
         for statName in statNames:
+            statFound = False
             for effect in item["effect"]:
-                if statName == effect["type"]: statNames = [statName for statName in statNames if statName != effect["type"]]
+                if statName == effect["type"]:
+                    statNames = [statName for statName in statNames if statName != effect["type"]]
+                    statFound = True
+                    break
+            if not statFound: item["effect"].append({"type": statName, "value": 0})
 
         for e in effects:
             for effect in item["effect"]:
                 if e["type"] == effect["type"]:
                     if effect["type"] == "attack":
                         for i in range(2):
-                            if "*" in effect: effect["value"][i] *= (e["value"] + 1)
+                            if "*" in e: effect["value"][i] = round(effect["value"][i] * ((e["value"] / 100) + 1))
                             else: effect["value"][i] += e["value"]
                     else:
-                        if "*" in effect: effect["value"] *= (e["value"] + 1)
+                        if "*" in effect: round(effect["value"] * ((e["value"] / 100) + 1))
                         else: effect["value"] += e["value"]
         return item
 

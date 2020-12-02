@@ -27,6 +27,7 @@ import numpy
 import math
 import os
 import pickle
+import random
 import re
 import sqlite3
 import string
@@ -281,7 +282,12 @@ def devCommand(a):
     if a1[0] == "fight":
         s_battle(newEnemy(a1[1]))
     elif a == "s":
-        player.name = "Developer"
+        player.name = "Vincent"
+        s_camp()
+    elif a == "d":
+        player.gold = 999999999
+        devCommand("give all")
+        player.name = "Dev"
         s_camp()
     elif a == "restart":
         clear()
@@ -322,7 +328,7 @@ def devCommand(a):
                 player.addItem(newItem(a1s[0]), (int(a1s[1]) if len(a1s) == 2 else 1))
         elif a2[0] == "enchant":
             a2s = a2[2].split(", ")
-            player.enchantEquipment(a2[1], newEnchantment(a2s[0], int(a2s[1])))
+            player.enchantEquipment(a2[1], newEnchantment(a2s[0], int(a2s[1]), int(a2s[2])))
         elif a2[0] == "modify":
             player.modifyEquipment(a2[1], newModifier(a2[2]))
         elif a1[0] == "gold":
@@ -482,7 +488,7 @@ def displayEffect(effects, notes=False, extraSpace=False):
             else:
                 damage += f'{c("blue")}{effects["-all"]["value"][1]}{"%" if "*" in effects["-all"] else ""} ♦{reset}'
             effect = "-all"
-        print(f'{begin}Deals {damage} damage.\n')
+        print(f'{begin}Damage: {damage}.\n')
     if "hp" in effects or "mp" in effects or "all" in effects:
         if "hp" in effects:
             if type(effects["hp"]["value"]) is list:
@@ -510,7 +516,7 @@ def displayEffect(effects, notes=False, extraSpace=False):
         if effect in ("hp", "all"): print(" " + returnHpBar(player) + "\n")
         if effect in ("mp", "all"): print(" " + returnHpBar(player) + "\n")
     if "attack" in effects:
-        if type(effects["attack"]["value"]) is list: print(f'{begin}{effects["attack"]["value"][0]} - {effects["attack"]["value"][1]} Damage.\n')
+        if type(effects["attack"]["value"]) is list: print(f'{begin}Damage: {c("red")}{effects["attack"]["value"][0]} - {effects["attack"]["value"][1]} ♥{reset}.\n')
         else:
             if "*" in effects["attack"]:
                 print(f'{begin}{abs(effects["attack"]["value"])}% {"Increased" if effects["attack"]["value"] > 0 else "Decreased"} Attack')
@@ -532,7 +538,7 @@ def displayEffect(effects, notes=False, extraSpace=False):
     for stat in ("crit", "hit", "dodge"):
         if stat in effects: print(f'{noteBegin}{abs(effects[stat]["value"])}% {"Increased" if effects[stat]["value"] > 0 else "Decreased"} {stat.capitalize()} Chance')
 
-def displayPassive(effect):
+def displayPassive(effect, noNewLine = False):
     if effect["buff"]:
         effectColor = "light green"
     else:
@@ -543,10 +549,32 @@ def displayPassive(effect):
     else:
         turnText = f'{effect["turns"]} turn{"s" if effect["turns"] > 1 else ""}'
     
-    print(f'\n Applies {c(effectColor)}{effect["name"]}{reset} for {turnText}')
-    if "crit" in effect: print(f' - {effect["crit"]}% critical strike chance')
-    if "hit" in effect: print(f' - {effect["hit"]}% hit chance')
-    if "dodge" in effect: print(f' - Undodgeable')
+    newLine = "" if noNewLine else "\n "
+    print(f'{newLine}Applies {c(effectColor)}{effect["name"]}{reset} for {turnText}.')
+
+def displayTags(tags, notes=False, extraSpace=False):
+    begin = " "
+    noteBegin = " - "
+    if notes: begin, noteBegin = "  - ", "  - "
+    if extraSpace: begin, noteBegin = "   - ", "   - "
+    for tag in tags:
+        name = tag.split(":")[0]
+        try: value = tag.split(":")[1]
+        except: value = False
+        if name == "passive":
+            print(f'{begin}', end="")
+            displayPassive(newPassive(value), noNewLine=True)
+        if name == "hit": print(f'{begin}Never misses.\n{begin}Undodgeable.')
+        if name == "noMiss": print(f'{begin}Never misses.')
+        if name == "noDodge": print(f'{begin}Undodgeable.')
+        if name == "pierce":
+            if value: print(f'{begin}Piercing: Ignores {value}% of enemy armor.')
+            else: print(f'{begin}Piercing: Ignores enemy armor.')
+        if name == "variance":
+            if value == "0": print(f'{begin}Steadfast: Damage doesn\'t vary.')
+            else: print(f'Random: {begin}Damage varies by {value}%.')
+        if name == "infinite": print(f'{begin}Infinite: Item isn\'t lost on consumption.')
+        if name == "lifesteal": print(f'{begin}Lifesteal: Heals for {value}% of damage dealt to an enemy.')
 
 def displayItemStats(item):
     print("\n " + displayItem(item["name"], item["rarity"]))
@@ -554,11 +582,6 @@ def displayItemStats(item):
     print(" Rarity:      " + item["rarity"].capitalize())
     print(" Description: \"" + item["description"] + "\"")
     
-    if item["enchantments"] != []:
-        print(c("light blue") + "\n Enchantments:" + reset)
-        for enchantment in item["enchantments"]:
-            print(f'  - {enchantment["name"]} {returnNumeral(enchantment["level"])}')
-
     effects = {}
     p_passives = []
     if item["type"] != "item":
@@ -567,12 +590,19 @@ def displayItemStats(item):
                 p_passives.append(effect["value"])
             else:
                 if "passive" in effect:
-                    p_passives.append(newPassive(effect["passive"]))
+                    for passive in effect["passive"]: p_passives.append(newPassive(passive))
                 effects.update({effect["type"]: effect})
     if item["type"] == "equipment" and item["slot"] == "tome": print(f'\n Costs {c("blue")}{item["mana"]} ♦{reset}')
-    displayEffect(effects)
     for effect in p_passives:
         displayPassive(effect)
+    
+    displayEffect(effects)
+    displayTags(item["tags"])
+    
+    if item["enchantments"] != []:
+        print(c("light blue") + "\n Enchantments:" + reset)
+        for enchantment in item["enchantments"]:
+            print(f'  - {enchantment["name"]} {returnNumeral(enchantment["level"])}')
 
 def displayQuest(quest, owned):
     print("\n " + displayItem(quest["name"], quest["rarity"]))
@@ -899,7 +929,7 @@ def s_explore():
             areaEnemies = loadEncounter(player.location, "hunt" if option == "s" else locations[int(option) + (page-1) * 10])
                 
             weight = 0
-            level = randint(1, 3)
+            level = random.randint(1, 3)
             if level == 1: level = player.level - 1 if player.level > 1 else 1
             elif level == 2: level = player.level
             else: level = player.level + 1
@@ -928,7 +958,7 @@ def s_explore():
 
             areaEnemies = dict(areaEnemies[::-1])
             try:
-                enemyNum = randint(1, weight)
+                enemyNum = random.randint(1, weight)
             except:
                 print("\n You don't spot any monsters. You're too low of a level.")
                 pressEnter()
@@ -976,7 +1006,7 @@ def s_battle(enemy):
                     if tag.split(":")[0] == "lifesteal":
                         heal = math.ceil(abs(offenseDamage)/int(tag.split(":")[1]))
                         if heal > 0:
-                            text += ' {offense.name} lifesteals {c("red")}{heal} ♥{reset}.'
+                            text += f' {offense.name} lifesteals {c("red")}{heal} ♥{reset}.'
                             offense.defend({"type": "hp", "value": heal})
                             defenseDamage += heal            
             return text, defenseDamage, offenseDamage
@@ -1016,7 +1046,7 @@ def s_battle(enemy):
                 player.mp -= player.equipment["tome"]["mana"]
                 break
             elif option == "g":
-                guardState = randint(1, 5)
+                guardState = random.randint(1, 5)
                 if guardState <= 3: player.guard = "deflect"
                 elif guardState == 4: player.guard = "block"
                 else: player.guard = "counter"
@@ -1092,7 +1122,7 @@ def s_battle(enemy):
                     option = command(options = "y")
 
                     if option == "y":
-                        if randint(1, 2) == 1:
+                        if random.randint(1, 2) == 1:
                             goldLoss = enemy.gold//4 if player.gold - enemy.gold//4 >= 0 else player.gold
                             print(f'\n While fleeing, {player.name} loses {c("yellow")}●{reset} {goldLoss}.')
                             player.gold -= goldLoss
@@ -1124,7 +1154,7 @@ def s_battle(enemy):
         enemy.guard = ""
         text = [""]
         playerDamage, enemyDamage = 0, 0
-        attackType = randint(1,5)
+        attackType = random.randint(1,5)
         if attackType <= 2: attackType = "attack"
         elif attackType <= 4: attackType = "magic"
         else: attackType = "guard"
@@ -1140,7 +1170,7 @@ def s_battle(enemy):
                     if enemy.magic["mana"] <= enemy.mp: castable.append(effect)
                 if len(castable) == 0: attackType = "attack"
                 else:
-                    magic = castable[randint(1, len(castable))]
+                    magic = castable[random.randint(1, len(castable))]
                     tempText, defenseDamage, offenseDamage = attack(magic["target"], magic["effect"], enemy, player)
                     text[0] = f' {enemy.name} casts {magic["text"]} on {player.name}, '
                     text[0] += tempText
@@ -1150,7 +1180,7 @@ def s_battle(enemy):
             else: attackType = "attack"
         if attackType == "guard":
             if enemy.hp <= enemy.stats["max hp"] // 2:
-                guardState = randint(1, 5)
+                guardState = random.randint(1, 5)
                 if guardState <= 3: enemy.guard = "deflect"
                 elif guardState == 4: enemy.guard = "block"
                 else: enemy.guard = "counter"
@@ -1188,12 +1218,12 @@ def s_victory(enemy, itemLog):
     if levelDifference == 0: lootMultiplier = 1
     else: lootMultiplier = max(round(1.25 ** levelDifference, 2), 0.6)
     xp = math.ceil(enemy.xp * lootMultiplier)
-    gold = math.ceil(randint(math.ceil(enemy.gold*0.9), math.ceil(enemy.gold*1.1)) * lootMultiplier)
+    gold = math.ceil(random.randint(math.ceil(enemy.gold*0.9), math.ceil(enemy.gold*1.1)) * lootMultiplier)
     items = []
     if enemy.items != None:
         for item in enemy.items:
-            if randint(1, 100) <= item[2]:
-                if type(item[1]) is list: items.append([newItem(item[0]), randint(item[1][0], item[1][1])])
+            if random.randint(1, 100) <= item[2]:
+                if type(item[1]) is list: items.append([newItem(item[0]), random.randint(item[1][0], item[1][1])])
                 else: items.append([newItem(item[0]), item[1]])
 
     for item in items:
@@ -1255,7 +1285,7 @@ def s_levelUp():
         option = command(False, "alphabetic", options = "hsvdcr", back = False)
         
         if option == "r":
-            option = "hmvdc"[randint(0, 6)]
+            option = "hmvdc"[random.randint(0, 6)]
         
         if option == "h":
             player.baseStats["max hp"] = math.ceil(player.baseStats["max hp"] * 1.05)
@@ -1411,13 +1441,16 @@ def s_store(store):
 
         for i in range(-10 + 10*page, 10*page if 10*page < len(itemList) else len(itemList)):
             print(f' {i}) {displayItem(itemList[i]["name"], itemList[i]["rarity"], 1 if itemList[i]["type"] in stackableItems else 0)} {c("yellow")}●{reset} {itemList[i]["value"]}')
+            
 
         if len(itemList) == 0: print(" " + c("dark gray") + "- Empty -" + reset)
 
-        options((["Next"] if next else []) + (["Previous"] if previous else []))
-        option = command(False, "optionumeric", options = ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(itemList))))))
+        options((["Next"] if next else []) + (["Previous"] if previous else []) + (["Reforge"] if store == "blacksmith" else []) + (["Enchant"] if store == "arcanist" else []))
+        option = command(False, "optionumeric", options = ("n" if next else "") + ("p" if previous else "") + ("r" if store == "blacksmith" else "") + ("e" if store == "arcanist" else "") + "".join(tuple(map(str, range(0, len(itemList))))))
 
         if option in tuple(map(str, range(0, len(itemList) + (page-1) * 10 + 1))): s_purchase(itemList[int(option) + (page-1) * 10])
+        elif option == "r": s_reforge()
+        elif option == "e": s_enchant()
         elif option == "n" and next: page += 1
         elif option == "p" and previous: page -= 1
         elif option == "B": break
@@ -1451,6 +1484,106 @@ def s_purchase(item):
             print(f'\n {c("light red")}You don\'t have enough gold to buy {item["name"]} x{int(option)}.')
             pressEnter()
         if returnTo(): break
+
+def s_reforge():
+    while 1:
+        clear()
+        print("\n -= Reforge =-")
+        print("\n Type the number of the item you wish to reforge.\n")
+
+        for i in range(len(slotList)):
+            item = player.equipment[slotList[i]]
+            if item == "":
+                print(f' {i}) {c("dark gray")} - Empty -{reset}')
+                continue
+            item = player.updateEquipment(item)
+            print(f' {i}) {displayItem(item["name"], item["rarity"])}: {displayItem(item["modifier"]["name"], item["modifier"]["rarity"])} {c("yellow")}●{reset} {item["value"] // 2}')
+
+        option = command(False, "numeric", options = "".join(tuple(map(str, range(0, len(slotList))))))
+
+        if option in tuple(map(str, range(0, len(slotList)))) and player.equipment[slotList[int(option)]] != "":
+            slot = slotList[int(option)]
+            price = player.equipment[slot]["value"] // 2
+            item = player.equipment[slot]
+            if player.gold >= price:
+                if slot in ("helmet", "chest", "legs", "feet"): slot = "armor"
+                modifier = random.randint(0, len(modifiers[slot])-1)
+                modifier = modifiers[slot][modifier]
+                player.modifyEquipment(slotList[int(option)], newModifier(modifier))
+                print(f'\n Successfuly reforged {displayItem(item["name"], item["rarity"])} to {displayItem(item["modifier"]["name"], item["modifier"]["rarity"])}.')
+                pressEnter()
+            else:
+                print(f'\n You don\'t have enough gold.')
+                pressEnter()
+        elif option == "B": break
+
+def s_enchant():
+    while 1:
+        clear()
+        print("\n -= Enchant =-")
+        print("\n Type the number of the item you wish to enchant.")
+        print("\n You cannot enchant an item that is already enchanted.\n")
+        
+        for i in range(len(slotList)):
+            item = player.equipment[slotList[i]]
+            if item == "":
+                print(f' {i}) {c("dark gray")} - Empty -{reset}')
+                continue
+            item = player.updateEquipment(item)
+            enchanted = player.equipment[slotList[i]]["enchantments"] != []
+            if enchanted: print(f' {i}) {c("dark gray")}{item["name"]}{reset}')
+            else: print(f' {i}) {displayItem(item["name"], item["rarity"])} {c("yellow")}●{reset} {item["value"] // 2 + 5 + round(player.level ** 1.7)}')
+        
+        option = command(False, "numeric", options = "".join(tuple(map(str, range(0, len(slotList))))))
+        
+        if option in tuple(map(str, range(0, len(slotList)))) and player.equipment[slotList[int(option)]]["enchantments"] == []:
+            slot = slotList[int(option)]
+            price = player.equipment[slot]["value"] // 2
+            item = player.equipment[slot]
+            if player.gold >= price:
+                if slot in ("helmet", "chest", "legs", "feet"): slot = "armor"
+                numEnchantments = random.randint(1,100)
+                currentEnchantments = []
+                if numEnchantments <= 30: numEnchantments = 1
+                elif numEnchantments <= 70: numEnchantments = 2
+                elif numEnchantments <= 85: numEnchantments = 3
+                elif numEnchantments <= 95: numEnchantments = 4
+                elif numEnchantments <= 99: numEnchantments = 5
+                else: numEnchantments = 6
+                
+                while len(currentEnchantments) < numEnchantments:
+                    enchantment = random.randint(0, len(enchantments[slot])-1)
+                    i = 0
+                    for enchant in enchantments[slot]:
+                        if i == enchantment:
+                            enchantment = enchant
+                            break
+                        i += 1
+                    if enchantment not in currentEnchantments: currentEnchantments.append(enchantment)
+                
+                for enchantment in currentEnchantments:
+                    e = enchantments[slot][enchantment]
+                
+                    if player.level <= 20: tier = 0
+                    elif player.level <= 40: tier = 1
+                    else: tier = 2
+                    
+                    if e == 1: level = 1
+                    elif e == 2: level = random.randint(1, 2)
+                    else:
+                        if player.level >= 61: level = random.randint(e - 1, e)
+                        elif player.level % 20 <= 10: level = random.randint(1, e // 2)
+                        else: level = random.randint(e // 2, e)
+                    if level < 1: level = 1
+                    
+                    player.enchantEquipment(slotList[int(option)], newEnchantment(enchantment, tier, level))
+                player.gold -= price
+                print(f'\n Successfuly enchanted {displayItem(item["name"], item["rarity"])}.')
+                pressEnter()
+            else:
+                print(f'\n You don\'t have enough gold.')
+                pressEnter()
+        elif option == "B": break
 
 def s_market():
     page = 1
@@ -1558,7 +1691,6 @@ def s_inventory():
 def s_equipment():
     while 1:
         clear()
-
         print("\n -= Equipment =-")
         print("\n Type the number of the item you wish to inspect.\n")
 
@@ -1575,13 +1707,13 @@ def s_equipment():
 def s_inspect(item, equipped):
     while 1:
         clear()
-        item = player.updateEquipment(item)
+        if equipped: item = player.equipment[item["slot"]]
         player.updateStats()
 
         print(f'\n -= Inspect {item["type"].capitalize()} =-')
 
         displayItemStats(item)
-        print(f' Value: {c("yellow")}● {reset}{item["value"]}')
+        print(f'\n Value: {c("yellow")}● {reset}{item["value"]}')
 
         if item["type"] == "equipment":
             options((["Unequip"] if equipped else ["Equip", "Discard"]) + ["More Info"])
@@ -1645,6 +1777,7 @@ def s_inspectDetailed(modifier, enchantments):
         for effect in modifier["effect"]:
             effects.update({effect["type"]: effect})
         displayEffect(effects, notes=True)
+        displayTags(modifier["tags"], notes=True)
         if modifier["name"] == "Normal": print("  - No effect.")
         
         if enchantments != []:
@@ -1655,6 +1788,7 @@ def s_inspectDetailed(modifier, enchantments):
                 for effect in enchantment["effect"]:
                     effects.update({effect["type"]: effect})
                 displayEffect(effects, notes=True, extraSpace=True)
+                displayTags(enchantment["tags"], notes=True, extraSpace=True)
         
         pressEnter()
         break
@@ -1959,7 +2093,8 @@ def s_quit():
 
 
 try:
-    if __name__ == "__main__":    
+    if __name__ == "__main__":
+        random.seed()
         os.system("title=Magyka")
         if system != "Windows":
             orig_settings = termios.tcgetattr(sys.stdin)
@@ -1973,6 +2108,11 @@ try:
             cur = session.cursor()
             passive = cur.execute('select * from passives where name="' + name + '"').fetchone()
             session.close()
+            if not passive:
+                print(" Error trying to load passive '" + name + "'.")
+                print(" Passive doesn't exist.")
+                pressEnter()
+                return passive
             jsonLoads = ["effect", "tags", "turns"]
             for load in jsonLoads:
                 try:
@@ -1988,13 +2128,18 @@ try:
         passives = [passive["name"] for passive in session.cursor().execute("select * from passives").fetchall()]
         session.close()
 
-        def newEnchantment(name, level):
+        def newEnchantment(name, tier, level):
             session = sqlite3.connect("data/data.db")
             session.row_factory = dictFactory
             cur = session.cursor()
             enchantment = cur.execute('select * from enchantments where name="' + name + '"').fetchone()
             session.close()
-            jsonLoads = ["effect", "level", "tags"]
+            if not enchantment:
+                print(" Error trying to load enchantment '" + name + "'.")
+                print(" Enchantment doesn't exist.")
+                pressEnter()
+                return enchantment
+            jsonLoads = ["effect", "tags", "increase", "value"]
             for load in jsonLoads:
                 try:
                     if enchantment[load]: enchantment[load] = json.loads(enchantment[load])
@@ -2003,13 +2148,42 @@ try:
                     print(" Passed value: '" + enchantment[load] + "'.")
                     printError()
                     pressEnter()
+            if enchantment["tags"] == None: enchantment["tags"] = []
+            if enchantment["effect"] == None: enchantment["effect"] = []
             for effect in enchantment["effect"]:
-                for i in range(level):
+                effect["value"] = effect["value"][tier]
+            for i in range(len(enchantment["tags"])):
+                name = enchantment["tags"][i].split(":")[0]
+                values = json.loads(enchantment["tags"][i].split(":")[1])
+                enchantment["tags"][i] = name + ":" + str(values[tier])
+            if enchantment["increase"] != None: enchantment["increase"] = enchantment["increase"][tier]
+            enchantment["value"] = enchantment["value"][tier]
+            if tier == 0: enchantment["name"] = "Lesser " + enchantment["name"]
+            elif tier == 2: enchantment["name"] = "Advanced " + enchantment["name"]
+            for i in range(len(enchantment["tags"])):
+                for j in range(level - 1):
+                    if enchantment["increase"][0] == "+":
+                        enchantment["tags"][i] = enchantment["tags"][i].split(":")[0] + ":" + str(int(enchantment["tags"][i].split(":")[1]) + int(enchantment["increase"][1:]))
+                    elif enchantment["increase"][0] == "-":
+                        enchantment["tags"][i] = enchantment["tags"][i].split(":")[0] + ":" + str(int(enchantment["tags"][i].split(":")[1]) - int(enchantment["increase"][1:]))
+                    elif enchantment["increase"][0] == "*":
+                        enchantment["tags"][i] = enchantment["tags"][i].split(":")[0] + ":" + str(int(enchantment["tags"][i].split(":")[1]) * float(value[1:]))
+            for effect in enchantment["effect"]:
+                for i in range(level - 1):
                     if enchantment["increase"][0] == "+": effect["value"] += int(enchantment["increase"][1:])
                     elif enchantment["increase"][0] == "-": effect["value"] -= int(enchantment["increase"][1:])
-                    elif enchantment["increase"][0] == "*": effect["value"] *= round(float(value[1:]) * effect["value"])
-            enchantment["level"] = level
+                    elif enchantment["increase"][0] == "*": effect["value"] = round(float(value[1:]) * effect["value"])
+            enchantment.update({"level": level})
             return enchantment
+        session = sqlite3.connect("data/data.db")
+        session.row_factory = dictFactory
+        es = [enchantment for enchantment in session.cursor().execute("select * from enchantments").fetchall()]
+        enchantments = {}
+        for enchantment in es:
+            if enchantment["slot"] not in enchantments: enchantments.update({enchantment["slot"]: {}})
+        for e in es:
+            enchantments[e["slot"]].update({e["name"]: e["maxLevel"]})
+        session.close()
         
         def newModifier(name):
             session = sqlite3.connect("data/data.db")
@@ -2031,7 +2205,16 @@ try:
                     print(" Passed value: '" + modifier[load] + "'.")
                     printError()
                     pressEnter()
+            if modifier["tags"] == None: modifier["tags"] = []
             return modifier
+        session = sqlite3.connect("data/data.db")
+        session.row_factory = dictFactory
+        ms = [modifier for modifier in session.cursor().execute("select * from modifiers").fetchall()]
+        modifiers = {}
+        for modifier in ms:
+            if modifier["slot"] not in modifiers:
+                modifiers.update({modifier["slot"]: [m["name"] for m in ms if m["slot"] == modifier["slot"] or m["slot"] == "all"]})
+        session.close()
 
         def newItem(name, modifier=False):
             session = sqlite3.connect("data/data.db")
@@ -2039,6 +2222,11 @@ try:
             cur = session.cursor()
             item = cur.execute('select * from items where name="' + name + '"').fetchone()
             session.close()
+            if not item:
+                print(" Error trying to load item '" + name + "'.")
+                print(" Item doesn't exist.")
+                pressEnter()
+                return item
             jsonLoads = ["effect", "tags", "enchantments"]
             for load in jsonLoads:
                 try:
@@ -2054,9 +2242,10 @@ try:
                 for effect in item["effect"]:
                     if effect["type"] == "passive": effect["value"] = newPassive(effect["value"])
             for i in range(len(item["enchantments"])):
-                item["enchantments"][i] = newEnchantment(item["enchantments"][i])
+                item["enchantments"][i] = newEnchantment(item["enchantments"][i][0], item["enchantments"][i][1], item["enchantments"][i][2])
             item.update({"modifier": newModifier("Normal")})
             item["base effect"] = copy.deepcopy(item["effect"])
+            item["base tags"] = copy.deepcopy(item["tags"])
             item["base value"] = item["value"]
             return item
         session = sqlite3.connect("data/data.db")
@@ -2070,6 +2259,11 @@ try:
             cur = session.cursor()
             enemy = cur.execute('select * from enemies where name="' + name + '"').fetchone()
             session.close()
+            if not enemy:
+                print(" Error trying to load enemy '" + name + "'.")
+                print(" Enemy doesn't exist.")
+                pressEnter()
+                return enemy
             jsonLoads = ["stats", "level", "items", "tags"]
             for load in jsonLoads:
                 try:
