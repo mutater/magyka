@@ -578,7 +578,7 @@ def displayTags(tags, notes=False, extraSpace=False):
 
 def displayItemStats(item):
     print("\n " + displayItem(item["name"], item["rarity"]))
-    print(" Modifier:    " + displayItem(item["modifier"]["name"], item["modifier"]["rarity"]))
+    if item["type"] == "equipment": print(" Modifier:    " + displayItem(item["modifier"]["name"], item["modifier"]["rarity"]))
     print(" Rarity:      " + item["rarity"].capitalize())
     print(" Description: \"" + item["description"] + "\"")
     
@@ -610,75 +610,6 @@ def displayQuest(quest, owned):
     for objective in quest["objective"]:
         if owned: print(f'  - {c("dark gray") if objective["complete"] else ""}{string.capwords(objective["type"])}{" " + str(objective["quantity"]) + "x" if objective["quantity"] > 1 else ""} {objective["name"]} ({objective["status"]}/{objective["quantity"]}){reset}')
         else: print(f'  - {string.capwords(objective["type"])}{" " + str(objective["quantity"]) + "x" if objective["quantity"] > 1 else ""} {objective["name"]}')
-
-def displayImage(path, color, imgSize = 120):
-    gscale = ' .-:=!noS#8▓'
-    cols = os.get_terminal_size()[0]
-    rows = os.get_terminal_size()[1]
-    colCaps = [150, 120, 100, 90, 80, 70, 60, 50, 40, 35, 30, 25, 20, 15, 10, 5, 1]
-    rowCaps = [45, 40, 30, 20, 10, 1]
-    
-    for cap in colCaps:
-        if cols >= cap and imgSize > cap:
-            imgSize = cap
-            break
-    
-    for cap in rowCaps:
-        if rows >= cap and imgSize / 2 > cap:
-            imgSize = int(cap * 2)
-            break
-    
-    if cols >= colCaps[0] and rows >= rowCaps[0]: imgSize = 120
-    
-    try:
-        image = Image.open(path).convert('L')
-    except:
-        image = Image.open("data/image/Unknown.png").convert('L')
-    W, H = image.size[0], image.size[1]
-    w = W/imgSize
-    h = w/0.43
-    r = int(H/h)
-    aimg = []
-    
-    for j in range(r):
-        y1 = int(j*h)
-        y2 = int((j+1)*h)
-        
-        if j == r-1: y2 = H
-        aimg.append("")
-        
-        for i in range(imgSize):
-            x1 = int(i*w)
-            x2 = int((i+1)*w)
-            
-            if i == imgSize-1: x2 = W
-            
-            img = image.crop((x1, y1, x2, y2))
-            im = numpy.array(img)
-            width, height = im.shape
-            avg = int(numpy.average(im.reshape(width*height)))
-            gsval = gscale[int((avg*(len(gscale)-1))/255)]
-            aimg[j] += gsval
-    
-    string = aimg
-    stringCols = len(string[0])
-    for i in range(len(string) - 1, -1, -1):
-        delete = True
-        for character in '.-:=!noS#8▓':
-            if character in string[i]:
-                delete = False
-                break
-        if delete:
-            string.pop(i)
-    stringRows = len(string)
-    space = int((cols - stringCols) // 2)
-    
-    print("")
-    if color != False: print(c(color), end="")
-    for line in string:
-        print(" "*space + line)
-    print(reset)
-    print(c("dark gray") + "~"*cols + reset)
 
 def displayPlayerTitle():
     print(f' {player.name} [Lvl {player.level}]')
@@ -722,7 +653,6 @@ def displayBattleStats(player, enemy, playerDamage = 0, enemyDamage = 0):
         if enemyDamage > 0: enemyDamageText = " +" + str(enemyDamage)
         elif enemyDamage < 0: enemyDamageText = " " + str(enemyDamage)
         else: enemyDamageText = ""
-        displayImage("data/image/enemies/" + enemy.name + ".png", enemy.color, imgSize=128)
         
         cols = os.get_terminal_size()[0]
         rows = os.get_terminal_size()[1]
@@ -1031,6 +961,8 @@ def s_battle(enemy):
                 text[0] = f' {player.name} attacks {enemy.name}, ' + evalText(text[0])
                 break
             if option == "a":
+                print(player.attack())
+                pressEnter()
                 tempText, defenseDamage, offenseDamage = attack("enemy", [player.attack()], player, enemy, player.equipment["weapon"]["tags"])
                 text[0] = f' {player.name} attacks {enemy.name}, ' + evalText(text[0])
                 text[0] += tempText
@@ -1532,14 +1464,14 @@ def s_enchant():
             item = player.updateEquipment(item)
             enchanted = player.equipment[slotList[i]]["enchantments"] != []
             if enchanted: print(f' {i}) {c("dark gray")}{item["name"]}{reset}')
-            else: print(f' {i}) {displayItem(item["name"], item["rarity"])} {c("yellow")}●{reset} {item["value"] // 2 + 5 + round(player.level ** 1.7)}')
+            else: print(f' {i}) {displayItem(item["name"], item["rarity"])} {c("yellow")}●{reset} {item["value"] // 2 + 15 + round(player.level ** 1.5)}')
         
         option = command(False, "numeric", options = "".join(tuple(map(str, range(0, len(slotList))))))
         
-        if option in tuple(map(str, range(0, len(slotList)))) and player.equipment[slotList[int(option)]]["enchantments"] == []:
+        if option in tuple(map(str, range(0, len(slotList)))) and player.equipment[slotList[int(option)]] != "" and player.equipment[slotList[int(option)]]["enchantments"] == []:
             slot = slotList[int(option)]
-            price = player.equipment[slot]["value"] // 2
             item = player.equipment[slot]
+            price = item["value"] // 2 + 15 + round(player.level ** 1.5)
             if player.gold >= price:
                 if slot in ("helmet", "chest", "legs", "feet"): slot = "armor"
                 numEnchantments = random.randint(1,100)
@@ -1707,13 +1639,15 @@ def s_equipment():
 def s_inspect(item, equipped):
     while 1:
         clear()
-        if equipped: item = player.equipment[item["slot"]]
+        if equipped:
+            player.equipment[item["slot"]] = player.updateEquipment(player.equipment[item["slot"]])
+            item = player.equipment[item["slot"]]
         player.updateStats()
 
         print(f'\n -= Inspect {item["type"].capitalize()} =-')
 
         displayItemStats(item)
-        print(f'\n Value: {c("yellow")}● {reset}{item["value"]}')
+        print(f' Value: {c("yellow")}● {reset}{item["value"]}')
 
         if item["type"] == "equipment":
             options((["Unequip"] if equipped else ["Equip", "Discard"]) + ["More Info"])
@@ -2243,7 +2177,7 @@ try:
                     if effect["type"] == "passive": effect["value"] = newPassive(effect["value"])
             for i in range(len(item["enchantments"])):
                 item["enchantments"][i] = newEnchantment(item["enchantments"][i][0], item["enchantments"][i][1], item["enchantments"][i][2])
-            item.update({"modifier": newModifier("Normal")})
+            if item["type"] == "equipment": item.update({"modifier": newModifier("Normal")})
             item["base effect"] = copy.deepcopy(item["effect"])
             item["base tags"] = copy.deepcopy(item["tags"])
             item["base value"] = item["value"]

@@ -139,7 +139,7 @@ class Entity():
                 hpAmount = amount[0]*h*d*-1
                 self.__mp -= amount[1]*h*d
                 text = 'dealing {c("red")}' + str(amount[0]) + ' ♥{reset} and {c("blue")}' + str(amount[1]) + ' ♦{reset} '+ critical + 'damage'
-            elif effect["type"] in ("-hp", "-mp"):
+            if effect["type"] in ("-hp", "-mp"):
                 if type(effect["value"]) is list: a = random.randint(effect["value"][0], effect["value"][1])
                 else: a = effect["value"]
                 r = (self.stats["armor"] / 2 + self.stats["vitality"]) / attackerStats["pierce"]
@@ -156,7 +156,7 @@ class Entity():
                 else:
                     self.__mp -= amount*h*d
                     text = 'dealing {c("blue")}' + str(amount) + ' ♦{reset} '+ critical + 'damage'
-            elif effect["type"] == "passive":
+            if effect["type"] == "passive":
                 text = self.addPassive(effect)
         elif effect["type"] in ("hp", "mp", "all"):
             if effect["type"] == "all":
@@ -234,7 +234,9 @@ class Entity():
         attackSkill = {"type": "-hp", "value": [self.__stats["attack"][0] + self.__stats["strength"], self.__stats["attack"][1] + self.__stats["strength"]], "crit": self.__stats["crit"], "hit": self.__stats["hit"]}
         if "weapon" in self.equipment and self.equipment["weapon"] != "":
             for effect in self.equipment["weapon"]["effect"]:
+                print(effect)
                 if effect["type"] == "passive": attackSkill.update({"passive": effect["value"]})
+        print(attackSkill)
         return attackSkill
 
 class Player(Entity):
@@ -279,7 +281,7 @@ class Player(Entity):
             self.__hp = self.stats["max hp"]
             self.__mp = self.stats["max mp"]
             self.level += 1
-            self.levelsGained += 1
+            self.levelsGained += self.level % 2
             
     xp = property(getXp, setXp)
 
@@ -415,8 +417,9 @@ class Player(Entity):
                         tagFound = True
                         item["tags"].append(name + ":" + str(int(value) + int(t.split(":")[1])))
                         item["tags"].remove(t)
-            if not tagFound: item["tags"].append(tag)
-
+            if not tagFound:
+                if name == "passive": effects.append({"type": "passive", "value": value})
+                else: item["tags"].append(tag)
         for value in values:
             if value[0] == "+": item["value"] += int(value[1:])
             elif value[0] == "-": item["value"] -= int(value[1:])
@@ -483,5 +486,4 @@ class Enemy(Entity):
         self.text = kwargs["text"]
         self.magic = kwargs.get("magic")
         self.tags = kwargs.get("tags")
-        self.color = kwargs.get("color")
         self.levelDifference = 0
