@@ -51,6 +51,96 @@ from PIL import Image
 
 
 
+
+def enchantEquipment(item, enchantment):
+    if enchantment == None: return
+    enchantmentFound = False
+    for e in item["enchantments"]:
+        if e["name"] == enchantment["name"]:
+            enchantmentFound = True
+            if e["level"] == enchantment["level"] and e["level"] < e["maxLevel"]: e["level"] += 1
+            elif e["level"] < enchantment["level"]: e["level"] = enchantment["level"]
+            break
+    if not enchantmentFound: item["enchantments"].append(enchantment)
+    item = updateEquipment(item)
+    return item
+
+def modifyEquipment(item, modifier):
+    item["modifier"] = modifier
+    item = updateEquipment(item)
+    return item
+
+def updateEquipment(item):
+    item = copy.deepcopy(item)
+    item["effect"] = copy.deepcopy(item["base effect"])
+    item["tags"] = copy.deepcopy(item["base tags"])
+    item["value"] = item["base value"]
+    
+    statNames = []
+    if item["modifier"]["effect"] != []: statNames = [effect["type"] for effect in item["modifier"]["effect"]]
+    if item["enchantments"] != []: statNames += [effect["type"] for effect in [enchantment["effect"] for enchantment in item["enchantments"]][0]]
+    effects = []
+    tags = []
+    values = []
+    
+    values.append(item["modifier"]["value"])
+    
+    tags += item["modifier"]["tags"]
+    for effect in item["modifier"]["effect"]:
+        if effect["type"] in player.stats: effects.append(effect)
+    
+    for enchantment in item["enchantments"]:
+        tags += enchantment["tags"]
+        values.append(enchantment["value"])
+        for effect in enchantment["effect"]:
+            if effect["type"] in player.stats: effects.append(effect)
+            
+    for tag in tags:
+        name = tag.split(":")[0]
+        try: value = tag.split(":")[1]
+        except: value = False
+        tagFound = False
+        for t in item["tags"]:
+            if name == t.split(":")[0]:
+                if len(t.split(":")) == 1 or not value:
+                    tagFound = True
+                    break
+                else:
+                    tagFound = True
+                    item["tags"].append(name + ":" + str(int(value) + int(t.split(":")[1])))
+                    item["tags"].remove(t)
+        if not tagFound:
+            if name == "passive":
+                if "passive" in item["effect"][0]: item["effect"][0]["passive"].append(value)
+                else: item["effect"][0].update({"passive": [value]})
+            else: item["tags"].append(tag)
+    
+    for value in values:
+        if value[0] == "+": item["value"] += int(value[1:])
+        elif value[0] == "-": item["value"] -= int(value[1:])
+        elif value[0] == "*": item["value"] = round(float(value[1:]) * item["value"])
+
+    for statName in statNames:
+        statFound = False
+        for effect in item["effect"]:
+            if statName == effect["type"]:
+                statNames = [statName for statName in statNames if statName != effect["type"]]
+                statFound = True
+                break
+        if not statFound: item["effect"].append({"type": statName, "value": 0})
+
+    for e in effects:
+        for effect in item["effect"]:
+            if e["type"] == effect["type"]:
+                if effect["type"] == "attack":
+                    for i in range(2):
+                        if "*" in e: effect["value"][i] = round(effect["value"][i] * ((e["value"] / 100) + 1))
+                        else: effect["value"][i] += e["value"]
+                else:
+                    if "*" in effect: round(effect["value"] * ((e["value"] / 100) + 1))
+                    else: effect["value"] += e["value"]
+    return item
+
 # :      :::::  :::::  :::::  :::::
 # :      :   :  :        :    :
 # :      :   :  : :::    :    :
@@ -283,6 +373,7 @@ def devCommand(a):
         s_battle(newEnemy(a1[1]))
     elif a == "s":
         player.name = "Vincent"
+        devCommand("equip VARIANCE")
         s_camp()
     elif a == "d":
         player.gold = 999999999
@@ -328,9 +419,10 @@ def devCommand(a):
                 player.addItem(newItem(a1s[0]), (int(a1s[1]) if len(a1s) == 2 else 1))
         elif a2[0] == "enchant":
             a2s = a2[2].split(", ")
-            player.enchantEquipment(a2[1], newEnchantment(a2s[0], int(a2s[1]), int(a2s[2])))
+            player.equipment[a2[1]] = enchantEquipment(player.equipment[a2[1]], newEnchantment(a2s[0], int(a2s[1]), int(a2s[2])))
+            player.updateStats()
         elif a2[0] == "modify":
-            player.modifyEquipment(a2[1], newModifier(a2[2]))
+            player.equipment[a2[1]] = modifyEquipment(player.equipment[a2[1]], newModifier(a2[2]))
         elif a1[0] == "gold":
             player.gold += int(a1[1])
         elif a1[0] == "name":
@@ -522,6 +614,12 @@ def displayEffect(effects, notes=False, extraSpace=False):
                 print(f'{begin}{abs(effects["attack"]["value"])}% {"Increased" if effects["attack"]["value"] > 0 else "Decreased"} Attack')
             else:
                 print(f'{begin}{"+" if effects["attack"]["value"] > 0 else ""}{effects["attack"]["value"]} Attack')
+
+def displayStats(effects, notes=False, extraSpace=False):
+    begin = " "
+    noteBegin = " - "
+    if notes: begin, noteBegin = "  - ", "  - "
+    if extraSpace: begin, noteBegin = "   - ", "   - "
     for stat in ("armor", "strength", "intelligence", "vitality", "agility", "max hp", "max mp"):
         if stat in effects:
             if stat == "max hp":
@@ -549,7 +647,7 @@ def displayPassive(effect, noNewLine = False):
     else:
         turnText = f'{effect["turns"]} turn{"s" if effect["turns"] > 1 else ""}'
     
-    newLine = "" if noNewLine else "\n "
+    newLine = " " if noNewLine else "\n "
     print(f'{newLine}Applies {c(effectColor)}{effect["name"]}{reset} for {turnText}.')
 
 def displayTags(tags, notes=False, extraSpace=False):
@@ -593,10 +691,10 @@ def displayItemStats(item):
                     for passive in effect["passive"]: p_passives.append(newPassive(passive))
                 effects.update({effect["type"]: effect})
     if item["type"] == "equipment" and item["slot"] == "tome": print(f'\n Costs {c("blue")}{item["mana"]} ♦{reset}')
-    for effect in p_passives:
-        displayPassive(effect)
     
     displayEffect(effects)
+    for effect in p_passives:
+        displayPassive(effect, noNewLine=True)
     displayTags(item["tags"])
     
     if item["enchantments"] != []:
@@ -922,8 +1020,12 @@ def s_battle(enemy):
     
     def attack(target, effectList, offense, defense, tags = False):
         if tags == None: tags = []
+        effectList = copy.deepcopy(effectList)
         for effect in effectList:
-            if "passive" in effect: passive = newPassive(effect["passive"])
+            if "passive" in effect:
+                for i in range(len(effect["passive"])):
+                    effect["passive"][i] = newPassive(effect["passive"][i])
+                passive = effect["passive"]
             else: passive = False
             
             defenseDamage = 0
@@ -961,8 +1063,6 @@ def s_battle(enemy):
                 text[0] = f' {player.name} attacks {enemy.name}, ' + evalText(text[0])
                 break
             if option == "a":
-                print(player.attack())
-                pressEnter()
                 tempText, defenseDamage, offenseDamage = attack("enemy", [player.attack()], player, enemy, player.equipment["weapon"]["tags"])
                 text[0] = f' {player.name} attacks {enemy.name}, ' + evalText(text[0])
                 text[0] += tempText
@@ -1428,7 +1528,7 @@ def s_reforge():
             if item == "":
                 print(f' {i}) {c("dark gray")} - Empty -{reset}')
                 continue
-            item = player.updateEquipment(item)
+            item = updateEquipment(item)
             print(f' {i}) {displayItem(item["name"], item["rarity"])}: {displayItem(item["modifier"]["name"], item["modifier"]["rarity"])} {c("yellow")}●{reset} {item["value"] // 2}')
 
         option = command(False, "numeric", options = "".join(tuple(map(str, range(0, len(slotList))))))
@@ -1441,7 +1541,7 @@ def s_reforge():
                 if slot in ("helmet", "chest", "legs", "feet"): slot = "armor"
                 modifier = random.randint(0, len(modifiers[slot])-1)
                 modifier = modifiers[slot][modifier]
-                player.modifyEquipment(slotList[int(option)], newModifier(modifier))
+                player.equipment[slotList[int(option)]] = modifyEquipment(player.equipment[slotList[int(option)]], newModifier(modifier))
                 print(f'\n Successfuly reforged {displayItem(item["name"], item["rarity"])} to {displayItem(item["modifier"]["name"], item["modifier"]["rarity"])}.')
                 pressEnter()
             else:
@@ -1461,7 +1561,7 @@ def s_enchant():
             if item == "":
                 print(f' {i}) {c("dark gray")} - Empty -{reset}')
                 continue
-            item = player.updateEquipment(item)
+            item = updateEquipment(item)
             enchanted = player.equipment[slotList[i]]["enchantments"] != []
             if enchanted: print(f' {i}) {c("dark gray")}{item["name"]}{reset}')
             else: print(f' {i}) {displayItem(item["name"], item["rarity"])} {c("yellow")}●{reset} {item["value"] // 2 + 15 + round(player.level ** 1.5)}')
@@ -1508,7 +1608,8 @@ def s_enchant():
                         else: level = random.randint(e // 2, e)
                     if level < 1: level = 1
                     
-                    player.enchantEquipment(slotList[int(option)], newEnchantment(enchantment, tier, level))
+                    player.equipment[slotList[int(option)]] = enchantEquipment(player.equipment[slotList[int(option)]], newEnchantment(enchantment, tier, level))
+                    player.updateStats()
                 player.gold -= price
                 print(f'\n Successfuly enchanted {displayItem(item["name"], item["rarity"])}.')
                 pressEnter()
@@ -1640,14 +1741,13 @@ def s_inspect(item, equipped):
     while 1:
         clear()
         if equipped:
-            player.equipment[item["slot"]] = player.updateEquipment(player.equipment[item["slot"]])
+            player.equipment[item["slot"]] = updateEquipment(player.equipment[item["slot"]])
             item = player.equipment[item["slot"]]
         player.updateStats()
 
         print(f'\n -= Inspect {item["type"].capitalize()} =-')
-
         displayItemStats(item)
-        print(f' Value: {c("yellow")}● {reset}{item["value"]}')
+        print(f'\n Value: {c("yellow")}● {reset}{item["value"]}')
 
         if item["type"] == "equipment":
             options((["Unequip"] if equipped else ["Equip", "Discard"]) + ["More Info"])
@@ -2236,7 +2336,7 @@ try:
         
         if settings["fullscreen"]: fullscreen()
         
-        player = Player({"weapon": newItem("Tarnished Sword"),"tome": "","head": "","chest": newItem("Patched Shirt"),"legs": newItem("Patched Jeans"),"feet": "","accessory": ""}, quests["main"])
+        player = Player({"weapon":newItem("Tarnished Sword"),"tome":"","head":"","chest":newItem("Patched Shirt"),"legs":newItem("Patched Jeans"),"feet":"","accessory":""}, quests["main"])
         s_mainMenu()
 except Exception as err:
     printError()
