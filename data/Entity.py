@@ -233,10 +233,11 @@ class Entity():
     def attack(self):
         attackSkill = {"type": "-hp", "value": [self.__stats["attack"][0] + self.__stats["strength"], self.__stats["attack"][1] + self.__stats["strength"]], "crit": self.__stats["crit"], "hit": self.__stats["hit"]}
         if "weapon" in self.equipment and self.equipment["weapon"] != "":
+            passives = []
             for effect in self.equipment["weapon"]["effect"]:
-                print(effect)
-                if effect["type"] == "passive": attackSkill.update({"passive": effect["value"]})
-        print(attackSkill)
+                if effect["type"] == "passive": passives.append(effect["value"])
+                if "passive" in effect: passives += effect["passive"]
+            attackSkill.update({"passive": passives})
         return attackSkill
 
 class Player(Entity):
@@ -260,8 +261,6 @@ class Player(Entity):
         self.equipment = equipment
         self.magic = None
         
-        for slot in self.equipment:
-            if self.equipment[slot] != "": self.equipment[slot] = self.updateEquipment(self.equipment[slot])
         self.updateStats()
     
     def getXp(self):
@@ -360,92 +359,7 @@ class Player(Entity):
                 except:
                     return
             return
-
-    def enchantEquipment(self, slot, enchantment):
-        enchantmentFound = False
-        for e in self.equipment[slot]["enchantments"]:
-            if e["name"] == enchantment["name"]:
-                enchantmentFound = True
-                if e["level"] == enchantment["level"] and e["level"] < e["maxLevel"]: e["level"] += 1
-                elif e["level"] < enchantment["level"]: e["level"] = enchantment["level"]
-                break
-        if not enchantmentFound: self.equipment[slot]["enchantments"].append(enchantment)
-        self.equipment[slot] = self.updateEquipment(self.equipment[slot])
-        self.updateStats()
     
-    def modifyEquipment(self, slot, modifier):
-        self.equipment[slot]["modifier"] = modifier
-        self.equipment[slot] = self.updateEquipment(self.equipment[slot])
-        self.updateStats()
-    
-    def updateEquipment(self, item):
-        item = copy.deepcopy(item)
-        item["effect"] = copy.deepcopy(item["base effect"])
-        item["tags"] = copy.deepcopy(item["base tags"])
-        item["value"] = item["base value"]
-        
-        statNames = []
-        if item["modifier"]["effect"] != []: statNames = [effect["type"] for effect in item["modifier"]["effect"]]
-        if item["enchantments"] != []: statNames += [effect["type"] for effect in [enchantment["effect"] for enchantment in item["enchantments"]][0]]
-        effects = []
-        tags = []
-        values = []
-        
-        values.append(item["modifier"]["value"])
-        
-        tags += item["modifier"]["tags"]
-        for effect in item["modifier"]["effect"]:
-            if effect["type"] in self.stats: effects.append(effect)
-        
-        for enchantment in item["enchantments"]:
-            tags += enchantment["tags"]
-            values.append(enchantment["value"])
-            for effect in enchantment["effect"]:
-                if effect["type"] in self.stats: effects.append(effect)
-
-        for tag in tags:
-            name = tag.split(":")[0]
-            try: value = tag.split(":")[1]
-            except: value = False
-            tagFound = False
-            for t in item["tags"]:
-                if name == t.split(":")[0]:
-                    if len(t.split(":")) == 1 or not value:
-                        tagFound = True
-                        break
-                    else:
-                        tagFound = True
-                        item["tags"].append(name + ":" + str(int(value) + int(t.split(":")[1])))
-                        item["tags"].remove(t)
-            if not tagFound:
-                if name == "passive": effects.append({"type": "passive", "value": value})
-                else: item["tags"].append(tag)
-        for value in values:
-            if value[0] == "+": item["value"] += int(value[1:])
-            elif value[0] == "-": item["value"] -= int(value[1:])
-            elif value[0] == "*": item["value"] = round(float(value[1:]) * item["value"])
-
-        for statName in statNames:
-            statFound = False
-            for effect in item["effect"]:
-                if statName == effect["type"]:
-                    statNames = [statName for statName in statNames if statName != effect["type"]]
-                    statFound = True
-                    break
-            if not statFound: item["effect"].append({"type": statName, "value": 0})
-
-        for e in effects:
-            for effect in item["effect"]:
-                if e["type"] == effect["type"]:
-                    if effect["type"] == "attack":
-                        for i in range(2):
-                            if "*" in e: effect["value"][i] = round(effect["value"][i] * ((e["value"] / 100) + 1))
-                            else: effect["value"][i] += e["value"]
-                    else:
-                        if "*" in effect: round(effect["value"] * ((e["value"] / 100) + 1))
-                        else: effect["value"] += e["value"]
-        return item
-
     def unequip(self, slot):
         self.addItem(self.equipment[slot])
         self.equipment[slot] = ""
@@ -456,7 +370,6 @@ class Player(Entity):
         self.equipment[item["slot"]] = item
         self.removeItem(item)
         if item["slot"] == "tome": self.magic = item["effect"]
-        self.updateEquipment(item["slot"])
         self.updateStats()
 
     def get_magic(self):
