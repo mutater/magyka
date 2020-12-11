@@ -1,50 +1,41 @@
-import numpy
 from PIL import Image
 
-def displayImage(imgSize = 912):
+def displayImage():
     gscale = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,\"^`'. "
+    colors = {
+        # - DEBUG - #
+        "000000": "@",
+        # - PASSABLE - #
+        "59c135": "=", # GRASS
+        "9cdb43": ";", # LIGHT GRASS
+        "d6f264": "-", # ARID LAND
+        "fffc40": "^", # SAND
+        "dae0ea": "$", # SNOW
+        "4a5462": "+", # STONE
+        # - IMPASSABLE - #
+        "bb7547": "#", # MOUNTAIN
+        "1a7a3e": "M", # TREE
+        "143464": "8", # DEEP OCEAN
+        "0d397b": "<", # OCEAN
+        "154895": "~", # SHALLOW OCEAN
+        "285cc4": ".", # SHORE OCEAN
+    }
 
-    image = Image.open("map.png").convert('L')
+    image = Image.open("map.png").convert('RGB')
     W, H = image.size[0], image.size[1]
-    w = W/imgSize
-    h = w/0.43
-    r = int(H/h)
     aimg = []
     
-    for j in range(r):
-        y1 = int(j*h)
-        y2 = int((j+1)*h)
-        
-        if j == r-1: y2 = H
+    for j in range(H):
         aimg.append("")
-        
-        for i in range(imgSize):
-            x1 = int(i*w)
-            x2 = int((i+1)*w)
-            
-            if i == imgSize-1: x2 = W
-            
-            img = image.crop((x1, y1, x2, y2))
-            im = numpy.array(img)
-            width, height = im.shape
-            avg = int(numpy.average(im.reshape(width*height)))
-            gsval = gscale[int((avg*(len(gscale)-1))/255)]
-            aimg[j] += gsval
-    
-    string = aimg
-    stringCols = len(string[0])
-    for i in range(len(string) - 1, -1, -1):
-        delete = True
-        for character in gscale[:-1]:
-            if character in string[i]:
-                delete = False
-                break
-        if delete:
-            string.pop(i)
-    stringRows = len(string)
+        for i in range(W):
+            r, g, b = image.getpixel((i, j))
+            hex = '%02x%02x%02x' % (r, g, b)
+            if hex in colors: aimg[j] += colors[hex]
+            else: aimg[j] += " "
+
     with open("map.txt", "r+") as mapFile:
         mapFile.truncate(0)
-        for line in string:
+        for line in aimg:
             mapFile.write(line + "\n")
 
 displayImage()
