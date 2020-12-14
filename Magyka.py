@@ -1,15 +1,14 @@
+
+
+
+
+
 # ::::::.    :::.::::::::::::::::::  :::.      :::     ::::::::::::.,::::::  
 # ;;;`;;;;,  `;;;;;;;;;;;;;;'''';;;  ;;`;;     ;;;     ;;;'`````;;;;;;;''''  
 # [[[  [[[[[. '[[[[[     [[     [[[ ,[[ '[[,   [[[     [[[    .n[[' [[cccc   
 # $$$  $$$ "Y$c$$$$$     $$     $$$c$$$cc$$$c  $$'     $$$  ,$$P"   $$""""   
 # 888  888    Y88888     88,    888 888   888,o88oo,.__888,888bo,_  888oo,__ 
 # MMM  MMM     YMMMM     MMM    MMM YMM   ""` """"YUMMMMMM `""*UMM  """"YUMMM
-
-"""
-Have tavern give random quests after giving set quests
-Add some sort of craftable slime items
-Have terminal refresh occur after resizing is complete
-"""
 
 
 # Os specific module importing
@@ -19,6 +18,8 @@ if system == "Windows": import win32gui, msvcrt
 else: import tty, termios, select
 
 print("\n Loading...")
+
+# Crossplatform module importing
 
 import copy
 import inspect
@@ -35,10 +36,16 @@ import sys
 import time
 import traceback
 
+# Modules and classes
+
 from data.Effect import *
 from data.Entity import *
 from data.Item import *
-from PIL import Image
+from data.mapToAscii import *
+
+
+
+
 
 # .::::::' ...    ::::::.    :::.  .,-:::::  :::::::::::::::    ...     :::.    :::. .::::::. 
 # ;;;''''  ;;     ;;;`;;;;,  `;;;,;;;'````'  ;;;;;;;;'''';;; .;;;;;;;.  `;;;;,  `;;;;;;`    ` 
@@ -48,12 +55,12 @@ from PIL import Image
 #  "MM,    "YmmMMMM""  MMM     YM  "YUMMMMMP"     MMM    MMM  "YMMMMMP"   MMM     YM  "YMmMY" 
 
 
-
-
-
+# Item modification
 
 def enchantEquipment(item, enchantment):
-    if enchantment == None: return
+    if enchantment == None: return item
+    
+    # Looping through item enchantments to combine the enchantment or check for duplicates
     enchantmentFound = False
     for e in item["enchantments"]:
         if e["name"] == enchantment["name"]:
@@ -62,27 +69,26 @@ def enchantEquipment(item, enchantment):
             elif e["level"] < enchantment["level"]: e["level"] = enchantment["level"]
             break
     if not enchantmentFound: item["enchantments"].append(enchantment)
-    item = updateEquipment(item)
-    return item
+    
+    return updateEquipment(item)
+
 
 def modifyEquipment(item, modifier):
     item["modifier"] = modifier
-    item = updateEquipment(item)
-    return item
+    return updateEquipment(item)
+
 
 def updateEquipment(item):
     item = copy.deepcopy(item)
-    item["effect"] = copy.deepcopy(item["base effect"])
-    item["tags"] = copy.deepcopy(item["base tags"])
-    item["value"] = item["base value"]
+    item["effect"], item["tags"], item["value"] = copy.deepcopy(item["base effect"]), copy.deepcopy(item["base tags"]), item["base value"]
     
+    # Getting the names of all enchantment and modifier stats
     statNames = []
     if item["modifier"]["effect"] != []: statNames = [effect["type"] for effect in item["modifier"]["effect"]]
     if item["enchantments"] != []: statNames += [effect["type"] for effect in [enchantment["effect"] for enchantment in item["enchantments"]][0]]
-    effects = []
-    tags = []
-    values = []
+    effects, tags, values = [], [], []
     
+    # Adding all enchantment and modifier effects, tags, and values to their respective lists
     values.append(item["modifier"]["value"])
     
     tags += item["modifier"]["tags"]
@@ -94,7 +100,8 @@ def updateEquipment(item):
         values.append(enchantment["value"])
         for effect in enchantment["effect"]:
             if effect["type"] in player.stats: effects.append(effect)
-            
+    
+    # Sorting through tags to remove duplicate and deal with passive tags
     for tag in tags:
         name = tag.split(":")[0]
         try: value = tag.split(":")[1]
@@ -115,11 +122,13 @@ def updateEquipment(item):
                 else: item["effect"][0].update({"passive": [value]})
             else: item["tags"].append(tag)
     
+    # Calculating the value of the item from the values in values
     for value in values:
         if value[0] == "+": item["value"] += int(value[1:])
         elif value[0] == "-": item["value"] -= int(value[1:])
         elif value[0] == "*": item["value"] = round(float(value[1:]) * item["value"])
 
+    # Adding the stats in statNames that the item currently doesn't have
     for statName in statNames:
         statFound = False
         for effect in item["effect"]:
@@ -129,6 +138,7 @@ def updateEquipment(item):
                 break
         if not statFound: item["effect"].append({"type": statName, "value": 0})
 
+    # Adding every effect provided by enchantments and modifiers to the item
     for e in effects:
         for effect in item["effect"]:
             if e["type"] == effect["type"]:
@@ -141,28 +151,8 @@ def updateEquipment(item):
                     else: effect["value"] += e["value"]
     return item
 
-# :      :::::  :::::  :::::  :::::
-# :      :   :  :        :    :
-# :      :   :  : :::    :    :
-# :      :   :  :   :    :    :
-# :::::  :::::  :::::  :::::  :::::
 
-def ifNone(value, backup):
-    if not value == None: return value
-    else: return backup
-
-# :::::  :      :::::   :::   :::::  :::::  ::  :  :::::
-# :      :      :      :   :  :   :    :    : : :  :
-# :      :      :::    :::::  ::::     :    : : :  : :::
-# :      :      :      :   :  :   :    :    :  ::  :   :
-# :::::  :::::  :::::  :   :  :   :  :::::  :   :  :::::
-
-if system == "Windows":
-    def getWindowName():
-        return (win32gui.GetWindowText(win32gui.GetForegroundWindow()))
-else:
-    def getWindowName():
-        return "Magyka"
+# Non-input functions
 
 def clear():
     os.system(clearCommand)
@@ -170,48 +160,47 @@ def clear():
     screen = inspect.stack()[1][3]
     setCursorVisible(False)
 
+
 def exitGame():
     clear()
     if system != "Windows": termios.tcsetattr(sys.stdin, termios.TCSADRAIN, orig_settings)
     sys.exit()
 
 
-# :::::  :::::  :::::  :: ::   :::   :::::  :::::  :::::  ::  :  :::::
-# :      :   :  :   :  : : :  :   :    :      :      :    : : :  :
-# :::    :   :  ::::   : : :  :::::    :      :      :    : : :  : :::
-# :      :   :  :   :  :   :  :   :    :      :      :    :  ::  :   :
-# :      :::::  :   :  :   :  :   :    :      :    :::::  :   :  :::::
+# Formatting
 
 def openText(path):
+    # Open file as string
     return open(path, "r").read()
 
+
 def evalText(text):
+    # Evaluate a string fstring
     return eval(f'f"""{text}"""')
 
+
 def openTextAsList(path, splitter = "|"):
-    return open(path, "r").read().split(splitter)
+    # Open file as list of strings
+    return openText(path).split(splitter)
+
 
 def evalTextAsList(path, splitter = "|"):
-    return [eval(i) for i in open(path, "r").read().split(splitter)]
+    # Open file as list of strings and evaluate each string as an fstring
+    return [eval(subText) for subText in openTextAsList(path, splitter)]
 
-def printEvalText(string):
-    print(evalText(string))
 
 def dictFactory(cursor, row):
+    # Converts sqlite return value into a dictionary with column names as keys
     d = {}
     for idx, col in enumerate(cursor.description):
         d[col[0]] = row[idx]
     return d
 
 
-# :::::  :::::  :: ::  :: ::   :::   ::  :  ::::   :::::
-# :      :   :  : : :  : : :  :   :  : : :  :   :  :
-# :      :   :  : : :  : : :  :::::  : : :  :   :  :::::
-# :      :   :  :   :  :   :  :   :  :  ::  :   :      :
-# :::::  :::::  :   :  :   :  :   :  :   :  ::::   :::::
-
+# Input
 
 def get_key():
+    # Get key as soon as one is available
     key = ""
     if system == "Windows":
         if msvcrt.kbhit():
@@ -225,10 +214,12 @@ def get_key():
         if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
             key = sys.stdin.read(1)[0]
     
+    # Returning key names instead of their given values for some cases
     if key == "\n" or key == "\r": return "enter"
     elif key == "\x1b": return "esc"
     elif key == " ": return "space"
     elif key == "\x08": return "backspace"
+    elif key == "\x7f": return "ctrl backspace"
     elif key == "\xe0":
         key = msvcrt.getch().decode("utf-8")
         if key == "K": return "left"
@@ -237,11 +228,16 @@ def get_key():
         else: return "down"
     else: return key
 
+
 def wait_to_key(key):
+    # Blocks code until specified key is pressed
     while 1:
+        time.sleep(0.05)
         if getWindowName() == "Magyka" and get_key() == key: break
 
+
 def command(input = False, mode="alphabetic", back=True, silent=False, lower=True, options="", prompt="", horizontal=False):
+    # Printing prompt and help tooltip
     if input:
         if mode == "command": print(f'\n{c("option")} Console >| {reset}', end = "")
         else: print(f'\n{c("option")} > {reset}', end = "")
@@ -256,6 +252,8 @@ def command(input = False, mode="alphabetic", back=True, silent=False, lower=Tru
         if horizontal: print("\n" + helpText.center(os.get_terminal_size()[0]))
         else: print("\n  " + helpText)
 
+
+    # Input handling
     a = prompt
     loc = len(prompt)
     print(a, end = "")
@@ -263,103 +261,108 @@ def command(input = False, mode="alphabetic", back=True, silent=False, lower=Tru
     terminalSize = os.get_terminal_size()
     historyPosition = len(commandHistory)
     while 1:
+        time.sleep(0.05)
         key = get_key()
         if terminalSize != os.get_terminal_size(): return "D"
-        if getWindowName() == "Magyka":
-            if len(key) == 1 and (mode == "command" or mode == "all" or (re.match("[0-9]", key) and mode in ("numeric", "optionumeric", "alphanumeric")) or (re.match("[A-Za-z\_\s\/]", key) and mode in ("alphabetic", "optionumeric", "alphanumeric"))):
-                if input:
-                    a = a[:loc] + key + a[loc:]
-                    loc += 1
-                    print(key + a[loc:], end = "")
-                    for i in range(len(a) - loc):
-                        print("\b", end = "")
-                    sys.stdout.flush()
-                elif key in options or key.lower() in options:
-                    a = key
-                    break
-            if key == "space" and input:
-                a = a[:loc] + " " + a[loc:]
+        # Looking for single character keys
+        if len(key) == 1 and (mode in ("command", "all")) or (re.match("[0-9]", key) and mode in ("numeric", "optionumeric", "alphanumeric")) or (re.match("[A-Za-z\_\s\/]", key) and mode in ("alphabetic", "optionumeric", "alphanumeric")):
+            if input:
+                a = a[:loc] + key + a[loc:]
                 loc += 1
-                print(" " + a[loc:], end = "")
+                print(key + a[loc:], end = "")
                 for i in range(len(a) - loc):
                     print("\b", end = "")
                 sys.stdout.flush()
-            if key == "left" and loc > 0:
+            elif key in options or key.lower() in options:
+                a = key
+                break
+        # Adding a space
+        if key == "space" and input:
+            a = a[:loc] + " " + a[loc:]
+            loc += 1
+            print(" " + a[loc:], end = "")
+            for i in range(len(a) - loc):
+                print("\b", end = "")
+            sys.stdout.flush()
+        # Moving the cursor
+        if key == "left" and loc > 0:
+            loc -= 1
+            sys.stdout.write("\b")
+            sys.stdout.flush()
+        if key == "right" and loc < len(a):
+            loc += 1
+            sys.stdout.write(a[loc-1])
+            sys.stdout.flush()
+        # Backspacing
+        if key == "backspace":
+            if len(a) > 0:
+                sys.stdout.write("\b" + a[loc:] + " ")
+                for i in range(len(a) - loc + 1):
+                    print("\b", end = "")
+                sys.stdout.flush()
+                a = a[:loc-1] + a[loc:]
                 loc -= 1
-                sys.stdout.write("\b")
-                sys.stdout.flush()
-            if key == "right" and loc < len(a):
-                loc += 1
-                sys.stdout.write(a[loc-1])
-                sys.stdout.flush()
-            if key == "backspace":
-                if len(a) > 0:
-                    sys.stdout.write("\b" + a[loc:] + " ")
+        # Backspacing until next space
+        if key == "ctrl backspace":
+            if len(a) > 0:
+                while not a[loc-1] == " ":
                     for i in range(len(a) - loc + 1):
-                        print("\b", end = "")
+                        print("\b \b", end = "")
+                    sys.stdout.write("\b" + a[loc:] + " ")
                     sys.stdout.flush()
                     a = a[:loc-1] + a[loc:]
                     loc -= 1
-            if key == "f11":
-                return "D"
-            if key == "esc" and (len(a) == 0 or mode == "all") and back:
-                return "B"
-            if key == "enter" and input:
-                print("")
-                break
-            if key in ("`", "~") and mode != "command":
-                a = ""
-                print("\b \b", end = "")
-                sys.stdout.flush()
-                command(True, "command")
-                return "D"
-            if key in ("`", "~") and mode == "command":
-                a = ""
-                print("\b \b")
-                return "D"
-            if key == "\x7f":
+                    if len(a) <= 0: break
                 if len(a) > 0:
-                    while not a[loc-1] == " ":
-                        for i in range(len(a) - loc + 1):
-                            print("\b \b", end = "")
-                        sys.stdout.write("\b" + a[loc:] + " ")
-                        sys.stdout.flush()
-                        a = a[:loc-1] + a[loc:]
-                        loc -= 1
-                        if len(a) <= 0: break
-                    if len(a) > 0:
-                        print("\b", end = "")
-                        sys.stdout.flush()
-                        a = a[:loc-1] + a[loc:]
-                        loc -= 1
-            if (key == "up" or key == "down") and mode == "command":
-                print(" "*(len(a) - loc), end="")
-                print("\b \b"*len(a), end="")
-                sys.stdout.flush()
-                if historyPosition <= 0 and key == "up": historyPosition = 1
-                if historyPosition > len(commandHistory) and key == "down": len(commandHistory)
-                historyPosition += -1 if key == "up" else 1
-                if historyPosition < len(commandHistory):
-                    print(commandHistory[historyPosition], end="")
+                    print("\b", end = "")
                     sys.stdout.flush()
-                    a = commandHistory[historyPosition]
-                    loc = len(a)
-                else:
-                    a = ""
-                    loc = 1
-            """if key == "enter" and keyboard.is_pressed("alt"):
-                return "D"
-            if key == "up" and keyboard.is_pressed("win"):
-                return "D" """
-
+                    a = a[:loc-1] + a[loc:]
+                    loc -= 1
+        # Returning Back command
+        if key == "esc" and (len(a) == 0 or mode == "all") and back:
+            return "B"
+        # Breaking input loop and keeping value
+        if key == "enter" and input:
+            print("")
+            break
+        # Opening console
+        if key in ("`", "~") and mode != "command":
+            a = ""
+            print("\b \b", end = "")
+            sys.stdout.flush()
+            command(True, "command")
+            return "D"
+        # Closing console
+        if key in ("`", "~") and mode == "command":
+            a = ""
+            print("\b \b")
+            return "D"
+        # Command history
+        if (key == "up" or key == "down") and mode == "command":
+            print(" "*(len(a) - loc), end="")
+            print("\b \b"*len(a), end="")
+            sys.stdout.flush()
+            if historyPosition <= 0 and key == "up": historyPosition = 1
+            if historyPosition > len(commandHistory) and key == "down": len(commandHistory)
+            historyPosition += -1 if key == "up" else 1
+            if historyPosition < len(commandHistory):
+                print(commandHistory[historyPosition], end="")
+                sys.stdout.flush()
+                a = commandHistory[historyPosition]
+                loc = len(a)
+            else:
+                a = ""
+                loc = 1
     setCursorVisible(False)
 
+    # Returning input value
     if a == "": return ""
     if not mode == "command": return (str.lower(a).strip() if lower else a.strip())
 
+    # Running command from console input
     devCommand(a)
-
     return "D"
+
 
 def devCommand(a):
     global commandHistory
@@ -390,10 +393,7 @@ def devCommand(a):
                 if player.equipment[items[a1[1]]["slot"]] != "": player.unequip(items[a1[1]]["slot"])
                 player.equip(newItem(a1[1]))
         elif a1[0] == "exec":
-            try: exec(a1[1])
-            except:
-                print(c("light red") + "\n " + str(sys.exc_info()[0]) + " " + str(sys.exc_info()[1]))
-                pressEnter()
+            exec(a1[1])
         elif a1[0] == "execp":
             print("\n " + str(eval(a1[1])))
             pressEnter()
@@ -449,11 +449,12 @@ def devCommand(a):
         pressEnter()
 
 
-# :::::  ::  :  :::::  :   :  :::::
-#   :    : : :  :   :  :   :    :
-#   :    : : :  :::::  :   :    :
-#   :    :  ::  :      :   :    :
-# :::::  :   :  :      :::::    :
+def pressEnter(prompt = f'{c("option")}[Press Enter]', horizontal=False):
+    setCursorVisible(False)
+    if horizontal: print("\n" + prompt.center(os.get_terminal_size()[0] + prompt.count("\x1b") * 9) + reset)
+    else: print("\n " + prompt + reset)
+    wait_to_key("enter")
+    setCursorVisible(True)
 
 
 def options(names, horizontal=False):
@@ -472,23 +473,8 @@ def options(names, horizontal=False):
                 print(f' {c("option") + c("dark gray", True)} |{reset}')
     print(reset, end="")
 
-def pressEnter(prompt = f'{c("option")}[Press Enter]', horizontal=False):
-    setCursorVisible(False)
-    if horizontal: print("\n" + prompt.center(os.get_terminal_size()[0] + prompt.count("\x1b") * 9) + reset)
-    else: print("\n " + prompt + reset)
-    wait_to_key("enter")
-    setCursorVisible(True)
 
-def fullscreen():
-    keyboard.press_and_release("alt + enter")
-
-
-# :::::  :::::  :::::  :   :  :::::  ::  :
-# :   :  :        :    :   :  :   :  : : :
-# ::::   :::      :    :   :  ::::   : : :
-# :   :  :        :    :   :  :   :  :  ::
-# :   :  :::::    :    :::::  :   :  :   :
-
+# Menu escaping
 
 def returnTo():
     global returnToScreenBool, screen
@@ -498,18 +484,14 @@ def returnTo():
         returnToScreenBool = False
         return False
 
+
 def returnToScreen(screen):
     global returnToScreenBool, returnToScreenName
     returnToScreenBool = True
     returnToScreenName = screen
 
 
-# :::::  :::::  :::::  ::  :  :::::  :::::  ::  :  :::::
-# :   :  :   :    :    : : :    :      :    : : :  :
-# :::::  ::::     :    : : :    :      :    : : :  : :::
-# :      :   :    :    :  ::    :      :    :  ::  :   :
-# :      :   :  :::::  :   :    :    :::::  :   :  :::::
-
+# Text printing
 
 def write(text, speed = textSpeed):
     i = 0
@@ -535,11 +517,6 @@ def write(text, speed = textSpeed):
         i += 1
     print("\n")
 
-def drawBar(max, value, color, length):
-    text = "".center(length, "■")
-    if round(value/max*length) > 0: text = c(color) + c("dark " + color, True) + text[:round((value/max)*length)] + c("gray") + c("dark gray", True) + text[round((value/max)*length):] + reset
-    else: text = c("gray") + c("dark gray", True) + text + reset
-    return text
 
 def displayItem(name, rarity, quantity = 0):
     amt = ("" if quantity == 0 else " x" + str(quantity))
@@ -550,6 +527,7 @@ def displayItem(name, rarity, quantity = 0):
     if rarity == "epic": return c("light purple") + name + reset + amt
     if rarity == "legendary": return c("light orange") + name + reset + amt
     if rarity == "mythical": return c("lightish red") + name + reset + amt
+
 
 def displayEffect(effects, notes=False, extraSpace=False):
     begin = " "
@@ -615,6 +593,7 @@ def displayEffect(effects, notes=False, extraSpace=False):
             else:
                 print(f'{begin}{"+" if effects["attack"]["value"] > 0 else ""}{effects["attack"]["value"]} Attack')
 
+
 def displayStats(effects, notes=False, extraSpace=False):
     begin = " "
     noteBegin = " - "
@@ -636,6 +615,7 @@ def displayStats(effects, notes=False, extraSpace=False):
     for stat in ("crit", "hit", "dodge"):
         if stat in effects: print(f'{noteBegin}{abs(effects[stat]["value"])}% {"Increased" if effects[stat]["value"] > 0 else "Decreased"} {stat.capitalize()} Chance')
 
+
 def displayPassive(effect, noNewLine = False):
     if effect["buff"]:
         effectColor = "light green"
@@ -649,6 +629,7 @@ def displayPassive(effect, noNewLine = False):
     
     newLine = " " if noNewLine else "\n "
     print(f'{newLine}Applies {c(effectColor)}{effect["name"]}{reset} for {turnText}.')
+
 
 def displayTags(tags, notes=False, extraSpace=False):
     begin = " "
@@ -673,6 +654,7 @@ def displayTags(tags, notes=False, extraSpace=False):
             else: print(f'Random: {begin}Damage varies by {value}%.')
         if name == "infinite": print(f'{begin}Infinite: Item isn\'t lost on consumption.')
         if name == "lifesteal": print(f'{begin}Lifesteal: Heals for {value}% of damage dealt to an enemy.')
+
 
 def displayItemStats(item):
     print("\n " + displayItem(item["name"], item["rarity"]))
@@ -702,6 +684,7 @@ def displayItemStats(item):
         for enchantment in item["enchantments"]:
             print(f'  - {enchantment["name"]} {returnNumeral(enchantment["level"])}')
 
+
 def displayQuest(quest, owned):
     print("\n " + displayItem(quest["name"], quest["rarity"]))
     print("\n Objectives:")
@@ -709,31 +692,20 @@ def displayQuest(quest, owned):
         if owned: print(f'  - {c("dark gray") if objective["complete"] else ""}{string.capwords(objective["type"])}{" " + str(objective["quantity"]) + "x" if objective["quantity"] > 1 else ""} {objective["name"]} ({objective["status"]}/{objective["quantity"]}){reset}')
         else: print(f'  - {string.capwords(objective["type"])}{" " + str(objective["quantity"]) + "x" if objective["quantity"] > 1 else ""} {objective["name"]}')
 
+
 def displayPlayerTitle():
     print(f' {player.name} [Lvl {player.level}]')
 
-def returnHpBar(entity, text=True, length=32):
-    bar = f'{c("red")}{"♥ " if text else ""}{drawBar(entity.stats["max hp"], entity.hp, "red", length)}'
-    if text: bar += f' {entity.hp}/{entity.stats["max hp"]}'
-    return bar
-
-def returnMpBar(entity, text=True, length=32):
-    bar = f'{c("blue")}{"♦ " if text else ""}{drawBar(entity.stats["max mp"], entity.mp, "blue", length)}'
-    if text: bar += f' {entity.mp}/{entity.stats["max mp"]}'
-    return bar
-
-def returnXpBar(entity, text=True, length=32):
-    bar = f' {c("green")}• {drawBar(entity.mxp, entity.xp, "green", length)}'
-    if text: bar += f' {entity.xp}/{entity.mxp}'
-    return bar
 
 def displayPlayerGold():
     print(f' Gold: {c("yellow")}● {reset}{player.gold}')
+
 
 def displayPassives(entity):
     if len(entity.passives) > 0:
         print(" ", end="")
         print(", ".join([f'{c("light green" if passive["buff"] else "light red")}{passive["name"]}{reset} ({passive["turns"]})' for passive in entity.passives]))
+
 
 def displayPlayerStats(passives=True):
     print("")
@@ -743,6 +715,7 @@ def displayPlayerStats(passives=True):
     print(returnXpBar(player))
     displayPlayerGold()
     if passives: displayPassives(player)
+
 
 def displayBattleStats(player, enemy, playerDamage = 0, enemyDamage = 0):
         if playerDamage > 0: playerDamageText = " +" + str(playerDamage)
@@ -781,6 +754,7 @@ def displayBattleStats(player, enemy, playerDamage = 0, enemyDamage = 0):
         displayPassives(enemy)
         print("")
 
+
 def printError():
     errType, errValue, errTraceback = sys.exc_info()
     trace_back = traceback.extract_tb(errTraceback)
@@ -792,6 +766,34 @@ def printError():
     print(" " + str(stackTrace[-1]))
     print(" " + str(stackTrace[:-2]))
 
+
+# Text returning
+
+def drawBar(max, value, color, length):
+    text = "".center(length, "■")
+    if round(value/max*length) > 0: text = c(color) + c("dark " + color, True) + text[:round((value/max)*length)] + c("gray") + c("dark gray", True) + text[round((value/max)*length):] + reset
+    else: text = c("gray") + c("dark gray", True) + text + reset
+    return text
+
+
+def returnHpBar(entity, text=True, length=32):
+    bar = f'{c("red")}{"♥ " if text else ""}{drawBar(entity.stats["max hp"], entity.hp, "red", length)}'
+    if text: bar += f' {entity.hp}/{entity.stats["max hp"]}'
+    return bar
+
+
+def returnMpBar(entity, text=True, length=32):
+    bar = f'{c("blue")}{"♦ " if text else ""}{drawBar(entity.stats["max mp"], entity.mp, "blue", length)}'
+    if text: bar += f' {entity.mp}/{entity.stats["max mp"]}'
+    return bar
+
+
+def returnXpBar(entity, text=True, length=32):
+    bar = f' {c("green")}• {drawBar(entity.mxp, entity.xp, "green", length)}'
+    if text: bar += f' {entity.xp}/{entity.mxp}'
+    return bar
+
+
 def returnNumeral(number):
     if number <= 3: return "I"*number
     elif number == 4: return "IV"
@@ -802,6 +804,9 @@ def returnNumeral(number):
     else: return str(number)
 
 
+
+
+
 #  .::::::.   .,-:::::  :::::::..   .,::::::  .,::::::  :::.    :::. .::::::. 
 # ;;;`    ` ,;;;'````'  ;;;;``;;;;  ;;;;''''  ;;;;''''  `;;;;,  `;;;;;;`    ` 
 # '[==/[[[[,[[[          [[[,/[[['   [[cccc    [[cccc     [[[[[. '[['[==/[[[[,
@@ -810,15 +815,7 @@ def returnNumeral(number):
 #   "YMmMY"   "YUMMMMMP" MMMM   "W"  """"YUMMM """"YUMMM  MMM     YM  "YMmMY" 
 
 
-
-
-
-# :: ::   :::   :::::  ::  :      :: ::  :::::  ::  :  :   :
-# : : :  :   :    :    : : :      : : :  :      : : :  :   :
-# : : :  :::::    :    : : :      : : :  :::    : : :  :   :
-# :   :  :   :    :    :  ::      :   :  :      :  ::  :   :
-# :   :  :   :  :::::  :   :      :   :  :::::  :   :  :::::
-
+# Main Menu
 
 def s_mainMenu():
     i = 0
@@ -844,6 +841,7 @@ def s_mainMenu():
         elif option == "c": s_continue()
         elif option == "q": exitGame()
         if returnTo(): break
+
 
 def s_newGame():
     clear()
@@ -873,6 +871,7 @@ def s_newGame():
     write(evalText(text[1]), textSpeed)
     s_camp()
 
+
 def s_continue():
     global saves, player
     page = 1
@@ -897,12 +896,7 @@ def s_continue():
         if returnTo(): break
 
 
-# :::::   :::   :: ::  :::::
-# :      :   :  : : :  :   :
-# :      :::::  : : :  :::::
-# :      :   :  :   :  :
-# :::::  :   :  :   :  :
-
+# Camp
 
 def s_camp():
     while 1:
@@ -923,12 +917,7 @@ def s_camp():
         elif option == "q": s_quit()
 
 
-# :::::  :   :  :::::  :      :::::  :::::  :::::
-# :       : :   :   :  :      :   :  :   :  :
-# :::      :    :::::  :      :   :  ::::   :::
-# :       : :   :      :      :   :  :   :  :
-# :::::  :   :  :      :::::  :::::  :   :  :::::
-
+# Explore
 
 def s_explore():
     page = 1
@@ -951,7 +940,7 @@ def s_explore():
         previous = page != 1
 
         options(["Search", c("dark gray") + "Map"] + (["Next"] if next else []) + (["Previous"] if previous else []))
-        option = command(False, "optionumeric", options = "sm" + ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(locations))))))
+        option = command(False, "optionumeric", options="sm" + ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(locations))))))
 
         if option in tuple(map(str, range(0, len(locations) + (page-1) * 10 + 1))) + tuple(["s"]):
             areaEnemies = loadEncounter(player.location, "hunt" if option == "s" else locations[int(option) + (page-1) * 10])
@@ -999,20 +988,20 @@ def s_explore():
             print(f'\n You spot {enemy.name} [Lvl {enemy.level}]. Do you fight?')
 
             options(["Yes", "No"])
-            print("\n Press a letter.")
             while 1:
-                option1 = command(back = False, silent = True, options = "yn")
+                option = command(back = False, options = "yn")
 
-                if option1 in ("y", "yes"):
+                if option == "y":
                     s_battle(enemy)
                     break
-                elif option1 in ("n", "no"):
+                elif option == "n":
                     print(f'\n You quiety slip away from {enemy.name} [Lvl {enemy.level}].')
                     pressEnter()
                     break
         elif option == "m": pass
         elif option == "B": break
         if returnTo(): break
+
 
 def s_battle(enemy):
     itemLog = []
@@ -1241,6 +1230,7 @@ def s_battle(enemy):
     if enemy.hp <= 0: s_victory(enemy, itemLog)
     else: s_defeat(enemy, itemLog)
 
+
 def s_victory(enemy, itemLog):
     clear()
     print("\n -= Victory =-")
@@ -1283,6 +1273,7 @@ def s_victory(enemy, itemLog):
     pressEnter()
     if player.levelsGained > 0: s_levelUp()
 
+
 def s_defeat(enemy, itemLog):
     clear()
 
@@ -1305,6 +1296,7 @@ def s_defeat(enemy, itemLog):
     player.hp = player.stats["max hp"]
     player.mp = player.stats["max mp"]//3
     pressEnter()
+
 
 def s_levelUp():
     while 1:
@@ -1350,12 +1342,7 @@ def s_levelUp():
             return
 
 
-# :::::  :::::  :   :  ::  :
-#   :    :   :  :   :  : : :
-#   :    :   :  : : :  : : :
-#   :    :   :  : : :  :  ::
-#   :    :::::  :::::  :   :
-
+# Town
 
 def s_town():
     while 1:
@@ -1375,6 +1362,7 @@ def s_town():
         elif option == "f": s_market()
         elif option == "B": break
         if returnTo(): break
+
 
 def s_tavern():
     while 1:
@@ -1404,6 +1392,7 @@ def s_tavern():
         elif option == "g": pass
         elif option == "B": break
         if returnTo(): break
+
 
 def s_quest():
     while 1:
@@ -1447,6 +1436,7 @@ def s_quest():
         elif option in ("n", "B"): break
         if returnTo(): break
 
+
 def s_store(store):
     page = 1
     while 1:
@@ -1488,6 +1478,7 @@ def s_store(store):
         elif option == "B": break
         if returnTo(): break
 
+
 def s_purchase(item):
     while 1:
         clear()
@@ -1516,6 +1507,7 @@ def s_purchase(item):
             print(f'\n {c("light red")}You don\'t have enough gold to buy {item["name"]} x{int(option)}.')
             pressEnter()
         if returnTo(): break
+
 
 def s_reforge():
     while 1:
@@ -1548,6 +1540,7 @@ def s_reforge():
                 print(f'\n You don\'t have enough gold.')
                 pressEnter()
         elif option == "B": break
+
 
 def s_enchant():
     while 1:
@@ -1618,6 +1611,7 @@ def s_enchant():
                 pressEnter()
         elif option == "B": break
 
+
 def s_market():
     page = 1
     while 1:
@@ -1642,6 +1636,7 @@ def s_market():
         elif option == "p" and previous: page -= 1
         elif option == "B": break
         if returnTo(): return
+
 
 def s_sell(item):
     while 1:
@@ -1670,12 +1665,7 @@ def s_sell(item):
         if returnTo(): return
 
 
-# :::::  :   :   :::   :::::   :::   :::::  :::::  :::::  :::::
-# :      :   :  :   :  :   :  :   :  :        :    :      :   :
-# :      :::::  :::::  ::::   :::::  :        :    :::    ::::
-# :      :   :  :   :  :   :  :   :  :        :    :      :   :
-# :::::  :   :  :   :  :   :  :   :  :::::    :    :::::  :   :
-
+# Character
 
 def s_character():
     while 1:
@@ -1694,6 +1684,7 @@ def s_character():
         elif option == "s": s_stats()
         elif option == "B": break
         if returnTo(): break
+
 
 def s_inventory():
     page = 1
@@ -1721,6 +1712,7 @@ def s_inventory():
         elif option == "B": break
         if returnTo(): return
 
+
 def s_equipment():
     while 1:
         clear()
@@ -1736,6 +1728,7 @@ def s_equipment():
         if option in tuple(map(str, range(0, len(slotList)))) and player.equipment[slotList[int(option)]] != "":
             s_inspect(player.equipment[slotList[int(option)]], True)
         elif option == "B": break
+
 
 def s_inspect(item, equipped):
     while 1:
@@ -1801,6 +1794,7 @@ def s_inspect(item, equipped):
         elif option == "B": break
         if returnTo(): break
 
+
 def s_inspectDetailed(modifier, enchantments):
     while 1:
         clear()
@@ -1826,6 +1820,7 @@ def s_inspectDetailed(modifier, enchantments):
         
         pressEnter()
         break
+
 
 def s_crafting():
     page = 1
@@ -1854,6 +1849,7 @@ def s_crafting():
         elif option == "p" and previous: page -= 1
         elif option == "B": break
         if returnTo(): return
+
 
 def s_craft(recipe):
     while 1:
@@ -1897,6 +1893,7 @@ def s_craft(recipe):
             pressEnter()
         if returnTo(): return
 
+
 def s_quests():
     page = 1
     while 1:
@@ -1932,6 +1929,7 @@ def s_quests():
         elif option == "B": break
         if returnTo(): return
 
+
 def s_inspectQuest(quest, main=False):
     while 1:
         clear()
@@ -1945,6 +1943,7 @@ def s_inspectQuest(quest, main=False):
             pass#remove quest
         elif option == "B": break
         if returnTo(): return
+
 
 def s_stats():
     page = 1
@@ -1999,12 +1998,7 @@ def s_stats():
         if returnTo(): break
 
 
-# :::::   :::   :   :  :::::       :         :::::  :   :  :::::  :::::
-# :      :   :  :   :  :          : : :      :   :  :   :    :      :
-# :::::  :::::   : :   :::         :: :      :   :  :   :    :      :
-#     :  :   :   : :   :          :  :       :  :   :   :    :      :
-# :::::  :   :    :    :::::       :: :      ::: :  :::::  :::::    :
-
+# Save and quit
 
 def s_save():
     global saves
@@ -2039,6 +2033,7 @@ def s_save():
         elif option == "B": break
         if returnTo(): break
 
+
 def s_create():
     global saves
     while 1:
@@ -2067,6 +2062,7 @@ def s_create():
             pressEnter()
             break
         if returnTo(): break
+
 
 def s_delete():
     global saves
@@ -2097,6 +2093,7 @@ def s_delete():
             break
         if returnTo(): break
 
+
 def s_quit():
     while 1:
         clear()
@@ -2123,17 +2120,16 @@ def s_quit():
 #      MMM     MMMM   "W"   mM"             "M,   """"YUMMM,m"       "Mm,  "YUMMMMMP" """"YUMMM   YMMMb         MMM    
 
 
-
-
-
 try:
     if __name__ == "__main__":
         random.seed()
-        os.system("title=Magyka")
-        if system != "Windows":
+        if system == "Windows":
+            os.system("title=Magyka")
+        else:
             orig_settings = termios.tcgetattr(sys.stdin)
             tty.setcbreak(sys.stdin)
-
+        
+        worldMap = displayImage()
         saves = [[pickle.load(open("data/saves/" + file, "rb")), file] for file in os.listdir("data/saves") if not file.endswith(".txt")]
 
         def newPassive(name):

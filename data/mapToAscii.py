@@ -37,5 +37,7 @@ def displayImage():
         mapFile.truncate(0)
         for line in aimg:
             mapFile.write(line + "\n")
+    
+    return aimg
 
 displayImage()
