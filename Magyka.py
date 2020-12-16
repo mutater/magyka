@@ -175,8 +175,13 @@ def openText(path):
 
 
 def evalText(text):
-    # Evaluate a string fstring
+    # Evaluate a string as an fstring
     return eval(f'f"""{text}"""')
+
+
+def openEvalText(path):
+    # Open a file as string and evaluate it as an fstring
+    return evalText(openText(path))
 
 
 def openTextAsList(path, splitter = "|"):
@@ -233,7 +238,7 @@ def wait_to_key(key):
     # Blocks code until specified key is pressed
     while 1:
         time.sleep(0.05)
-        if getWindowName() == "Magyka" and get_key() == key: break
+        if get_key() == key: break
 
 
 def command(input = False, mode="alphabetic", back=True, silent=False, lower=True, options="", prompt="", horizontal=False):
@@ -376,7 +381,6 @@ def devCommand(a):
         s_battle(newEnemy(a1[1]))
     elif a == "s":
         player.name = "Vincent"
-        devCommand("equip VARIANCE")
         s_camp()
     elif a == "d":
         player.gold = 999999999
@@ -905,7 +909,7 @@ def s_camp():
 
         print("\n -= Camp =-")
         displayPlayerStats()
-        printEvalText(openText("data//text//screens//camp.txt"))
+        print(openEvalText("data//text//screens//camp.txt"))
         
         options(["Explore", "Town", "Character", "Save", "Quit"])
         option = command(back = False, options = "etcosq")
@@ -926,7 +930,7 @@ def s_explore():
 
         print("\n -= Explore =-")
         displayPlayerStats()
-        printEvalText(openText(f'data//text//screens//{player.location} explore.txt'))
+        print(openEvalText(f'data//text//screens//{player.location} explore.txt'))
         print("\n Discovered Locations:\n")
         locations = player.locations[player.location]
         
@@ -1350,7 +1354,7 @@ def s_town():
 
         print("\n -= Town of Fordsville =-")
         displayPlayerStats()
-        printEvalText(openText(f'data//text//screens//{player.location} town.txt'))
+        print(openEvalText(f'data//text//screens//{player.location} town.txt'))
 
         options(["Tavern", "General Store", "Blacksmith", "Arcanist", "Flea Market"])
         option = command(options = "tgbaf")
@@ -1453,7 +1457,7 @@ def s_store(store):
         previous = False if page == 1 else True
 
         print(f'\n -= {store.capitalize()} =-')
-        printEvalText(storeData["description"])
+        print(evalText(storeData["description"]))
         print("\n Equipment:\n")
         for i in range(len(slotList)):
             if player.equipment[slotList[i]] != "": print(f'  - {displayItem(player.equipment[slotList[i]]["name"], player.equipment[slotList[i]]["rarity"])}')
