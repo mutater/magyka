@@ -8,7 +8,7 @@ ansi = (system == "Windows" and release in ("8", "8.1", "10")) or system == "Lin
 
 clearCommand = "cls" if system == "Windows" else "clear"
 
-stackableItems = ["consumable", "item"]
+stackableItems = ["consumable", "item", "modifier"]
 unstackableItems = ["equipment"]
 slotList = [
     "weapon",

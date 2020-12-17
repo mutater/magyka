@@ -85,6 +85,7 @@ class Entity():
                 self.__stats[statName] = 0
                 self.__stats[statName] = self.baseStats[statName] + self.statChanges[statName][0][0] + self.statChanges[statName][1][0]
                 self.__stats[statName] += round(self.baseStats[statName] * (self.statChanges[statName][0][1] + self.statChanges[statName][1][1]) / 100)
+                if self.statChanges[statName][0][1] + self.statChanges[statName][1][1] > 0 and self.__stats[statName] == 0: self.__stats[statName] = 1
                 if self.statChanges[statName][2] >= 0: self.__stats[statName] = self.statChanges[statName][2]
         
         self.__hp, self.__mp = self.__stats["max hp"] + bufferhp, self.__stats["max mp"] + buffermp
@@ -102,7 +103,7 @@ class Entity():
             if tag[0] in ("noMiss", "hit"): attackerStats["hit"] = 100
             elif tag[0] in ("noDodge", "hit"): attackerStats["dodge"] = 1
             elif tag[0] in ("pierce"):
-                try: attackerStats["pierce"] = 100 / int(tag[1])
+                try: attackerStats["pierce"] = 1 / int(tag[1])
                 except: attackerStats["pierce"] = 0
             elif tag[0] in ("variance"):
                 try: attackerStats["variance"] = int(tag[1])
@@ -128,7 +129,7 @@ class Entity():
                 else: a[0] = effect["value"][0]
                 if type(effect["value"][1]) is list: a[1] = random.randint(effect["value"][1][0], effect["value"][1][1])
                 else: a[1] = effect["value"][1]
-                r = (self.stats["armor"] / 2 + self.stats["vitality"]) / attackerStats["pierce"]
+                r = (self.stats["armor"] / 2 + self.stats["vitality"]) * attackerStats["pierce"]
                 v = [random.randint(100 - attackerStats["variance"], 100 + attackerStats["variance"]) / 100, random.randint(100 - attackerStats["variance"], 100 + attackerStats["variance"]) / 100]
 
                 amount = [round((a[0] - r) * v[0] * crit), round((a[1] - r) * v[1] * crit)]
@@ -142,7 +143,7 @@ class Entity():
             if effect["type"] in ("-hp", "-mp"):
                 if type(effect["value"]) is list: a = random.randint(effect["value"][0], effect["value"][1])
                 else: a = effect["value"]
-                r = (self.stats["armor"] / 2 + self.stats["vitality"]) / attackerStats["pierce"]
+                r = (self.stats["armor"] / 2 + self.stats["vitality"]) * attackerStats["pierce"]
                 v = random.randint(100 - attackerStats["variance"], 100 + attackerStats["variance"]) / 100
 
                 amount = round((a - r) * v * crit)
@@ -184,6 +185,19 @@ class Entity():
                     if amount + self.__mp > self.__stats["max mp"]: amount = self.__stats["max mp"] - self.__mp
                     self.__mp += amount
                     text = 'healing {c("blue")}' + str(amount) + ' ♦{reset}'
+        elif effect["type"] == "stat":
+            if "*" in effect: self.baseStats[effect["stat"]] = round(self.baseStats[effect["stat"]] * ((effect["value"] + 1) / 100))
+            else: self.baseStats[effect["stat"]] += effect["value"]
+            self.updateStats()
+            color = ""
+            symbol = ""
+            if effect["stat"] == "max hp":
+                color = '{c("red")}'
+                symbol = " ♥"
+            if effect["stat"] == "max mp":
+                color = '{c("blue")}'
+                symbol = " ♦"
+            return 'increasing ' + effect["stat"].title() + ' by ' + color + str(effect["value"]) + '{reset}' + ("%" if "*" in effect else "") + color + symbol + '{reset}.', 0
         if passive != False:
             if type(passive) is list:
                 for i in range(len(passive)):
@@ -312,7 +326,7 @@ class Player(Entity):
     
     def finishQuest(self, index):
         quest = self.quests.pop(index)
-        if quest.get("main") != None:
+        if quest.get("main") != None and self.mainQuest + 1 < len(self.mainQuests):
             self.mainQuest += 1
             self.addQuest(self.mainQuests[self.mainQuest])
         if "item" in quest["reward"]:

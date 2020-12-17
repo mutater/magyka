@@ -1,3 +1,13 @@
+# TODO
+# Add dungeons as locations, instead of hunting grounds
+# Add tavern giving randomly generated quests
+# Add search feature, and make randomly generated loot
+# Add loot bags, with loot that functions the same as enemy drops
+# Add different types of camp locations, e.g. one without a town but something else
+# Add viewing of ASCII map segments
+# Add ASCII map movement
+# Add support for sub maps
+# Add json file for world to sub, vice versa, and sub to sub teleportation
 
 
 
@@ -62,11 +72,14 @@ def enchantEquipment(item, enchantment):
     
     # Looping through item enchantments to combine the enchantment or check for duplicates
     enchantmentFound = False
-    for e in item["enchantments"]:
-        if e["name"] == enchantment["name"]:
+    for i in range(len(item["enchantments"])):
+        if item["enchantments"][i]["name"] == enchantment["name"]:
             enchantmentFound = True
-            if e["level"] == enchantment["level"] and e["level"] < e["maxLevel"]: e["level"] += 1
-            elif e["level"] < enchantment["level"]: e["level"] = enchantment["level"]
+            if item["enchantments"][i]["level"] == enchantment["level"] and item["enchantments"][i]["level"] < item["enchantments"][i]["maxLevel"]:
+                item["enchantments"][i] = newEnchantment(item["enchantments"][i]["real name"], item["enchantments"][i]["tier"], item["enchantments"][i]["level"] + 1)
+            elif item["enchantments"][i]["level"] < enchantment["level"]:
+                item["enchantments"][i]["level"] = enchantment["level"]
+            pressEnter()
             break
     if not enchantmentFound: item["enchantments"].append(enchantment)
     
@@ -74,82 +87,90 @@ def enchantEquipment(item, enchantment):
 
 
 def modifyEquipment(item, modifier):
+    if modifier == None: return item
+
     item["modifier"] = modifier
     return updateEquipment(item)
 
 
 def updateEquipment(item):
-    item = copy.deepcopy(item)
+    oldItem = item
+    item = copy.deepcopy(oldItem)
     item["effect"], item["tags"], item["value"] = copy.deepcopy(item["base effect"]), copy.deepcopy(item["base tags"]), item["base value"]
     
     # Getting the names of all enchantment and modifier stats
-    statNames = []
-    if item["modifier"]["effect"] != []: statNames = [effect["type"] for effect in item["modifier"]["effect"]]
-    if item["enchantments"] != []: statNames += [effect["type"] for effect in [enchantment["effect"] for enchantment in item["enchantments"]][0]]
-    effects, tags, values = [], [], []
-    
-    # Adding all enchantment and modifier effects, tags, and values to their respective lists
-    values.append(item["modifier"]["value"])
-    
-    tags += item["modifier"]["tags"]
-    for effect in item["modifier"]["effect"]:
-        if effect["type"] in player.stats: effects.append(effect)
-    
-    for enchantment in item["enchantments"]:
-        tags += enchantment["tags"]
-        values.append(enchantment["value"])
-        for effect in enchantment["effect"]:
+    try:
+        statNames = []
+        if item["modifier"]["effect"] != []: statNames = [effect["type"] for effect in item["modifier"]["effect"]]
+        if item["enchantments"] != []: statNames += [effect["type"] for effect in [enchantment["effect"] for enchantment in item["enchantments"]][0]]
+        effects, tags, values = [], [], []
+        
+        # Adding all enchantment and modifier effects, tags, and values to their respective lists
+        values.append(item["modifier"]["value"])
+        
+        tags += item["modifier"]["tags"]
+        for effect in item["modifier"]["effect"]:
             if effect["type"] in player.stats: effects.append(effect)
-    
-    # Sorting through tags to remove duplicate and deal with passive tags
-    for tag in tags:
-        name = tag.split(":")[0]
-        try: value = tag.split(":")[1]
-        except: value = False
-        tagFound = False
-        for t in item["tags"]:
-            if name == t.split(":")[0]:
-                if len(t.split(":")) == 1 or not value:
-                    tagFound = True
+        
+        for enchantment in item["enchantments"]:
+            tags += enchantment["tags"]
+            values.append(enchantment["value"])
+            for effect in enchantment["effect"]:
+                if effect["type"] in player.stats: effects.append(effect)
+        
+        # Sorting through tags to remove duplicate and deal with passive tags
+        for tag in tags:
+            name = tag.split(":")[0]
+            try: value = tag.split(":")[1]
+            except: value = False
+            tagFound = False
+            for t in item["tags"]:
+                if name == t.split(":")[0]:
+                    if len(t.split(":")) == 1 or not value:
+                        tagFound = True
+                        break
+                    else:
+                        tagFound = True
+                        item["tags"].append(name + ":" + str(int(value) + int(t.split(":")[1])))
+                        item["tags"].remove(t)
+            if not tagFound:
+                if name == "passive":
+                    if "passive" in item["effect"][0]: item["effect"][0]["passive"].append(value)
+                    else: item["effect"][0].update({"passive": [value]})
+                else: item["tags"].append(tag)
+        
+        # Calculating the value of the item from the values in values
+        for value in values:
+            if value[0] == "+": item["value"] += int(value[1:])
+            elif value[0] == "-": item["value"] -= int(value[1:])
+            elif value[0] == "*": item["value"] = round(float(value[1:]) * item["value"])
+
+        # Adding the stats in statNames that the item currently doesn't have
+        for statName in statNames:
+            statFound = False
+            for effect in item["effect"]:
+                if statName == effect["type"]:
+                    statNames = [statName for statName in statNames if statName != effect["type"]]
+                    statFound = True
                     break
-                else:
-                    tagFound = True
-                    item["tags"].append(name + ":" + str(int(value) + int(t.split(":")[1])))
-                    item["tags"].remove(t)
-        if not tagFound:
-            if name == "passive":
-                if "passive" in item["effect"][0]: item["effect"][0]["passive"].append(value)
-                else: item["effect"][0].update({"passive": [value]})
-            else: item["tags"].append(tag)
-    
-    # Calculating the value of the item from the values in values
-    for value in values:
-        if value[0] == "+": item["value"] += int(value[1:])
-        elif value[0] == "-": item["value"] -= int(value[1:])
-        elif value[0] == "*": item["value"] = round(float(value[1:]) * item["value"])
+            if not statFound: item["effect"].append({"type": statName, "value": 0})
 
-    # Adding the stats in statNames that the item currently doesn't have
-    for statName in statNames:
-        statFound = False
-        for effect in item["effect"]:
-            if statName == effect["type"]:
-                statNames = [statName for statName in statNames if statName != effect["type"]]
-                statFound = True
-                break
-        if not statFound: item["effect"].append({"type": statName, "value": 0})
-
-    # Adding every effect provided by enchantments and modifiers to the item
-    for e in effects:
-        for effect in item["effect"]:
-            if e["type"] == effect["type"]:
-                if effect["type"] == "attack":
-                    for i in range(2):
-                        if "*" in e: effect["value"][i] = round(effect["value"][i] * ((e["value"] / 100) + 1))
-                        else: effect["value"][i] += e["value"]
-                else:
-                    if "*" in effect: round(effect["value"] * ((e["value"] / 100) + 1))
-                    else: effect["value"] += e["value"]
-    return item
+        # Adding every effect provided by enchantments and modifiers to the item
+        for e in effects:
+            for effect in item["effect"]:
+                if e["type"] == effect["type"]:
+                    if effect["type"] == "attack":
+                        for i in range(2):
+                            if "*" in e: effect["value"][i] = round(effect["value"][i] * ((e["value"] / 100) + 1))
+                            else: effect["value"][i] += e["value"]
+                    else:
+                        if "*" in effect: round(effect["value"] * ((e["value"] / 100) + 1))
+                        else: effect["value"] += e["value"]
+        return item
+    except:
+        printError()
+        pressEnter()
+        return oldItem
 
 
 # Non-input functions
@@ -384,12 +405,15 @@ def devCommand(a):
         s_camp()
     elif a == "d":
         player.gold = 999999999
-        devCommand("give all")
         player.name = "Dev"
         s_camp()
     elif a == "restart":
         clear()
         os.execv(sys.executable, ['python'] + sys.argv)
+    elif a == "reload map":
+        global worldMap
+        worldMap = displayImage()
+        return
     
     try:
         if a1[0] == "equip":
@@ -603,7 +627,7 @@ def displayStats(effects, notes=False, extraSpace=False):
     noteBegin = " - "
     if notes: begin, noteBegin = "  - ", "  - "
     if extraSpace: begin, noteBegin = "   - ", "   - "
-    for stat in ("armor", "strength", "intelligence", "vitality", "agility", "max hp", "max mp"):
+    for stat in ("max hp", "max mp", "armor", "strength", "intelligence", "vitality"):
         if stat in effects:
             if stat == "max hp":
                 color, character = c("red"), " ♥"
@@ -668,10 +692,12 @@ def displayItemStats(item):
     
     effects = {}
     p_passives = []
-    if item["type"] != "item":
+    if item["type"] not in ("item", "modifier"):
         for effect in item["effect"]:
             if effect["type"] == "passive":
                 p_passives.append(effect["value"])
+            if effect["type"] == "stat":
+                effects.update({effect["stat"]: effect})
             else:
                 if "passive" in effect:
                     for passive in effect["passive"]: p_passives.append(newPassive(passive))
@@ -679,6 +705,7 @@ def displayItemStats(item):
     if item["type"] == "equipment" and item["slot"] == "tome": print(f'\n Costs {c("blue")}{item["mana"]} ♦{reset}')
     
     displayEffect(effects)
+    displayStats(effects)
     for effect in p_passives:
         displayPassive(effect, noNewLine=True)
     displayTags(item["tags"])
@@ -1471,12 +1498,11 @@ def s_store(store):
 
         if len(itemList) == 0: print(" " + c("dark gray") + "- Empty -" + reset)
 
-        options((["Next"] if next else []) + (["Previous"] if previous else []) + (["Reforge"] if store == "blacksmith" else []) + (["Enchant"] if store == "arcanist" else []))
-        option = command(False, "optionumeric", options = ("n" if next else "") + ("p" if previous else "") + ("r" if store == "blacksmith" else "") + ("e" if store == "arcanist" else "") + "".join(tuple(map(str, range(0, len(itemList))))))
+        options((["Next"] if next else []) + (["Previous"] if previous else []) + (["Reforge"] if store == "blacksmith" else []))
+        option = command(False, "optionumeric", options = ("n" if next else "") + ("p" if previous else "") + ("r" if store == "blacksmith" else "") + "".join(tuple(map(str, range(0, len(itemList))))))
 
         if option in tuple(map(str, range(0, len(itemList) + (page-1) * 10 + 1))): s_purchase(itemList[int(option) + (page-1) * 10])
         elif option == "r": s_reforge()
-        elif option == "e": s_enchant()
         elif option == "n" and next: page += 1
         elif option == "p" and previous: page -= 1
         elif option == "B": break
@@ -1747,14 +1773,17 @@ def s_inspect(item, equipped):
         print(f'\n Value: {c("yellow")}● {reset}{item["value"]}')
 
         if item["type"] == "equipment":
-            options((["Unequip"] if equipped else ["Equip", "Discard"]) + ["More Info"])
-            option = command(False, "alphabetic", options = ("u" if equipped else "ed") + "m")
+            options((["Unequip"] if equipped else ["Equip", "Discard"])+["More Info"])
+            option = command(False, "alphabetic", options=("u" if equipped else "ed")+"m")
         elif item["type"] == "consumable":
-            options((["Use"] if item["target"] == "self" else []) + ["Discard"])
-            option = command(False, "alphabetic", options = ("u" if item["target"] == "self" else "") + "d")
+            options((["Use"] if item["target"] == "self" else [])+["Discard"])
+            option = command(False, "alphabetic", options=("u" if item["target"] == "self" else "")+"d")
+        elif item["type"] == "modifier":
+            options(["Use", "Discard"])
+            option = command(False, "alphabetic", options="ud")
         else:
             options(["Discard"])
-            option = command(False, "alphabetic", options = "d")
+            option = command(False, "alphabetic", options="d")
 
         if option == "u" and item["type"] == "equipment":
             player.unequip(item["slot"])
@@ -1776,6 +1805,10 @@ def s_inspect(item, equipped):
             for line in text:
                 print(evalText(line))
             pressEnter()
+            if "infinite" not in item["tags"]: player.removeItem(item)
+            if player.numOfItems(item["name"]) <= 0: break
+        elif item["type"] == "modifier" and option == "u":
+            s_applyModifier(item)
             if "infinite" not in item["tags"]: player.removeItem(item)
             if player.numOfItems(item["name"]) <= 0: break
         elif option == "d":
@@ -1824,6 +1857,47 @@ def s_inspectDetailed(modifier, enchantments):
         
         pressEnter()
         break
+
+
+def s_applyModifier(modifier):
+    page = 1
+    while 1:
+        clear()
+
+        print("\n -= Apply Modifier =-\n")
+        
+        itemList = []
+        equipped = False
+        if player.equipment[modifier["slot"]] != "":
+            equipped = True
+            itemList += [[player.equipment[modifier["slot"]], 1]]
+        itemList += [item for item in player.inventory if "slot" in item[0] and item[0]["slot"] == modifier["slot"] and item[0]["type"] == "equipment"]
+
+        for i in range(-10 + 10*page, 10*page if 10*page < len(itemList) else len(itemList)):
+            equipText = ""
+            if equipped and i == 0: equipText = " ( EQUIPPED )"
+            print(f' {str(i)[:-1]}({str(i)[-1]}) {displayItem(itemList[i][0]["name"], itemList[i][0]["rarity"], (itemList[i][1] if itemList[i][0]["type"] in stackableItems else 0))}{equipText}')
+
+        if len(itemList) == 0:
+            print(" " + c("dark gray") + "- Nothing Applicable -" + reset)
+
+        next = len(itemList) > page*10 + 1
+        previous = page != 1
+
+        options((["Next"] if next else []) + (["Previous"] if previous else []))
+        option = command(False, "optionumeric", options = ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(itemList))))))
+
+        if option in tuple(map(str, range(0, len(itemList) + (page-1) * 10 + 1))):
+            item = itemList[int(option) + (page-1) * 10][0]
+            for enchantment in modifier["enchantments"]:
+                item = enchantEquipment(item, enchantment)
+            print(f'\n Successfully applied {displayItem(modifier["name"], modifier["rarity"])} to {displayItem(item["name"], item["rarity"])}.')
+            pressEnter()
+            break
+        elif option == "n" and next: page += 1
+        elif option == "p" and previous: page -= 1
+        elif option == "B": break
+        if returnTo(): return
 
 
 def s_crafting():
@@ -2133,7 +2207,10 @@ try:
             orig_settings = termios.tcgetattr(sys.stdin)
             tty.setcbreak(sys.stdin)
         
-        worldMap = displayImage()
+        with open("map.txt") as mapFile:
+            worldMap = mapFile.readlines()
+        worldMap = [line.strip() for line in worldMap]
+        
         saves = [[pickle.load(open("data/saves/" + file, "rb")), file] for file in os.listdir("data/saves") if not file.endswith(".txt")]
 
         def newPassive(name):
@@ -2182,18 +2259,24 @@ try:
                     print(" Passed value: '" + enchantment[load] + "'.")
                     printError()
                     pressEnter()
+            
             if enchantment["tags"] == None: enchantment["tags"] = []
             if enchantment["effect"] == None: enchantment["effect"] = []
+            
             for effect in enchantment["effect"]:
                 effect["value"] = effect["value"][tier]
             for i in range(len(enchantment["tags"])):
                 name = enchantment["tags"][i].split(":")[0]
                 values = json.loads(enchantment["tags"][i].split(":")[1])
                 enchantment["tags"][i] = name + ":" + str(values[tier])
+            
             if enchantment["increase"] != None: enchantment["increase"] = enchantment["increase"][tier]
             enchantment["value"] = enchantment["value"][tier]
+            enchantment.update({"level": level, "tier": tier, "real name": enchantment["name"]})
+            
             if tier == 0: enchantment["name"] = "Lesser " + enchantment["name"]
             elif tier == 2: enchantment["name"] = "Advanced " + enchantment["name"]
+            
             for i in range(len(enchantment["tags"])):
                 for j in range(level - 1):
                     if enchantment["increase"][0] == "+":
@@ -2207,7 +2290,7 @@ try:
                     if enchantment["increase"][0] == "+": effect["value"] += int(enchantment["increase"][1:])
                     elif enchantment["increase"][0] == "-": effect["value"] -= int(enchantment["increase"][1:])
                     elif enchantment["increase"][0] == "*": effect["value"] = round(float(value[1:]) * effect["value"])
-            enchantment.update({"level": level})
+            
             return enchantment
         session = sqlite3.connect("data/data.db")
         session.row_factory = dictFactory
