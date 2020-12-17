@@ -9,7 +9,7 @@ def displayImage():
         "59c135": "=", # GRASS
         "9cdb43": ";", # LIGHT GRASS
         "d6f264": "-", # ARID LAND
-        "fffc40": "^", # SAND
+        "fffc40": ">", # SAND
         "dae0ea": "$", # SNOW
         "4a5462": "+", # STONE
         # - IMPASSABLE - #

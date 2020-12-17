@@ -56,9 +56,10 @@ colors = {
     "light blue": "039",
     "blue": "004",
     "dark blue": "018",
+    "very dark blue": "017",
     "light purple": "135",
     "purple": "128",
-    "brown": "084",
+    "brown": "094",
     "option": "231"}
 reset = "\x1b[0m" if ansi else ""
 

@@ -1,13 +1,13 @@
 # TODO
+# Add style settings, aka removal of tooltips, header display, hp/mp/xp bar display, color/no color, etc.
 # Add dungeons as locations, instead of hunting grounds
 # Add tavern giving randomly generated quests
-# Add search feature, and make randomly generated loot
+# Add randomly generated loot, quests, and events to search
 # Add loot bags, with loot that functions the same as enemy drops
-# Add different types of camp locations, e.g. one without a town but something else
-# Add viewing of ASCII map segments
-# Add ASCII map movement
+# Add different types of camp locations, e.g. one without a town but a ferry
 # Add support for sub maps
 # Add json file for world to sub, vice versa, and sub to sub teleportation
+# Remove controlled saving. Saving should be done by an id assigned to each character when created. Saving should happen whenever the player enters camp, modifies an item, crafts an item, or defeats an enemy.
 
 
 
@@ -970,7 +970,7 @@ def s_explore():
         next = len(locations) > page*10 + 1
         previous = page != 1
 
-        options(["Search", c("dark gray") + "Map"] + (["Next"] if next else []) + (["Previous"] if previous else []))
+        options(["Search", "Map"] + (["Next"] if next else []) + (["Previous"] if previous else []))
         option = command(False, "optionumeric", options="sm" + ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(locations))))))
 
         if option in tuple(map(str, range(0, len(locations) + (page-1) * 10 + 1))) + tuple(["s"]):
@@ -1029,9 +1029,51 @@ def s_explore():
                     print(f'\n You quiety slip away from {enemy.name} [Lvl {enemy.level}].')
                     pressEnter()
                     break
-        elif option == "m": pass
+        elif option == "m": s_map()
         elif option == "B": break
         if returnTo(): break
+
+
+def s_map():
+    while 1:
+        clear()
+        print("\n -= World Map =-\n")
+        mapWidth = min(os.get_terminal_size()[0] - 2, 75) // 2
+        mapHeight = min(os.get_terminal_size()[1] - 14, 25) // 2
+        
+        for i in range(player.y - mapHeight, player.y + mapHeight):
+            print(" ", end="")
+            for j in range(player.x - mapWidth, player.x + mapWidth):
+                if i == player.y and j == player.x:
+                    print("*", end="")
+                    continue
+                tile = worldMap[i][j]
+                color = ""
+                if tile == "=": color = c("green")
+                elif tile == "M": color = c("dark green")
+                elif tile == ";": color = c("lightish green")
+                elif tile == ">": color = c("yellow")
+                elif tile == ".": color = c("light blue")
+                elif tile == "~": color = c("blue")
+                elif tile == "<": color = c("dark blue")
+                elif tile == "8": color = c("very dark blue")
+                elif tile == "#": color = c("brown")
+                elif tile == "$": color = c("white")
+                elif tile == "+": color = c("gray")
+                print(color, worldMap[i][j], reset, sep="", end="")
+            print("")
+        
+        options(["W (up)", "A (left)", "S (down)", "D (right)"])
+        option = command(False, "alphabetic", options="wasd")
+        
+        impassable = ["#", "M", "8", "<", "~", "."]
+        
+        if option == "w" and worldMap[player.y-1][player.x] not in impassable: player.y -= 1
+        elif option == "a" and worldMap[player.y][player.x-1] not in impassable: player.x -= 1
+        elif option == "s" and worldMap[player.y+1][player.x] not in impassable: player.y += 1
+        elif option == "d" and worldMap[player.y][player.x+1] not in impassable: player.x += 1
+        elif option == "B": break
+        if returnTo(): return
 
 
 def s_battle(enemy):

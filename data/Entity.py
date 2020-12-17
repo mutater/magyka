@@ -261,6 +261,8 @@ class Player(Entity):
         self.levelsGained = 0
         
         self.location = "fordsville"
+        self.x = 799
+        self.y = 690
         self.locations = {"fordsville": []}
         self.quests = []
         self.mainQuests = mainQuests
