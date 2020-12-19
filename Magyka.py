@@ -1,13 +1,12 @@
 # TODO
-# Add style settings, aka removal of tooltips, header display, hp/mp/xp bar display, color/no color, etc.
-# Add dungeons as locations, instead of hunting grounds
+# Add dungeons as locations
 # Add tavern giving randomly generated quests
 # Add randomly generated loot, quests, and events to search
-# Add loot bags, with loot that functions the same as enemy drops
 # Add different types of camp locations, e.g. one without a town but a ferry
 # Add support for sub maps
 # Add json file for world to sub, vice versa, and sub to sub teleportation
 # Remove controlled saving. Saving should be done by an id assigned to each character when created. Saving should happen whenever the player enters camp, modifies an item, crafts an item, or defeats an enemy.
+# Fix lifesteal to be a chance of occurence, not 100% of the time
 
 
 
@@ -65,7 +64,7 @@ from data.mapToAscii import *
 #  "MM,    "YmmMMMM""  MMM     YM  "YUMMMMMP"     MMM    MMM  "YMMMMMP"   MMM     YM  "YMmMY" 
 
 
-# Item modification
+# Item
 
 def enchantEquipment(item, enchantment):
     if enchantment == None: return item
@@ -84,6 +83,47 @@ def enchantEquipment(item, enchantment):
     if not enchantmentFound: item["enchantments"].append(enchantment)
     
     return updateEquipment(item)
+
+
+def enchantEquipmentRandom(item):
+    slot = item["slot"]
+    if slot in ("helmet", "chest", "legs", "feet"): slot = "armor"
+    numEnchantments = random.randint(1,100)
+    currentEnchantments = []
+    if numEnchantments <= 30: numEnchantments = 1
+    elif numEnchantments <= 70: numEnchantments = 2
+    elif numEnchantments <= 85: numEnchantments = 3
+    elif numEnchantments <= 95: numEnchantments = 4
+    elif numEnchantments <= 99: numEnchantments = 5
+    else: numEnchantments = 6
+    
+    while len(currentEnchantments) < numEnchantments:
+        enchantment = random.randint(0, len(enchantments[slot])-1)
+        i = 0
+        for enchant in enchantments[slot]:
+            if i == enchantment:
+                enchantment = enchant
+                break
+            i += 1
+        if enchantment not in currentEnchantments: currentEnchantments.append(enchantment)
+    
+    for enchantment in currentEnchantments:
+        e = enchantments[slot][enchantment]
+    
+        if player.level <= 20: tier = 0
+        elif player.level <= 40: tier = 1
+        else: tier = 2
+        
+        if e == 1: level = 1
+        elif e == 2: level = random.randint(1, 2)
+        else:
+            if player.level >= 61: level = random.randint(e - 1, e)
+            elif player.level % 20 <= 10: level = random.randint(1, e // 2)
+            else: level = random.randint(e // 2, e)
+        if level < 1: level = 1
+        
+        item = enchantEquipment(item, newEnchantment(enchantment, tier, level))
+    return item
 
 
 def modifyEquipment(item, modifier):
@@ -110,13 +150,13 @@ def updateEquipment(item):
         
         tags += item["modifier"]["tags"]
         for effect in item["modifier"]["effect"]:
-            if effect["type"] in player.stats: effects.append(effect)
+            if effect["type"] in Entity(0, 0, 0, 0, {}).stats: effects.append(effect)
         
         for enchantment in item["enchantments"]:
             tags += enchantment["tags"]
             values.append(enchantment["value"])
             for effect in enchantment["effect"]:
-                if effect["type"] in player.stats: effects.append(effect)
+                if effect["type"] in  Entity(0, 0, 0, 0, {}).stats: effects.append(effect)
         
         # Sorting through tags to remove duplicate and deal with passive tags
         for tag in tags:
@@ -171,6 +211,42 @@ def updateEquipment(item):
         printError()
         pressEnter()
         return oldItem
+
+
+def openLootTable(table):
+    items = []
+    for item in table["drops"]:
+        if random.randint(1, 100) <= item[2]:
+            if type(item[1]) is list: items.append([newItem(item[0]), random.randint(item[1][0], item[1][1])])
+            else:
+                tempItem = newItem(item[0])
+                if "enchanted" in table["tags"]: tempItem = enchantEquipmentRandom(tempItem)
+                items.append([tempItem, item[1]])
+    return items
+
+
+def useItem(item, target):
+    text = [f' {player.name} {item["text"]} {displayItem(item["name"], item["rarity"], 1)}{"" if item["target"] == "self" else " on " + target.name}, ']
+    playerDamage, targetDamage = 0, 0
+    if item["effect"]:
+        tempText, defenseDamage, offenseDamage = attack(item["target"], item["effect"], player, target, item["tags"])
+        text[0] += tempText
+        playerDamage = defenseDamage
+        targetDamage = offenseDamage
+    
+    if "infinite" not in item["tags"]: player.removeItem(item)
+    
+    for tag in item["tags"]:
+        if tag.split(":")[0] == "loot":
+            text[0] += "getting some fuckin loot!"
+            table = newLootTable(tag.split(":")[1])
+            items = openLootTable(table)
+            for item in items:
+                player.addItem(item[0], item[1])
+            if table["xp"] != None: player.xp += table["xp"]
+            if table["gold"] != None: player.gold += table["gold"]
+    
+    return text, playerDamage, targetDamage
 
 
 # Non-input functions
@@ -247,7 +323,10 @@ def get_key():
     elif key == "\x08": return "backspace"
     elif key == "\x7f": return "ctrl backspace"
     elif key == "\xe0":
-        key = msvcrt.getch().decode("utf-8")
+        try:
+            key = msvcrt.getch().decode("utf-8")
+        except:
+            key = ""
         if key == "K": return "left"
         elif key == "M": return "right"
         elif key == "H": return "up"
@@ -264,6 +343,8 @@ def wait_to_key(key):
 
 def command(input = False, mode="alphabetic", back=True, silent=False, lower=True, options="", prompt="", horizontal=False):
     # Printing prompt and help tooltip
+    if not tooltips: silent=True
+    
     if input:
         if mode == "command": print(f'\n{c("option")} Console >| {reset}', end = "")
         else: print(f'\n{c("option")} > {reset}', end = "")
@@ -291,7 +372,7 @@ def command(input = False, mode="alphabetic", back=True, silent=False, lower=Tru
         key = get_key()
         if terminalSize != os.get_terminal_size(): return "D"
         # Looking for single character keys
-        if len(key) == 1 and (mode in ("command", "all")) or (re.match("[0-9]", key) and mode in ("numeric", "optionumeric", "alphanumeric")) or (re.match("[A-Za-z\_\s\/]", key) and mode in ("alphabetic", "optionumeric", "alphanumeric")):
+        if (len(key) == 1) and ((mode in ("command", "all")) or (re.match("[0-9]", key) and mode in ("numeric", "optionumeric", "alphanumeric")) or (re.match("[A-Za-z\_\s\/]", key) and mode in ("alphabetic", "optionumeric", "alphanumeric"))):
             if input:
                 a = a[:loc] + key + a[loc:]
                 loc += 1
@@ -417,7 +498,15 @@ def devCommand(a):
     
     try:
         if a1[0] == "equip":
-            if a1[1] in items:
+            if a1[1] == "copper":
+                devCommand("equip Copper Sword")
+                devCommand("equip Tome of Sparks")
+                devCommand("equip Copper Helmet")
+                devCommand("equip Copper Chestplate")
+                devCommand("equip Copper Greaves")
+                devCommand("equip Copper Boots")
+                devCommand("equip Copper Ring")
+            elif a1[1] in items:
                 if player.equipment[items[a1[1]]["slot"]] != "": player.unequip(items[a1[1]]["slot"])
                 player.equip(newItem(a1[1]))
         elif a1[0] == "exec":
@@ -521,6 +610,21 @@ def returnToScreen(screen):
 
 # Text printing
 
+def header(text):
+    h = ""
+    cap = False
+    
+    if settings["header"] == "none": return
+    elif settings["header"] == "plain": h = ""
+    elif settings["header"] == "capital": h, cap = "", True
+    elif settings["header"] == "simple": h = "-"
+    elif settings["header"] == "regular": h = "-= "
+    elif settings["header"] == "bold": h = "# - "
+    elif settings["header"] == "overkill": h, cap = ".,:;-=+xX# ", True
+    
+    print("\n " + h + (text.upper() if cap else text) + h[::-1])
+
+
 def write(text, speed = textSpeed):
     i = 0
     delay = speed
@@ -558,130 +662,100 @@ def displayItem(name, rarity, quantity = 0):
 
 
 def displayEffect(effects, notes=False, extraSpace=False):
-    begin = " "
-    noteBegin = " - "
-    if notes: begin, noteBegin = "  - ", "  - "
-    if extraSpace: begin, noteBegin = "   - ", "   - "
-    if not notes: print("")
-    if "-hp" in effects or "-mp" in effects or "-all" in effects:
-        if "-hp" in effects:
-            if type(effects["-hp"]["value"]) is list:
-                damage = f'{c("red")}{effects["-hp"]["value"][0]} - {effects["-hp"]["value"][1]}{"%" if "*" in effects["-hp"] else ""} ♥{reset}'
-            else:
-                damage = f'{c("red")}{effects["-hp"]["value"]}{"%" if "*" in effects["-hp"] else ""} ♥{reset}'
-            effect = "-hp"
-        if "-mp" in effects:
-            if type(effects["-mp"]["value"]) is list:
-                damage = f'{c("blue")}{effects["-mp"]["value"][0]} - {effects["-mp"]["value"][1]}{"%" if "*" in effects["-mp"] else ""} ♦{reset}'
-            else:
-                damage = f'{c("blue")}{effects["-mp"]["value"]}{"%" if "*" in effects["-mp"] else ""} ♦{reset}'
-            effect = "-mp"
-        if "-all" in effects:
-            if type(effects["-all"]["value"][0]) is list:
-                damage = f'{c("red")}{effects["-all"]["value"][0][0]} - {effects["-all"]["value"][0][1]}{"%" if "*" in effects["-all"] else ""} ♥{reset} and '
-            else:
-                damage = f'{c("red")}{effects["-all"]["value"][0]}{"%" if "*" in effects["-all"] else ""} ♥{reset} and '
-            if type(effects["-all"]["value"][1]) is list:
-                damage += f'{c("blue")}{effects["-all"]["value"][1][0]} - {effects["-all"]["value"][1][1]}{"%" if "*" in effects["-all"] else ""} ♦{reset}'
-            else:
-                damage += f'{c("blue")}{effects["-all"]["value"][1]}{"%" if "*" in effects["-all"] else ""} ♦{reset}'
-            effect = "-all"
-        print(f'{begin}Damage: {damage}.\n')
-    if "hp" in effects or "mp" in effects or "all" in effects:
-        if "hp" in effects:
-            if type(effects["hp"]["value"]) is list:
-                heal = f'{c("red")}{effects["hp"]["value"][0]} - {effects["hp"]["value"][1]}{"%" if "*" in effects["hp"] else ""} ♥{reset}'
-            else:
-                heal = f'{c("red")}{effects["hp"]["value"]}{"%" if "*" in effects["hp"] else ""} ♥{reset}'
-            effect = "hp"
-        if "mp" in effects:
-            if type(effects["mp"]["value"]) is list:
-                heal = f'{c("blue")}{effects["mp"]["value"][0]} - {effects["mp"]["value"][1]}{"%" if "*" in effects["mp"] else ""} ♦{reset}'
-            else:
-                heal = f'{c("blue")}{effects["mp"]["value"]}{"%" if "*" in effects["mp"] else ""} ♦{reset}'
-            effect = "mp"
-        if "all" in effects:
-            if type(effects["all"]["value"][0]) is list:
-                heal = f'{c("red")}{effects["all"]["value"][0][0]} - {effects["all"]["value"][0][1]}{"%" if "*" in effects["all"] else ""} ♥{reset} and '
-            else:
-                heal = f'{c("red")}{effects["all"]["value"][0]}{"%" if "*" in effects["all"] else ""} ♥{reset} and '
-            if type(effects["all"]["value"][1]) is list:
-                heal += f'{c("blue")}{effects["all"]["value"][1][0]} - {effects["all"]["value"][1][1]}{"%" if "*" in effects["all"] else ""} ♦{reset}'
-            else:
-                heal += f'{c("blue")}{effects["all"]["value"][1]}{"%" if "*" in effects["all"] else ""} ♦{reset}'
-            effect = "all"
-        print(f'{begin}Heals {heal}')
-        if effect in ("hp", "all"): print(" " + returnHpBar(player) + "\n")
-        if effect in ("mp", "all"): print(" " + returnHpBar(player) + "\n")
-    if "attack" in effects:
-        if type(effects["attack"]["value"]) is list: print(f'{begin}Damage: {c("red")}{effects["attack"]["value"][0]} - {effects["attack"]["value"][1]} ♥{reset}.\n')
-        else:
-            if "*" in effects["attack"]:
-                print(f'{begin}{abs(effects["attack"]["value"])}% {"Increased" if effects["attack"]["value"] > 0 else "Decreased"} Attack')
-            else:
-                print(f'{begin}{"+" if effects["attack"]["value"] > 0 else ""}{effects["attack"]["value"]} Attack')
-
-
-def displayStats(effects, notes=False, extraSpace=False):
-    begin = " "
-    noteBegin = " - "
-    if notes: begin, noteBegin = "  - ", "  - "
-    if extraSpace: begin, noteBegin = "   - ", "   - "
-    for stat in ("max hp", "max mp", "armor", "strength", "intelligence", "vitality"):
+    begin = (" " if extraSpace else "") + ("  - " if notes else " ")
+    hpDamage, hpDamageText, hpMult = 0, "", False
+    mpDamage, mpDamageText, mpMult = 0, "", False
+    
+    attack = "-hp" in effects or "-mp" in effects or "attack" in effects
+    heal = "hp" in effects or "mp" in effects
+    for stat in ("-hp", "-mp", "hp", "mp"):
         if stat in effects:
-            if stat == "max hp":
-                color, character = c("red"), " ♥"
-            elif stat == "max mp":
-                color, character = c("blue"), " ♦"
+            if "h" in stat:
+                hpDamage = effects[stat]["value"]
+                hpMult = "*" in effects[stat]
             else:
-                color, character = "", ""
+                mpDamage = effects[stat]["value"]
+                mpMult = "*" in effects[stat]
+    if "attack" in effects and type(effects["attack"]["value"]) is list:
+        hpDamage = effects["attack"]["value"]
+        hpMult = False
+
+    if hpDamage != 0:
+        if type(hpDamage) is list: hpDamageText = f'{c("red")}{hpDamage[0]} - {hpDamage[1]}{"%" if hpMult else ""} ♥{reset}'
+        else: hpDamageText = f'{c("red")}{hpDamage}{"%" if hpMult else ""} ♥{reset}'
+    if mpDamage != 0:
+        if type(mpDamage) is list: mpDamageText = f'{c("blue")}{mpDamage[0]} - {mpDamage[1]}{"%" if mpMult else ""} ♦{reset}'
+        else: mpDamageText = f'{c("blue")}{mpDamage}{"%" if mpMult else ""} ♦{reset}'
+    
+    if attack or heal: print("")
+    if attack: print(f'{begin}Damages {hpDamageText}{" and " if hpDamageText != "" and mpDamageText != "" else ""}{mpDamageText}')
+    if heal: print(f'{begin}Heals {hpDamageText}{" and " if hpDamageText != "" and mpDamageText != "" else ""}{mpDamageText}')
+
+
+def displayStats(effects, notes=False, extraSpace=False, newLine=True):
+    begin = (" " if extraSpace else "") + ("  - " if notes else " ")
+
+    statList = ("max hp", "max mp", "armor", "strength", "intelligence", "vitality")
+
+    if (any([stat in effects for stat in statList]) or ("attack" in effects and type(effects["attack"]["value"]) is not list)) and newLine: print("")
+
+    if "attack" in effects and type(effects["attack"]["value"]) is not list:
+        if "*" in effects["attack"]:
+            print(f'{begin}{abs(effects["attack"]["value"])}% {"Increased" if effects["attack"]["value"] > 0 else "Decreased"} Attack')
+        else:
+            print(f'{begin}{"+" if effects["attack"]["value"] > 0 else ""}{effects["attack"]["value"]} Attack')
+    for stat in statList:
+        if stat in effects:
+            if stat == "max hp": color, character = c("red"), " ♥"
+            elif stat == "max mp": color, character = c("blue"), " ♦"
+            else: color, character = "", ""
             
             if "*" in effects[stat]:
-                print(f'{noteBegin}{abs(effects[stat]["value"])}% {"Increased" if effects[stat]["value"] > 0 else "Decreased"} {color}{stat.capitalize()}{character}{reset}')
+                print(f'{begin}{abs(effects[stat]["value"])}% {"Increased" if effects[stat]["value"] > 0 else "Decreased"} {color}{stat.capitalize()}{character}{reset}')
             else:
-                print(f'{noteBegin}{"+" if effects[stat]["value"] > 0 else ""}{effects[stat]["value"]} {color}{stat.capitalize()}{character}{reset}')
+                print(f'{begin}{"+" if effects[stat]["value"] > 0 else ""}{effects[stat]["value"]} {color}{stat.capitalize()}{character}{reset}')
     for stat in ("crit", "hit", "dodge"):
-        if stat in effects: print(f'{noteBegin}{abs(effects[stat]["value"])}% {"Increased" if effects[stat]["value"] > 0 else "Decreased"} {stat.capitalize()} Chance')
+        if stat in effects: print(f'{begin}{abs(effects[stat]["value"])}% {"Increased" if effects[stat]["value"] > 0 else "Decreased"} {stat.capitalize()} Chance')
 
 
-def displayPassive(effect, noNewLine = False):
+def displayPassive(effect, noNewLine=False, period=False, space=True):
     if effect["buff"]:
         effectColor = "light green"
     else:
         effectColor = "light red"
+    
+    period = "." if period else ""
     
     if type(effect["turns"]) is list:
         turnText = f'{effect["turns"][0]} - {effect["turns"][1]} turns'
     else:
         turnText = f'{effect["turns"]} turn{"s" if effect["turns"] > 1 else ""}'
     
-    newLine = " " if noNewLine else "\n "
-    print(f'{newLine}Applies {c(effectColor)}{effect["name"]}{reset} for {turnText}.')
+    newLine = ("" if noNewLine else "\n") + (" " if space else "")
+    print(f'{newLine}Applies {c(effectColor)}{effect["name"]}{reset} for {turnText}{period}')
 
 
-def displayTags(tags, notes=False, extraSpace=False):
-    begin = " "
-    noteBegin = " - "
-    if notes: begin, noteBegin = "  - ", "  - "
-    if extraSpace: begin, noteBegin = "   - ", "   - "
+def displayTags(tags, notes=False, extraSpace=False, period=False):
+    period = "." if period else ""
+    begin = (" " if extraSpace else "") + ("  - " if notes else " ")
     for tag in tags:
         name = tag.split(":")[0]
         try: value = tag.split(":")[1]
         except: value = False
         if name == "passive":
             print(f'{begin}', end="")
-            displayPassive(newPassive(value), noNewLine=True)
-        if name == "hit": print(f'{begin}Never misses.\n{begin}Undodgeable.')
-        if name == "noMiss": print(f'{begin}Never misses.')
-        if name == "noDodge": print(f'{begin}Undodgeable.')
+            displayPassive(newPassive(value), noNewLine=True, space=False)
+        if name == "hit": print(f'{begin}Accurate: Never misses{period}\n{begin}Homing: Undodgeable{period}')
+        if name == "noMiss": print(f'{begin}Accurate: Never misses{period}')
+        if name == "noDodge": print(f'{begin}Homing: Undodgeable{period}')
         if name == "pierce":
-            if value: print(f'{begin}Piercing: Ignores {value}% of enemy armor.')
-            else: print(f'{begin}Piercing: Ignores enemy armor.')
+            if value: print(f'{begin}Piercing: Ignores {value}% of enemy armor{period}')
+            else: print(f'{begin}Piercing: Ignores enemy armor{period}')
         if name == "variance":
-            if value == "0": print(f'{begin}Steadfast: Damage doesn\'t vary.')
-            else: print(f'Random: {begin}Damage varies by {value}%.')
-        if name == "infinite": print(f'{begin}Infinite: Item isn\'t lost on consumption.')
-        if name == "lifesteal": print(f'{begin}Lifesteal: Heals for {value}% of damage dealt to an enemy.')
+            if value == "0": print(f'{begin}Steadfast: Damage does not vary{period}')
+            else: print(f'{begin}Random: Damage varies by {value}%{period}')
+        if name == "infinite": print(f'{begin}Infinite: Item is not consumed on use{period}')
+        if name == "lifesteal": print(f'{begin}Lifesteal: Heals for {value}% of damage dealt to an enemy{period}')
 
 
 def displayItemStats(item):
@@ -695,19 +769,20 @@ def displayItemStats(item):
     if item["type"] not in ("item", "modifier"):
         for effect in item["effect"]:
             if effect["type"] == "passive":
-                p_passives.append(effect["value"])
-            if effect["type"] == "stat":
+                p_passives.append(newPassive(effect["value"]))
+            elif effect["type"] == "stat":
                 effects.update({effect["stat"]: effect})
             else:
                 if "passive" in effect:
                     for passive in effect["passive"]: p_passives.append(newPassive(passive))
                 effects.update({effect["type"]: effect})
-    if item["type"] == "equipment" and item["slot"] == "tome": print(f'\n Costs {c("blue")}{item["mana"]} ♦{reset}')
     
+    if item["type"] == "equipment" and item["slot"] == "tome": print(f'\n Costs {c("blue")}{item["mana"]} ♦{reset}')
     displayEffect(effects)
-    displayStats(effects)
     for effect in p_passives:
         displayPassive(effect, noNewLine=True)
+    displayStats(effects)
+    if len(item["tags"]) > 0: print("")
     displayTags(item["tags"])
     
     if item["enchantments"] != []:
@@ -801,27 +876,47 @@ def printError():
 # Text returning
 
 def drawBar(max, value, color, length):
-    text = "".center(length, "■")
-    if round(value/max*length) > 0: text = c(color) + c("dark " + color, True) + text[:round((value/max)*length)] + c("gray") + c("dark gray", True) + text[round((value/max)*length):] + reset
-    else: text = c("gray") + c("dark gray", True) + text + reset
+    if settings["bar style"] == "dots": char, backChar, background = ".", ".", False
+    elif settings["bar style"] == "slashes": char, backChar, background = "/", "-", False
+    elif settings["bar style"] == "hashes": char, backChar, background = "#", "-", False
+    elif settings["bar style"] == "boxes": char, backChar, background = "■", "■", False
+    elif settings["bar style"] == "bars": char, backChar, background = " ", " ", True
+    elif settings["bar style"] == "regular": char, backChar, background = "■", "■", True
+    
+    text = char*round((value/max)*length) + backChar*(length - round((value/max)*length))
+    
+    backColor = c("dark " + color, True) if background else ""
+    backGray = c("dark gray", True) if background else ""
+    
+    if round(value/max*length) > 0: text = c(color) + backColor + text[:round((value/max)*length)] + c("gray") + backGray + text[round((value/max)*length):] + reset
+    else: text = c("gray") + backGray + text + reset
     return text
 
 
 def returnHpBar(entity, text=True, length=32):
     bar = f'{c("red")}{"♥ " if text else ""}{drawBar(entity.stats["max hp"], entity.hp, "red", length)}'
-    if text: bar += f' {entity.hp}/{entity.stats["max hp"]}'
+    if text:
+        if settings["bar numbers"] == "percent": bar += f' {round(entity.hp/entity.stats["max hp"] * 100)}%'
+        elif settings["bar numbers"] == "number": bar += f' {entity.hp}'
+        elif settings["bar numbers"] == "number over max": bar += f' {entity.hp}/{entity.stats["max hp"]}'
     return bar
 
 
 def returnMpBar(entity, text=True, length=32):
     bar = f'{c("blue")}{"♦ " if text else ""}{drawBar(entity.stats["max mp"], entity.mp, "blue", length)}'
-    if text: bar += f' {entity.mp}/{entity.stats["max mp"]}'
+    if text:
+        if settings["bar numbers"] == "percent": bar += f' {round(entity.mp/entity.stats["max mp"] * 100)}%'
+        elif settings["bar numbers"] == "number": bar += f' {entity.mp}'
+        elif settings["bar numbers"] == "number over max": bar += f' {entity.mp}/{entity.stats["max mp"]}'
     return bar
 
 
 def returnXpBar(entity, text=True, length=32):
     bar = f' {c("green")}• {drawBar(entity.mxp, entity.xp, "green", length)}'
-    if text: bar += f' {entity.xp}/{entity.mxp}'
+    if text:
+        if settings["bar numbers"] == "percent": bar += f' {round(entity.xp/entity.mxp * 100)}%'
+        elif settings["bar numbers"] == "number": bar += f' {entity.xp}'
+        elif settings["bar numbers"] == "number over max": bar += f' {entity.xp}/{entity.mxp}'
     return bar
 
 
@@ -865,11 +960,13 @@ def s_mainMenu():
             for i in range(len(title)):
                 print(cc(["026", "026", "006", "045", "018", "004", "026", "006", "000", "039"][i]) + title[i] + reset)
 
-        options(["New Game", "Continue", "Quit"])
-        option = command(back = False, options = "ncq")
+        options(["New Game", "Continue", "Options", "Help", "Quit"])
+        option = command(back = False, options = "ncohq")
 
         if option == "n": s_newGame()
         elif option == "c": s_continue()
+        elif option == "o": s_options()
+        elif option == "h": s_help()
         elif option == "q": exitGame()
         if returnTo(): break
 
@@ -909,7 +1006,7 @@ def s_continue():
     while 1:
         clear()
 
-        print("\n -= Load =-")
+        header("Load")
         print("\n Which file are you loading?")
 
         if len(saves) > 0: print("")
@@ -927,25 +1024,83 @@ def s_continue():
         if returnTo(): break
 
 
+def s_options():
+    global color, tooltips
+    while 1:
+        clear()
+        header("Options")
+        
+        print(f'\n 0) ({settings["header"]}) Header Style')
+        print(f' 1) ({"ON" if settings["centered text"] else "OFF"}) Centered Text Mode')
+        print(f' 2) ({"ON" if settings["color"] else "OFF"}) Colored Text')
+        print(f' 3) ({"ON" if settings["tooltips"] else "OFF"}) Command Hints')
+        print(f' 4) ({settings["bar style"]}) HP, MP, and XP Bar Style')
+        print(f' 5) ({settings["bar numbers"]}) HP, MP, and XP Bar Number Style')
+        
+        print("\n  " + drawBar(5, 4, "red", 32), end="")
+        if settings["bar numbers"] == "percent": print(" 80%")
+        elif settings["bar numbers"] == "number": print(" 4")
+        elif settings["bar numbers"] == "number over max": print(" 4/5")
+        print("")
+        
+        option = command(False, "numeric", options="01345")
+        
+        if option == "0":
+            if settings["header"] == "none": settings["header"] = "plain"
+            elif settings["header"] == "plain": settings["header"] = "capital"
+            elif settings["header"] == "capital": settings["header"] = "simple"
+            elif settings["header"] == "simple": settings["header"] = "regular"
+            elif settings["header"] == "regular": settings["header"] = "bold"
+            elif settings["header"] == "bold": settings["header"] = "overkill"
+            elif settings["header"] == "overkill": settings["header"] = "none"
+        elif option == "1": settings["centered text"] = not settings["centered text"]
+        elif option == "2":
+            settings["color"] = not settings["color"]
+            color = not color
+        elif option == "3":
+            settings["tooltips"] = not settings["tooltips"]
+            tooltips = not tooltips
+        elif option == "4":
+            if settings["bar style"] == "dots": settings["bar style"] = "slashes"
+            elif settings["bar style"] == "slashes": settings["bar style"] = "hashes"
+            elif settings["bar style"] == "hashes": settings["bar style"] = "boxes"
+            elif settings["bar style"] == "boxes": settings["bar style"] = "bars"
+            elif settings["bar style"] == "bars": settings["bar style"] = "regular"
+            elif settings["bar style"] == "regular": settings["bar style"] = "dots"
+        elif option == "5":
+            if settings["bar numbers"] == "none": settings["bar numbers"] = "percent"
+            elif settings["bar numbers"] == "percent": settings["bar numbers"] = "number"
+            elif settings["bar numbers"] == "number": settings["bar numbers"] = "number over max"
+            elif settings["bar numbers"] == "number over max": settings["bar numbers"] = "none"
+        elif option == "B": break
+        if returnTo(): break
+    with open("data//settings.json", "w+") as settingsFile:
+        json.dump(settings, settingsFile)
+
+
+def s_help():
+    pass
+
+
 # Camp
 
 def s_camp():
     while 1:
-        if returnTo(): break
         clear()
-
-        print("\n -= Camp =-")
+        header("Camp")
         displayPlayerStats()
         print(openEvalText("data//text//screens//camp.txt"))
         
-        options(["Explore", "Town", "Character", "Save", "Quit"])
-        option = command(back = False, options = "etcosq")
+        options(["Explore", "Town", "Character", "Options", "Save", "Quit"])
+        option = command(back=False, options="etcosq")
 
         if option == "e": s_explore()
         elif option == "t": s_town()
         elif option == "c": s_character()
+        elif option == "o": s_options()
         elif option == "s": s_save()
         elif option == "q": s_quit()
+        if returnTo(): break
 
 
 # Explore
@@ -955,7 +1110,7 @@ def s_explore():
     while 1:
         clear()
 
-        print("\n -= Explore =-")
+        header("Explore")
         displayPlayerStats()
         print(openEvalText(f'data//text//screens//{player.location} explore.txt'))
         print("\n Discovered Locations:\n")
@@ -1037,7 +1192,7 @@ def s_explore():
 def s_map():
     while 1:
         clear()
-        print("\n -= World Map =-\n")
+        header("World Map")
         mapWidth = min(os.get_terminal_size()[0] - 2, 75) // 2
         mapHeight = min(os.get_terminal_size()[1] - 14, 25) // 2
         
@@ -1076,11 +1231,7 @@ def s_map():
         if returnTo(): return
 
 
-def s_battle(enemy):
-    itemLog = []
-    if type(enemy.level) is list: enemy.level = enemy.level[0]
-    
-    def attack(target, effectList, offense, defense, tags = False):
+def attack(target, effectList, offense, defense, tags = False):
         if tags == None: tags = []
         effectList = copy.deepcopy(effectList)
         for effect in effectList:
@@ -1104,6 +1255,11 @@ def s_battle(enemy):
                             offense.defend({"type": "hp", "value": heal})
                             defenseDamage += heal            
             return text, defenseDamage, offenseDamage
+
+
+def s_battle(enemy):
+    itemLog = []
+    if type(enemy.level) is list: enemy.level = enemy.level[0]
 
     while 1:
         player.guard = ""
@@ -1184,13 +1340,11 @@ def s_battle(enemy):
                             usedItem = False
                             if option1 == "u":
                                 usedItem = True
-                                tempText, defenseDamage, offenseDamage = attack(item["target"], item["effect"], player, enemy, item["tags"])
-                                text[0] = f' {player.name} {item["text"]} {displayItem(item["name"], item["rarity"], 1)}{"" if item["target"] == "self" else " on " + enemy.name}, '
-                                text[0] += tempText
-                                playerDamage += defenseDamage
-                                enemyDamage += offenseDamage
-
-                                if "infinite" not in item["tags"]: player.removeItem(item)
+                                
+                                tempText, tempPlayerDamage, tempEnemyDamage = useItem(item, enemy)
+                                text += tempText
+                                playerDamage += tempPlayerDamage
+                                enemyDamage += tempEnemyDamage
 
                                 itemFound = False
                                 for i in itemLog:
@@ -1209,7 +1363,7 @@ def s_battle(enemy):
                 while 1:
                     clear()
 
-                    print("\n -= Flee =-")
+                    header("Flee")
                     print(f'\n Are you sure you want to flee from {enemy.name} [Lvl {enemy.level}]?')
 
                     options(["Yes"])
@@ -1237,6 +1391,8 @@ def s_battle(enemy):
         text += tempText
         playerDamage += tempDamage
         clear()
+        print("beep")
+        print(text)
         displayBattleStats(player, enemy, playerDamage=playerDamage, enemyDamage=enemyDamage)
         for line in text:
             printLine = evalText(line).center(os.get_terminal_size()[0] + evalText(line).count("\x1b[3") * 9 + line.count("{reset}") * 3)
@@ -1306,7 +1462,7 @@ def s_battle(enemy):
 
 def s_victory(enemy, itemLog):
     clear()
-    print("\n -= Victory =-")
+    header("Victory")
     player.updateQuests(enemy=enemy)
 
     levelDifference = enemy.level - player.level
@@ -1316,10 +1472,7 @@ def s_victory(enemy, itemLog):
     gold = math.ceil(random.randint(math.ceil(enemy.gold*0.9), math.ceil(enemy.gold*1.1)) * lootMultiplier)
     items = []
     if enemy.items != None:
-        for item in enemy.items:
-            if random.randint(1, 100) <= item[2]:
-                if type(item[1]) is list: items.append([newItem(item[0]), random.randint(item[1][0], item[1][1])])
-                else: items.append([newItem(item[0]), item[1]])
+        items = openLoot(enemy.items)
 
     for item in items:
         player.addItem(item[0], item[1])
@@ -1349,8 +1502,7 @@ def s_victory(enemy, itemLog):
 
 def s_defeat(enemy, itemLog):
     clear()
-
-    print("\n -= Defeat =-")
+    header("Defeat")
     print("\n Defeated by:")
     print(f'\n {enemy.name} [Lvl {enemy.level}]')
     print(f' {c("red")}♥ {drawBar(enemy.stats["max hp"], enemy.hp, "red", 32)} {enemy.hp}/{enemy.stats["max hp"]}')
@@ -1420,8 +1572,7 @@ def s_levelUp():
 def s_town():
     while 1:
         clear()
-
-        print("\n -= Town of Fordsville =-")
+        header("Town of " + player.location.title())
         displayPlayerStats()
         print(openEvalText(f'data//text//screens//{player.location} town.txt'))
 
@@ -1440,8 +1591,8 @@ def s_town():
 def s_tavern():
     while 1:
         clear()
-        print("\n -= Tavern =-")
-
+        header("Tavern")
+        
         price = 5 + player.level * 2
 
         print(f'\n Price to rest: {c("yellow")}● {reset}{price}.')
@@ -1470,7 +1621,7 @@ def s_tavern():
 def s_quest():
     while 1:
         clear()
-        print("\n -= Quest =-")
+        header("Quest")
         
         quest = None
         questInProgress = False
@@ -1584,7 +1735,7 @@ def s_purchase(item):
 def s_reforge():
     while 1:
         clear()
-        print("\n -= Reforge =-")
+        header("Reforge")
         print("\n Type the number of the item you wish to reforge.\n")
 
         for i in range(len(slotList)):
@@ -1602,81 +1753,12 @@ def s_reforge():
             price = player.equipment[slot]["value"] // 2
             item = player.equipment[slot]
             if player.gold >= price:
-                if slot in ("helmet", "chest", "legs", "feet"): slot = "armor"
+                if slot in ("head", "chest", "legs", "feet"): slot = "armor"
                 modifier = random.randint(0, len(modifiers[slot])-1)
                 modifier = modifiers[slot][modifier]
                 player.equipment[slotList[int(option)]] = modifyEquipment(player.equipment[slotList[int(option)]], newModifier(modifier))
-                print(f'\n Successfuly reforged {displayItem(item["name"], item["rarity"])} to {displayItem(item["modifier"]["name"], item["modifier"]["rarity"])}.')
-                pressEnter()
-            else:
-                print(f'\n You don\'t have enough gold.')
-                pressEnter()
-        elif option == "B": break
-
-
-def s_enchant():
-    while 1:
-        clear()
-        print("\n -= Enchant =-")
-        print("\n Type the number of the item you wish to enchant.")
-        print("\n You cannot enchant an item that is already enchanted.\n")
-        
-        for i in range(len(slotList)):
-            item = player.equipment[slotList[i]]
-            if item == "":
-                print(f' {i}) {c("dark gray")} - Empty -{reset}')
-                continue
-            item = updateEquipment(item)
-            enchanted = player.equipment[slotList[i]]["enchantments"] != []
-            if enchanted: print(f' {i}) {c("dark gray")}{item["name"]}{reset}')
-            else: print(f' {i}) {displayItem(item["name"], item["rarity"])} {c("yellow")}●{reset} {item["value"] // 2 + 15 + round(player.level ** 1.5)}')
-        
-        option = command(False, "numeric", options = "".join(tuple(map(str, range(0, len(slotList))))))
-        
-        if option in tuple(map(str, range(0, len(slotList)))) and player.equipment[slotList[int(option)]] != "" and player.equipment[slotList[int(option)]]["enchantments"] == []:
-            slot = slotList[int(option)]
-            item = player.equipment[slot]
-            price = item["value"] // 2 + 15 + round(player.level ** 1.5)
-            if player.gold >= price:
-                if slot in ("helmet", "chest", "legs", "feet"): slot = "armor"
-                numEnchantments = random.randint(1,100)
-                currentEnchantments = []
-                if numEnchantments <= 30: numEnchantments = 1
-                elif numEnchantments <= 70: numEnchantments = 2
-                elif numEnchantments <= 85: numEnchantments = 3
-                elif numEnchantments <= 95: numEnchantments = 4
-                elif numEnchantments <= 99: numEnchantments = 5
-                else: numEnchantments = 6
-                
-                while len(currentEnchantments) < numEnchantments:
-                    enchantment = random.randint(0, len(enchantments[slot])-1)
-                    i = 0
-                    for enchant in enchantments[slot]:
-                        if i == enchantment:
-                            enchantment = enchant
-                            break
-                        i += 1
-                    if enchantment not in currentEnchantments: currentEnchantments.append(enchantment)
-                
-                for enchantment in currentEnchantments:
-                    e = enchantments[slot][enchantment]
-                
-                    if player.level <= 20: tier = 0
-                    elif player.level <= 40: tier = 1
-                    else: tier = 2
-                    
-                    if e == 1: level = 1
-                    elif e == 2: level = random.randint(1, 2)
-                    else:
-                        if player.level >= 61: level = random.randint(e - 1, e)
-                        elif player.level % 20 <= 10: level = random.randint(1, e // 2)
-                        else: level = random.randint(e // 2, e)
-                    if level < 1: level = 1
-                    
-                    player.equipment[slotList[int(option)]] = enchantEquipment(player.equipment[slotList[int(option)]], newEnchantment(enchantment, tier, level))
-                    player.updateStats()
                 player.gold -= price
-                print(f'\n Successfuly enchanted {displayItem(item["name"], item["rarity"])}.')
+                print(f'\n Successfuly reforged {displayItem(item["name"], item["rarity"])} to {displayItem(item["modifier"]["name"], item["modifier"]["rarity"])}.')
                 pressEnter()
             else:
                 print(f'\n You don\'t have enough gold.')
@@ -1688,7 +1770,7 @@ def s_market():
     page = 1
     while 1:
         clear()
-        print("\n -= Flea Market =- \n")
+        header("Flea Market")
 
         for i in range(-10 + 10*page, 10*page if 10*page < len(player.inventory) else len(player.inventory)):
             print(f' {str(i)[:-1]}({str(i)[-1]}) {displayItem(player.inventory[i][0]["name"], player.inventory[i][0]["rarity"], (player.inventory[i][1] if player.inventory[i][0]["type"] in stackableItems else 0))}')
@@ -1742,8 +1824,7 @@ def s_sell(item):
 def s_character():
     while 1:
         clear()
-
-        print("\n -= Character =-")
+        header("Character")
         displayPlayerStats()
 
         options(["Inventory", "Equipment", "Crafting", "Quests", "Stats"])
@@ -1762,16 +1843,16 @@ def s_inventory():
     page = 1
     while 1:
         clear()
-
-        print("\n -= Inventory =-\n")
-
+        header("Inventory")
+        print("")
+        
         for i in range(-10 + 10*page, 10*page if 10*page < len(player.inventory) else len(player.inventory)):
             print(f' {str(i)[:-1]}({str(i)[-1]}) {displayItem(player.inventory[i][0]["name"], player.inventory[i][0]["rarity"], (player.inventory[i][1] if player.inventory[i][0]["type"] in stackableItems else 0))}')
 
         if len(player.inventory) == 0:
             print(" " + c("dark gray") + "- Empty -" + reset)
 
-        next = len(player.inventory) > page*10 + 1
+        next = len(player.inventory) >= page*10 + 1
         previous = page != 1
 
         options((["Next"] if next else []) + (["Previous"] if previous else []))
@@ -1788,7 +1869,7 @@ def s_inventory():
 def s_equipment():
     while 1:
         clear()
-        print("\n -= Equipment =-")
+        header("Equipment")
         print("\n Type the number of the item you wish to inspect.\n")
 
         for i in range(len(slotList)):
@@ -1834,20 +1915,10 @@ def s_inspect(item, equipped):
             player.equip(item)
             break
         elif item["type"] == "consumable" and option == "u" and item["target"] == "self":
-            text = []
-            for effect in item["effect"]:
-                if "passive" in effect:
-                    if type(effect["passive"]) is list: passive = [newPassive(p) for p in effect["passive"]]
-                    else: passive = newPassive(effect["passive"])
-                else:
-                    passive = False
-                tempText, playerDamage = player.defend(newPassive(effect["name"]) if effect["type"] == "passive" else effect, passive=passive)
-                text.append(tempText)
-            text[0] = f'\n {player.name} {item["text"]} {displayItem(item["name"], item["rarity"], 1)}, ' + text[0]
+            text, z, y = useItem(item, player)
             for line in text:
                 print(evalText(line))
             pressEnter()
-            if "infinite" not in item["tags"]: player.removeItem(item)
             if player.numOfItems(item["name"]) <= 0: break
         elif item["type"] == "modifier" and option == "u":
             s_applyModifier(item)
@@ -1857,7 +1928,7 @@ def s_inspect(item, equipped):
             if player.numOfItems(item["name"]) > 1:
                 while 1:
                     clear()
-                    print("\n -= Quantity =-")
+                    header("Quantity")
                     print(f'\n Type the quantity to discard (1-{player.numOfItems(item["name"])})')
 
                     option = command(True, "numeric")
@@ -1877,12 +1948,13 @@ def s_inspect(item, equipped):
 def s_inspectDetailed(modifier, enchantments):
     while 1:
         clear()
-        print("\n -= More Info =-")
+        header("More Info")
         
         print("\n " + displayItem(modifier["name"], modifier["rarity"]) + ":")
         effects = {}
         for effect in modifier["effect"]:
-            effects.update({effect["type"]: effect})
+            if effect["type"] == "attack": print(f'  - +{effect["value"]} Attack')
+            else: effects.update({effect["type"]: effect})
         displayEffect(effects, notes=True)
         displayTags(modifier["tags"], notes=True)
         if modifier["name"] == "Normal": print("  - No effect.")
@@ -1893,8 +1965,10 @@ def s_inspectDetailed(modifier, enchantments):
                 print(f'  {enchantment["name"]} {returnNumeral(enchantment["level"])}:')
                 effects = {}
                 for effect in enchantment["effect"]:
-                    effects.update({effect["type"]: effect})
+                    if effect["type"] == "attack": print(f'   - +{effect["value"]} Attack')
+                    else: effects.update({effect["type"]: effect})
                 displayEffect(effects, notes=True, extraSpace=True)
+                displayStats(effects, notes=True, extraSpace=True, newLine=False)
                 displayTags(enchantment["tags"], notes=True, extraSpace=True)
         
         pressEnter()
@@ -1905,8 +1979,7 @@ def s_applyModifier(modifier):
     page = 1
     while 1:
         clear()
-
-        print("\n -= Apply Modifier =-\n")
+        header("Apply Modifier")
         
         itemList = []
         equipped = False
@@ -1946,8 +2019,8 @@ def s_crafting():
     page = 1
     while 1:
         clear()
-        
-        print("\n -= Crafting =-\n")
+        header("Crafting")
+        print("")
         
         unlockedRecipes = [recipe for recipe in recipes if any(player.numOfItems(item[0]) >= 1 for item in recipe["ingredients"])]
         
@@ -2018,7 +2091,7 @@ def s_quests():
     page = 1
     while 1:
         clear()
-        print("\n -= Quests =-\n")
+        header("Quests")
         
         quests = copy.deepcopy(player.quests)
         mainQuest = None
@@ -2053,7 +2126,7 @@ def s_quests():
 def s_inspectQuest(quest, main=False):
     while 1:
         clear()
-        print("\n -= Inspect Main Quest =-")
+        header("Inspect Main Quest" if main else "Inspect Quest")
         displayQuest(quest, True)
         
         options(([] if main else ["Remove"]))
@@ -2070,8 +2143,7 @@ def s_stats():
     player.updateStats()
     while 1:
         clear()
-
-        print("\n -= Player Stats =-\m")
+        header("Stats")
 
         stats = player.stats.copy()
         stats.pop("attack")
@@ -2087,7 +2159,7 @@ def s_stats():
         for stat in stats:
             print(f' {stat.capitalize().ljust(statNamePad)}: {str(player.stats[stat]).ljust(statValuePad)} ({"+" if player.baseStats[stat] <= player.stats[stat] else ""}{player.stats[stat] - player.baseStats[stat]})')
 
-        print("\n -= Player Passives =-\n")
+        header("Passives")
 
         for i in range(-10 + 10*page, 10*page if 10*page < len(player.passives) else len(player.passives)):
             print(f' {str(i)[:-1]}({str(i)[-1]}) {c("light green" if player.passives[i]["buff"] else "light red")}{player.passives[i]["name"]}{reset} ({player.passives[i]["turns"]})')
@@ -2125,8 +2197,7 @@ def s_save():
     page = 1
     while 1:
         clear()
-
-        print("\n -= Save =-\n")
+        header("Save")
 
         for i in range(-10 + 10*page, 10*page if 10*page < len(saves) else len(saves)):
             print(f' {i}) {saves[i][1]} | {saves[i][0].name} [Lvl {saves[i][0].level}]')
@@ -2158,8 +2229,7 @@ def s_create():
     global saves
     while 1:
         clear()
-
-        print("\n -= New Save =-")
+        header("New Save")
         print("\n Saves must contain only characters alphanumeric characters and spaces.")
         print(" Saves must be 2+ characters long")
         print("\n Current Saves:")
@@ -2189,8 +2259,7 @@ def s_delete():
     page = 1
     while 1:
         clear()
-
-        print("\n -= Delete =-\n")
+        header("Delete")
 
         for i in range(-10 + 10*page, 10*page if 10*page < len(saves) else len(saves)):
             print(f' {i}) {saves[i][1]} | {saves[i][0].name} [Lvl {saves[i][0].level}]')
@@ -2217,8 +2286,7 @@ def s_delete():
 def s_quit():
     while 1:
         clear()
-
-        print("\n -= Quit =-")
+        header("Quit")
         print("\n Are you sure you want to quit without saving?")
 
         options(["Yes"])
@@ -2319,19 +2387,20 @@ try:
             if tier == 0: enchantment["name"] = "Lesser " + enchantment["name"]
             elif tier == 2: enchantment["name"] = "Advanced " + enchantment["name"]
             
-            for i in range(len(enchantment["tags"])):
-                for j in range(level - 1):
-                    if enchantment["increase"][0] == "+":
-                        enchantment["tags"][i] = enchantment["tags"][i].split(":")[0] + ":" + str(int(enchantment["tags"][i].split(":")[1]) + int(enchantment["increase"][1:]))
-                    elif enchantment["increase"][0] == "-":
-                        enchantment["tags"][i] = enchantment["tags"][i].split(":")[0] + ":" + str(int(enchantment["tags"][i].split(":")[1]) - int(enchantment["increase"][1:]))
-                    elif enchantment["increase"][0] == "*":
-                        enchantment["tags"][i] = enchantment["tags"][i].split(":")[0] + ":" + str(int(enchantment["tags"][i].split(":")[1]) * float(value[1:]))
-            for effect in enchantment["effect"]:
-                for i in range(level - 1):
-                    if enchantment["increase"][0] == "+": effect["value"] += int(enchantment["increase"][1:])
-                    elif enchantment["increase"][0] == "-": effect["value"] -= int(enchantment["increase"][1:])
-                    elif enchantment["increase"][0] == "*": effect["value"] = round(float(value[1:]) * effect["value"])
+            if enchantment["increase"] != None:
+                for i in range(len(enchantment["tags"])):
+                    for j in range(level - 1):
+                        if enchantment["increase"][0] == "+":
+                            enchantment["tags"][i] = enchantment["tags"][i].split(":")[0] + ":" + str(int(enchantment["tags"][i].split(":")[1]) + int(enchantment["increase"][1:]))
+                        elif enchantment["increase"][0] == "-":
+                            enchantment["tags"][i] = enchantment["tags"][i].split(":")[0] + ":" + str(int(enchantment["tags"][i].split(":")[1]) - int(enchantment["increase"][1:]))
+                        elif enchantment["increase"][0] == "*":
+                            enchantment["tags"][i] = enchantment["tags"][i].split(":")[0] + ":" + str(int(enchantment["tags"][i].split(":")[1]) * float(value[1:]))
+                for effect in enchantment["effect"]:
+                    for i in range(level - 1):
+                        if enchantment["increase"][0] == "+": effect["value"] += int(enchantment["increase"][1:])
+                        elif enchantment["increase"][0] == "-": effect["value"] -= int(enchantment["increase"][1:])
+                        elif enchantment["increase"][0] == "*": effect["value"] = round(float(value[1:]) * effect["value"])
             
             return enchantment
         session = sqlite3.connect("data/data.db")
@@ -2375,6 +2444,28 @@ try:
                 modifiers.update({modifier["slot"]: [m["name"] for m in ms if m["slot"] == modifier["slot"] or m["slot"] == "all"]})
         session.close()
 
+        def newLootTable(name):
+            session = sqlite3.connect("data/data.db")
+            session.row_factory = dictFactory
+            cur = session.cursor()
+            lootTable = cur.execute('select * from lootTables where name = "' + name + '"').fetchone()
+            session.close()
+            if not lootTable:
+                print(" Error trying to load loot table '" + name + "'.")
+                print(" Enemy doesn't exist.")
+                pressEnter()
+                return lootTable
+            jsonLoads = ["drops", "tags"]
+            for load in jsonLoads:
+                try:
+                    if lootTable[load]: lootTable[load] = json.loads(lootTable[load])
+                except Exception as err:
+                    print(" Error trying to load loot table '" + name + "'.")
+                    print(" Passed value: '" + enemy[load] + "'.")
+                    printError()
+                    pressEnter()
+            return lootTable
+
         def newItem(name, modifier=False):
             session = sqlite3.connect("data/data.db")
             session.row_factory = dictFactory
@@ -2406,7 +2497,7 @@ try:
             item["base effect"] = copy.deepcopy(item["effect"])
             item["base tags"] = copy.deepcopy(item["tags"])
             item["base value"] = item["value"]
-            return item
+            return updateEquipment(item) if item["type"] == "equipment" else item
         session = sqlite3.connect("data/data.db")
         session.row_factory = dictFactory
         items = {item["name"]: newItem(item["name"]) for item in session.cursor().execute("select * from items").fetchall()}
@@ -2423,15 +2514,16 @@ try:
                 print(" Enemy doesn't exist.")
                 pressEnter()
                 return enemy
-            jsonLoads = ["stats", "level", "items", "tags"]
+            jsonLoads = ["stats", "level", "tags"]
             for load in jsonLoads:
                 try:
                     if enemy[load]: enemy[load] = json.loads(enemy[load])
                 except Exception as err:
-                    print(" Error trying to load enemy '" + enemy["name"] + "'.")
+                    print(" Error trying to load enemy '" + name + "'.")
                     print(" Passed value: '" + enemy[load] + "'.")
                     printError()
                     pressEnter()
+            enemy.update({"items": newLootTable(enemy["name"])})
             return Enemy(enemy)
         
         session = sqlite3.connect("data/data.db")
@@ -2458,8 +2550,8 @@ try:
         
         with open("data/settings.json", "r+") as settingsFile:
             settings = json.load(settingsFile)
-        
-        if settings["fullscreen"]: fullscreen()
+        color = settings["color"]
+        tooltips = settings["tooltips"]
         
         player = Player({"weapon":newItem("Tarnished Sword"),"tome":"","head":"","chest":newItem("Patched Shirt"),"legs":newItem("Patched Jeans"),"feet":"","accessory":""}, quests["main"])
         s_mainMenu()

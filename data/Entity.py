@@ -101,7 +101,7 @@ class Entity():
         for i in range(len(tags)):
             tag = tags[i].split(":")
             if tag[0] in ("noMiss", "hit"): attackerStats["hit"] = 100
-            elif tag[0] in ("noDodge", "hit"): attackerStats["dodge"] = 1
+            elif tag[0] in ("noDodge", "hit"): attackerStats["dodge"] = 0
             elif tag[0] in ("pierce"):
                 try: attackerStats["pierce"] = 1 / int(tag[1])
                 except: attackerStats["pierce"] = 0

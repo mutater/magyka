@@ -5,6 +5,8 @@ system = platform.system()
 release = platform.release()
 
 ansi = (system == "Windows" and release in ("8", "8.1", "10")) or system == "Linux"
+color = True
+tooltips = True
 
 clearCommand = "cls" if system == "Windows" else "clear"
 
@@ -21,11 +23,11 @@ slotList = [
 
 def c(color, back = False):
     ansiCode = "\x1b[48;5;" if back else "\x1b[38;5;"
-    return f'{ansiCode}{colors[color]}m' if ansi else ""
+    return f'{ansiCode}{colors[color]}m' if ansi and color else ""
 
 def cc(color, back = False):
     ansiCode = "\x1b[48;5;" if back else "\x1b[38;5;"
-    return f'{ansiCode}{color}m' if ansi else ""
+    return f'{ansiCode}{color}m' if ansi and color else ""
 
 def setCursorVisible(visible):
     if ansi:
