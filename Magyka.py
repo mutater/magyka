@@ -883,12 +883,15 @@ def drawBar(max, value, color, length):
     elif settings["bar style"] == "bars": char, backChar, background = " ", " ", True
     elif settings["bar style"] == "regular": char, backChar, background = "■", "■", True
     
-    text = char*round((value/max)*length) + backChar*(length - round((value/max)*length))
-    
+    if value < 0: value = 0
+    fullLength = round(value/max*length)
+    print(value, max, length)
+    print(fullLength)
+    text = char*fullLength + backChar*(length - fullLength)
     backColor = c("dark " + color, True) if background else ""
     backGray = c("dark gray", True) if background else ""
     
-    if round(value/max*length) > 0: text = c(color) + backColor + text[:round((value/max)*length)] + c("gray") + backGray + text[round((value/max)*length):] + reset
+    if fullLength > 0: text = c(color) + backColor + text[:fullLength] + c("gray") + backGray + text[fullLength:] + reset
     else: text = c("gray") + backGray + text + reset
     return text
 
@@ -1391,8 +1394,6 @@ def s_battle(enemy):
         text += tempText
         playerDamage += tempDamage
         clear()
-        print("beep")
-        print(text)
         displayBattleStats(player, enemy, playerDamage=playerDamage, enemyDamage=enemyDamage)
         for line in text:
             printLine = evalText(line).center(os.get_terminal_size()[0] + evalText(line).count("\x1b[3") * 9 + line.count("{reset}") * 3)
@@ -1472,7 +1473,7 @@ def s_victory(enemy, itemLog):
     gold = math.ceil(random.randint(math.ceil(enemy.gold*0.9), math.ceil(enemy.gold*1.1)) * lootMultiplier)
     items = []
     if enemy.items != None:
-        items = openLoot(enemy.items)
+        items = openLootTable(enemy.items)
 
     for item in items:
         player.addItem(item[0], item[1])
