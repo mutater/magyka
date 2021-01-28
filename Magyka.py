@@ -1,12 +1,13 @@
 # TODO
 # Add dungeons as locations
 # Add tavern giving randomly generated quests
-# Add randomly generated loot, quests, and events to search
-# Add different types of camp locations, e.g. one without a town but a ferry
-# Add support for sub maps
-# Add json file for world to sub, vice versa, and sub to sub teleportation
 # Remove controlled saving. Saving should be done by an id assigned to each character when created. Saving should happen whenever the player enters camp, modifies an item, crafts an item, or defeats an enemy.
 # Fix lifesteal to be a chance of occurence, not 100% of the time
+# Add tags to enemies and bonus damages such as undead, elements, etc
+# Battles happen on locations on the worldmap like quickbattles, dungeons, or one time events
+# Create a symbol for towns, events, enemies, and dungeons
+# Events can rarely happen while walking around the map
+# Add an optional legend on the map screen
 
 
 
@@ -357,7 +358,7 @@ def command(input = False, mode="alphabetic", back=True, silent=False, lower=Tru
 
     if not input:
         if horizontal: print("\n" + helpText.center(os.get_terminal_size()[0]))
-        else: print("\n  " + helpText)
+        elif helpText: print("\n  " + helpText)
 
 
     # Input handling
@@ -483,11 +484,11 @@ def devCommand(a):
         s_battle(newEnemy(a1[1]))
     elif a == "s":
         player.name = "Vincent"
-        s_camp()
+        s_map()
     elif a == "d":
         player.gold = 999999999
         player.name = "Dev"
-        s_camp()
+        s_map()
     elif a == "restart":
         clear()
         os.execv(sys.executable, ['python'] + sys.argv)
@@ -997,7 +998,7 @@ def s_newGame():
         write(evalText(text[0]), 0)
 
     write(evalText(text[1]), textSpeed)
-    s_camp()
+    s_map()
 
 
 def s_continue():
@@ -1019,7 +1020,7 @@ def s_continue():
 
         if option in tuple(map(str, range(0, len(saves)+ (page-1) * 10 + 1))):
             player = saves[int(option) + (page-1) * 10][0]
-            s_camp()
+            s_map()
         elif option in ("B"): break
         if returnTo(): break
 
@@ -1091,11 +1092,11 @@ def s_camp():
         displayPlayerStats()
         print(openEvalText("data//text//screens//camp.txt"))
         
-        options(["Explore", "Town", "Character", "Options", "Save", "Quit"])
-        option = command(back=False, options="etcosq")
+        options(["Map", "Explore", "Character", "Options", "Save", "Quit"])
+        option = command(back=False, options="mecosq")
 
-        if option == "e": s_explore()
-        elif option == "t": s_town()
+        if option == "m": s_map()
+        elif option == "e": s_explore()
         elif option == "c": s_character()
         elif option == "o": s_options()
         elif option == "s": s_save()
@@ -1126,7 +1127,7 @@ def s_explore():
         previous = page != 1
 
         options(["Search", "Map"] + (["Next"] if next else []) + (["Previous"] if previous else []))
-        option = command(False, "optionumeric", options="sm" + ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(locations))))))
+        option = command(False, "optionumeric", options="s" + ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(locations))))))
 
         if option in tuple(map(str, range(0, len(locations) + (page-1) * 10 + 1))) + tuple(["s"]):
             areaEnemies = loadEncounter(player.location, "hunt" if option == "s" else locations[int(option) + (page-1) * 10])
@@ -1184,25 +1185,48 @@ def s_explore():
                     print(f'\n You quiety slip away from {enemy.name} [Lvl {enemy.level}].')
                     pressEnter()
                     break
-        elif option == "m": s_map()
         elif option == "B": break
         if returnTo(): break
 
 
 def s_map():
+    mapName = "world map"
     while 1:
         clear()
-        header("World Map")
-        mapWidth = min(os.get_terminal_size()[0] - 2, 75) // 2
-        mapHeight = min(os.get_terminal_size()[1] - 14, 25) // 2
+        header(mapName.title())
         
-        for i in range(player.y - mapHeight, player.y + mapHeight):
+        if mapName == "World Map": mapTiles = worldMap
+        else:
+            with open("map/" + mapName + ".txt") as mapFile:
+                mapTiles = mapFile.readlines()
+            mapTiles = [line.strip() for line in mapTiles]
+        
+        mapWidth = min(os.get_terminal_size()[0] - 2, 75)
+        mapHeight = min(os.get_terminal_size()[1] - 14, 25)
+        
+        if len(mapTiles[0]) < mapWidth: mapWidth = len(mapTiles[0]) * 2 - 1
+        if len(mapTiles) < mapHeight: mapHeight = len(mapTiles) * 2 - 1
+        
+        with open("map/portals.json") as portalFile:
+            mapPortals = json.load(portalFile)
+                
+        top = player.y - mapHeight // 2
+        bottom = player.y + mapHeight // 2
+        left = player.x - mapWidth // 2
+        right = player.x + mapWidth // 2
+        
+        if top < 0: top = 0
+        if bottom > len(mapTiles): bottom = len(mapTiles)
+        if left < 0: left = 0
+        if right > len(mapTiles[0]): right = len(mapTiles[0])
+        
+        for i in range(top, bottom):
             print(" ", end="")
-            for j in range(player.x - mapWidth, player.x + mapWidth):
+            for j in range(left, right):
                 if i == player.y and j == player.x:
                     print("*", end="")
                     continue
-                tile = worldMap[i][j]
+                tile = mapTiles[i][j]
                 color = ""
                 if tile == "=": color = c("green")
                 elif tile == "M": color = c("dark green")
@@ -1215,19 +1239,32 @@ def s_map():
                 elif tile == "#": color = c("brown")
                 elif tile == "$": color = c("white")
                 elif tile == "+": color = c("gray")
-                print(color, worldMap[i][j], reset, sep="", end="")
+                print(color, mapTiles[i][j], reset, sep="", end="")
             print("")
         
-        options(["W (up)", "A (left)", "S (down)", "D (right)"])
-        option = command(False, "alphabetic", options="wasd")
+        portal = False
+        for p in mapPortals[mapName]:
+            if p[0] == player.x and p[1] == player.y: portal = p
+        
+        print("\n Use WASD to move.")
+        options(["Camp"] + (["Enter"] if portal else []))
+        option = command(False, "alphabetic", options="wasdc" + ("e" if portal else ""), back = False)
         
         impassable = ["#", "M", "8", "<", "~", "."]
         
-        if option == "w" and worldMap[player.y-1][player.x] not in impassable: player.y -= 1
-        elif option == "a" and worldMap[player.y][player.x-1] not in impassable: player.x -= 1
-        elif option == "s" and worldMap[player.y+1][player.x] not in impassable: player.y += 1
-        elif option == "d" and worldMap[player.y][player.x+1] not in impassable: player.x += 1
-        elif option == "B": break
+        if option == "w" and mapTiles[player.y-1][player.x] not in impassable: player.y -= 1
+        elif option == "a" and mapTiles[player.y][player.x-1] not in impassable: player.x -= 1
+        elif option == "s" and mapTiles[player.y+1][player.x] not in impassable: player.y += 1
+        elif option == "d" and mapTiles[player.y][player.x+1] not in impassable: player.x += 1
+        elif option == "e":
+            if portal[2] == "map":
+                mapName = portal[3]
+                player.x = portal[4]
+                player.y = portal[5]
+            elif portal[2] == "town":
+                player.location = "fordsville"
+                s_town()
+        elif option == "c": s_camp()
         if returnTo(): return
 
 
@@ -2317,7 +2354,7 @@ try:
             orig_settings = termios.tcgetattr(sys.stdin)
             tty.setcbreak(sys.stdin)
         
-        with open("map.txt") as mapFile:
+        with open("map/world map.txt") as mapFile:
             worldMap = mapFile.readlines()
         worldMap = [line.strip() for line in worldMap]
         

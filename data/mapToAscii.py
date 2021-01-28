@@ -21,7 +21,7 @@ def displayImage():
         "285cc4": ".", # SHORE OCEAN
     }
 
-    image = Image.open("map.png").convert('RGB')
+    image = Image.open("Map.png").convert('RGB')
     W, H = image.size[0], image.size[1]
     aimg = []
     
@@ -33,7 +33,7 @@ def displayImage():
             if hex in colors: aimg[j] += colors[hex]
             else: aimg[j] += " "
 
-    with open("map.txt", "r+") as mapFile:
+    with open("map/world map.txt", "r+") as mapFile:
         mapFile.truncate(0)
         for line in aimg:
             mapFile.write(line + "\n")

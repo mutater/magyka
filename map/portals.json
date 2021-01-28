@@ -1,0 +1,10 @@
+{
+  "world map": [
+    [799, 690, "town", "fordsville"],
+    [799, 691, "town", "fordsville"],
+    [800, 690, "town", "fordsville"],
+    [800, 691, "town", "fordsville"],
+    [742, 567, "map", "world map", 742, 547],
+    [742, 547, "map", "world map", 742, 567]
+  ]
+}
