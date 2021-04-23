@@ -1,20 +1,18 @@
 {
-  "fordsville": {
-    "hunt": [
-      [100, "Moss Gnome"],
-      [75, "Wood Bat"],
-      [100, "Green Slime"],
-      [100, "Lesser Forest Spirit"],
-      [75, "Crazed Man"],
-      [100, "Gray Wolf"],
-      [75, "Crazed Magician"],
-      [100, "Tree Man"],
-      [75, "Bandit"]
-    ],
-    "slime garden": [
-      [100, "Green Slime"],
-      [100, "Blue Slime"],
-      [100, "Red Slime"]
-    ]
-  }
+  "fordsville": [
+    [100, "Moss Gnome"],
+    [75, "Wood Bat"],
+    [100, "Green Slime"],
+    [100, "Lesser Forest Spirit"],
+    [75, "Crazed Man"],
+    [100, "Gray Wolf"],
+    [75, "Crazed Magician"],
+    [100, "Tree Man"],
+    [75, "Bandit"]
+  ],
+  "slime garden": [
+    [100, "Green Slime"],
+    [100, "Blue Slime"],
+    [100, "Red Slime"]
+  ]
 }

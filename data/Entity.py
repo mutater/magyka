@@ -259,11 +259,11 @@ class Player(Entity):
         super().__init__("", 7, 10, 1, [])
         self.__xp, self.mxp, self.gold = 0, 10, 0
         self.levelsGained = 0
+        self.saveId = 0
         
         self.location = "fordsville"
         self.x = 799
         self.y = 690
-        self.locations = {"fordsville": []}
         self.quests = []
         self.mainQuests = mainQuests
         for quest in mainQuests:

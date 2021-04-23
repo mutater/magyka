@@ -2,43 +2,32 @@ from .Globals import *
 
 class Item():
     def __init__(self, kwargs):
-        self.name = kwargs["name"]
-        self.description = kwargs["description"]
-        self.rarity = kwargs["rarity"]
-        self.value = kwargs["value"]
-        self.type = "item"
+        for key, value in kwargs:
+            setattr(self, key, value)
+    
+    def getValues(self):
+        vars = [attr for attr in dir(self) if not callable(getattr(self, attr)) and not attr.startswith("__")]
 
-class Equipment():
+class Useable(Item):
     def __init__(self, kwargs):
-        self.name = kwargs["name"]
-        self.description = kwargs["description"]
-        self.rarity = kwargs["rarity"]
-        self.value = kwargs["value"]
-        self.slot = kwargs["slot"]
+        super().__init__(kwargs)
         self.effect = kwargs["effect"] if type(kwargs["effect"]) is list else [kwargs["effect"]]
+        self.tags = kwargs["tags"]
+
+class Equipment(Useable):
+    def __init__(self, kwargs):
+        super().__init__(kwargs)
+        self.slot = kwargs["slot"]
         self.enchantment = kwargs["enchantment"]
         self.modifier = kwargs["modifier"]
         self.mana = kwargs["mana"]
         self.attackName = kwargs["attackName"]
-        self.attackSound = kwargs["attackSound"]
         self.type = "equipment"
 
-class Consumable():
+class Consumable(Useable):
     def __init__(self, kwargs):
-        self.name = kwargs["name"]
-        self.description = kwargs["description"]
-        self.rarity = kwargs["rarity"]
-        self.value = kwargs["value"]
-        self.effect = kwargs["effect"] if type(kwargs["effect"]) is list else [kwargs["effect"]]
-        self.target = kwargs["target"]
-        self.useSound = kwargs["useSound"]
+        super().__init__(kwargs)
         self.useVerb = kwargs["useVerb"]
-        for effect in self.effect:
-            if effect.name in ("recover", "refill", "restore") and self.target == "":
-                self.target = "self"
-                break
-            if effect.name in ("damage", "drain", "destroy") and self.target == "":
-                self.target = "enemy"
-                break
+        self.target = kwargs["target"]
         self.type = "consumable"
 

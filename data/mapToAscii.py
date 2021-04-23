@@ -19,6 +19,9 @@ def displayImage():
         "0d397b": "<", # OCEAN
         "154895": "~", # SHALLOW OCEAN
         "285cc4": ".", # SHORE OCEAN
+        # - INTERACTABLE - #
+        "b4202a": "T", # TOWN
+        "9f9f9f": "o", # ENEMY
     }
 
     image = Image.open("Map.png").convert('RGB')
@@ -39,5 +42,3 @@ def displayImage():
             mapFile.write(line + "\n")
     
     return aimg
-
-displayImage()

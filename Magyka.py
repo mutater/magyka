@@ -1,13 +1,17 @@
 # TODO
+# IMPORTANT
+# Change items back to classes
+# Move item functions into item classes
+# UNIMPORTANT
 # Add dungeons as locations
 # Add tavern giving randomly generated quests
-# Remove controlled saving. Saving should be done by an id assigned to each character when created. Saving should happen whenever the player enters camp, modifies an item, crafts an item, or defeats an enemy.
 # Fix lifesteal to be a chance of occurence, not 100% of the time
 # Add tags to enemies and bonus damages such as undead, elements, etc
 # Battles happen on locations on the worldmap like quickbattles, dungeons, or one time events
 # Create a symbol for towns, events, enemies, and dungeons
 # Events can rarely happen while walking around the map
 # Add an optional legend on the map screen
+# Function to convert the world enemy map to text, and add hunting to the world map
 
 
 
@@ -265,11 +269,18 @@ def exitGame():
     sys.exit()
 
 
+def saveGame():
+    pickle.dump(player, open("data/saves/" + str(player.saveId).rjust(3, "0"), "wb+"))
+
 # Formatting
 
 def openText(path):
     # Open file as string
-    return open(path, "r").read()
+    try:
+        string = open(path, "r").read()
+    except:
+        string = "\n FILE NOT FOUND (" + path + ")"
+    return string
 
 
 def evalText(text):
@@ -886,8 +897,6 @@ def drawBar(max, value, color, length):
     
     if value < 0: value = 0
     fullLength = round(value/max*length)
-    print(value, max, length)
-    print(fullLength)
     text = char*fullLength + backChar*(length - fullLength)
     backColor = c("dark " + color, True) if background else ""
     backGray = c("dark gray", True) if background else ""
@@ -1089,20 +1098,19 @@ def s_help():
 # Camp
 
 def s_camp():
+    saveGame()
     while 1:
         clear()
         header("Camp")
         displayPlayerStats()
         print(openEvalText("data//text//screens//camp.txt"))
         
-        options(["Map", "Explore", "Character", "Options", "Save", "Quit"])
-        option = command(back=False, options="mecosq")
+        options(["Map", "Character", "Options", "Quit"])
+        option = command(back=False, options="mcoq")
 
         if option == "m": s_map()
-        elif option == "e": s_explore()
         elif option == "c": s_character()
         elif option == "o": s_options()
-        elif option == "s": s_save()
         elif option == "q": s_quit()
         if returnTo(): break
 
@@ -1110,30 +1118,18 @@ def s_camp():
 # Explore
 
 def s_explore():
-    page = 1
     while 1:
         clear()
 
-        header("Explore")
+        header(player.location.title())
         displayPlayerStats()
         print(openEvalText(f'data//text//screens//{player.location} explore.txt'))
-        print("\n Discovered Locations:\n")
-        locations = player.locations[player.location]
-        
-        for i in range(-10 + 10*page, 10*page if 10*page < len(locations) else len(locations)):
-            print(f' {str(i)[:-1]}({str(i)[-1]}) {string.capwords(locations[i])}')
 
-        if len(locations) == 0:
-            print(" " + c("dark gray") + "- No Locations Discovered -" + reset)
+        options(["Hunt"])
+        option = command(False, "optionumeric", options="h")
 
-        next = len(locations) > page*10 + 1
-        previous = page != 1
-
-        options(["Search", "Map"] + (["Next"] if next else []) + (["Previous"] if previous else []))
-        option = command(False, "optionumeric", options="s" + ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(locations))))))
-
-        if option in tuple(map(str, range(0, len(locations) + (page-1) * 10 + 1))) + tuple(["s"]):
-            areaEnemies = loadEncounter(player.location, "hunt" if option == "s" else locations[int(option) + (page-1) * 10])
+        if option == "h":
+            areaEnemies = loadEncounter(player.location)
                 
             weight = 0
             level = random.randint(1, 3)
@@ -1193,7 +1189,18 @@ def s_explore():
 
 
 def s_map():
+    if player.saveId == 0:
+        saveIds = []
+        for i in range(len(saves)):
+            saveIds.append(int(saves[i][1]))
+        
+        for i in range(1, 1000):
+            if i not in saveIds:
+                player.saveId = i
+                break
+    
     mapName = "world map"
+    saveGame()
     while 1:
         clear()
         header(mapName.title())
@@ -1242,16 +1249,21 @@ def s_map():
                 elif tile == "#": color = c("brown")
                 elif tile == "$": color = c("white")
                 elif tile == "+": color = c("gray")
+                elif tile == "T": color = c("red")
+                elif tile == "o": color = c("red")
                 print(color, mapTiles[i][j], reset, sep="", end="")
             print("")
+        
+        camp = False
+        if mapTiles[player.y][player.x] in ("=", ";", "-", ">", "$"): camp = True
         
         portal = False
         for p in mapPortals[mapName]:
             if p[0] == player.x and p[1] == player.y: portal = p
         
         print("\n Use WASD to move.")
-        options(["Camp"] + (["Enter"] if portal else []))
-        option = command(False, "alphabetic", options="wasdc" + ("e" if portal else ""), back = False)
+        options((["Camp", "Hunt"] if camp else []) + (["Enter"] if portal else []))
+        option = command(False, "alphabetic", options="wasd" + ("ch" if camp else "") + ("e" if portal else ""), back = False)
         
         impassable = ["#", "M", "8", "<", "~", "."]
         
@@ -1265,8 +1277,13 @@ def s_map():
                 player.x = portal[4]
                 player.y = portal[5]
             elif portal[2] == "town":
-                player.location = "fordsville"
+                player.location = portal[3]
                 s_town()
+            elif portal[2] == "location":
+                player.location = portal[3]
+                s_explore()
+        elif option == "h":
+            
         elif option == "c": s_camp()
         if returnTo(): return
 
@@ -1301,6 +1318,7 @@ def s_battle(enemy):
     itemLog = []
     if type(enemy.level) is list: enemy.level = enemy.level[0]
 
+    saveGame()
     while 1:
         player.guard = ""
         text = [""]
@@ -1534,6 +1552,7 @@ def s_victory(enemy, itemLog):
             print(f'  - Completed {displayItem(quest["name"], quest["rarity"])}')
         player.completedQuests = []
     
+    saveGame()
     pressEnter()
     if player.levelsGained > 0: s_levelUp()
 
@@ -1558,6 +1577,7 @@ def s_defeat(enemy, itemLog):
     player.addPassive(newPassive("Charon's Curse"))
     player.hp = player.stats["max hp"]
     player.mp = player.stats["max mp"]//3
+    saveGame()
     pressEnter()
 
 
@@ -1762,6 +1782,7 @@ def s_purchase(item):
             player.addItem(item, int(option))
             player.gold -= item["value"] * int(option)
             print(f'\n {displayItem(item["name"], item["rarity"], int(option))} added to your inventory.')
+            saveGame()
             pressEnter()
             break
         else:
@@ -1946,6 +1967,7 @@ def s_inspect(item, equipped):
             options(["Discard"])
             option = command(False, "alphabetic", options="d")
 
+        saveGame()
         if option == "u" and item["type"] == "equipment":
             player.unequip(item["slot"])
             break
@@ -2117,6 +2139,7 @@ def s_craft(recipe):
                 player.removeItem(newItem(i[0]), i[1] * int(option))
             player.addItem(item, recipe["quantity"] * int(option))
             print(f'\n Crafted {displayItem(item["name"], item["rarity"], (int(option) * recipe["quantity"] if item["type"] in stackableItems else 0))}!')
+            saveGame()
             pressEnter()
             break
         else:
@@ -2230,107 +2253,18 @@ def s_stats():
 
 # Save and quit
 
-def s_save():
-    global saves
-    page = 1
-    while 1:
-        clear()
-        header("Save")
-
-        for i in range(-10 + 10*page, 10*page if 10*page < len(saves) else len(saves)):
-            print(f' {i}) {saves[i][1]} | {saves[i][0].name} [Lvl {saves[i][0].level}]')
-
-        if len(saves) == 0:
-            print(" " + c("dark gray") + "- Empty -" + reset)
-
-        next = len(saves) > page*10 + 1
-        previous = page != 1
-
-        options((["Next"] if next else []) + (["Previous"] if previous else []) + ["Create", "Delete"])
-        option = command(False, "optionumeric", options = "cd" + ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(saves))))))
-
-        if option in tuple(map(str, range(0, len(saves)))):
-            pickle.dump(player, open("data/saves/" + saves[int(option) + (page-1) * 10][1], "wb"))
-            saves = [[pickle.load(open("data/saves/" + file, "rb")), file] for file in os.listdir("data/saves") if not file.endswith(".txt")]
-            print("\n File saved successfully!")
-            pressEnter()
-            break
-        elif option == "c": s_create()
-        elif option == "d": s_delete()
-        elif option == "n" and next: page += 1
-        elif option == "p" and previous: page -= 1
-        elif option == "B": break
-        if returnTo(): break
-
-
-def s_create():
-    global saves
-    while 1:
-        clear()
-        header("New Save")
-        print("\n Saves must contain only characters alphanumeric characters and spaces.")
-        print(" Saves must be 2+ characters long")
-        print("\n Current Saves:")
-
-        for save in saves:
-            print(f' - {save[1]} | {save[0].name} [Lvl {save[0].level}]')
-
-        print("\n Please type the new file name.")
-        option = command(True, "alphanumeric")
-
-        if option == "B": break
-        elif option == "D": pass
-        elif not re.match("[\w\s]", option) or len(option) < 2:
-            print("\n Your name cannot be \"" + option + "\".")
-            pressEnter()
-        else:
-            pickle.dump(player, open("data/saves/" + option.capitalize(), "wb"))
-            saves = [[pickle.load(open("data/saves/" + file, "rb")), file] for file in os.listdir("data/saves") if not file.endswith(".txt")]
-            print("\n File saved successfully!")
-            pressEnter()
-            break
-        if returnTo(): break
-
-
-def s_delete():
-    global saves
-    page = 1
-    while 1:
-        clear()
-        header("Delete")
-
-        for i in range(-10 + 10*page, 10*page if 10*page < len(saves) else len(saves)):
-            print(f' {i}) {saves[i][1]} | {saves[i][0].name} [Lvl {saves[i][0].level}]')
-
-        if len(saves) == 0:
-            print(" " + c("dark gray") + "- Empty -" + reset)
-
-        next = len(saves) > page*10 + 1
-        previous = page != 1
-
-        options((["Next"] if next else []) + (["Previous"] if previous else []))
-        option = command(False, "optionumeric", options = ("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(saves))))))
-
-        if option == "B": break
-        elif option in tuple(map(str, range(0, len(saves) - (page-1) * 10 + 1))):
-            os.remove("data/saves/" + saves[int(option) + (page-1) * 10][1])
-            saves = [[pickle.load(open("data/saves/" + file, "rb")), file] for file in os.listdir("data/saves") if not file.endswith(".txt")]
-            print("\n File deleted successfully!")
-            pressEnter()
-            break
-        if returnTo(): break
-
-
 def s_quit():
     while 1:
         clear()
         header("Quit")
-        print("\n Are you sure you want to quit without saving?")
+        print("\n Are you sure you want to quit?")
 
         options(["Yes"])
         option = command(options = "y")
 
-        if option == "y": exitGame()
+        if option == "y":
+            saveGame()
+            exitGame()
         elif option == "B": return
         if returnTo(): break
 
@@ -2345,7 +2279,6 @@ def s_quit():
 #      88,     888b "88bo,   ,8P"`       "Yo,oP   888oo,__    oP"``"Yo,  `88bo,__,o,  888oo,__    888o          88,    
 #      MMM     MMMM   "W"   mM"             "M,   """"YUMMM,m"       "Mm,  "YUMMMMMP" """"YUMMM   YMMMb         MMM    
 
-
 try:
     if __name__ == "__main__":
         random.seed()
@@ -2359,7 +2292,8 @@ try:
             worldMap = mapFile.readlines()
         worldMap = [line.strip() for line in worldMap]
         
-        saves = [[pickle.load(open("data/saves/" + file, "rb")), file] for file in os.listdir("data/saves") if not file.endswith(".txt")]
+        try: saves = [[pickle.load(open("data/saves/" + file, "rb")), file] for file in os.listdir("data/saves") if not file.endswith(".txt")]
+        except: saves = []
 
         def newPassive(name):
             session = sqlite3.connect("data/data.db")
@@ -2574,8 +2508,8 @@ try:
         def loadStore(location, storeType):
             return stores[location][storeType]
         
-        def loadEncounter(location, area):
-            return [[enemy[0]*2, newEnemy(enemy[1])] for enemy in encounters[location][area]]
+        def loadEncounter(location):
+            return [[enemy[0]*2, newEnemy(enemy[1])] for enemy in encounters[location]]
     
         with open("data/encounters.json", "r") as encounterFile:
             encounters = json.load(encounterFile)
