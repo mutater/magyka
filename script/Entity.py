@@ -1,18 +1,14 @@
-import random
-import math, copy
-from .Globals import *
+import script.Globals as Globals
+import random, math, copy
 
 def ifNone(value, backup):
     if not value == None: return value
     else: return backup
 
-def ifIn(key, container, backup):
-    if key in container: return container[key]
-    else: return backup
-
-class Entity():
+class Entity:
     def __init__(self, name, hp, mp, level, statValues):
-        self.name, self.__hp, self.__mp, self.level = name, hp, mp, level
+        self.name, self.hp, self.mp, self.level = name, hp, mp, level
+        
         self.__stats = {
             "attack": [1, 1],
             "armor": 0,
@@ -25,46 +21,35 @@ class Entity():
             "max hp": hp,
             "max mp": mp
         }
-        self.__stats.update(dict((stat, statValues[stat]) for stat in self.__stats if stat in statValues))
+        self.__stats.update({(stat, statValues[stat]) for stat in self.__stats if stat in statValues})
         self.baseStats = self.__stats.copy()
         self.statChanges = dict((stat, [[0, 0], [0, 0], 0]) for stat in self.__stats)
 
         self.equipment = {"": ""}
         self.passives = []
         self.guard = ""
-
-    def getHp(self):
-        return self.__hp
     
-    def setHp(self, hp):
-        if hp >= 0: self.__hp = hp
-        else: self.__hp = 0
     
-    hp = property(getHp, setHp)
-    
-    def getMp(self):
-        return self.__mp
-    
-    def setMp(self, mp):
-        if mp >= 0: self.__mp = mp
-        else: self.__mp = 0
-
-    mp = property(getMp, setMp)
-
     def getStats(self):
         return copy.deepcopy(self.__stats)
     
     stats = property(getStats)
-
+    
+    
     def updateStats(self):
-        bufferhp, buffermp = self.__hp - self.__stats["max hp"], self.__mp - self.__stats["max mp"]
-        oldMaxHp, oldMaxMp = self.stats["max hp"], self.stats["max mp"]
+        bufferhp = self.hp - self.stats["max hp"]
+        buffermp = self.mp - self.stats["max mp"]
+        oldMaxHp = self.stats["max hp"]
+        oldMaxMp = self.stats["max mp"]
         effects = []
         self.statChanges = {statName: [[0, 0], [0, 0], -1] for statName in self.__stats}
+        
+        if self.equipment["weapon"] == "": self.__stats["attack"] = [1, 1]
+        
         for slot in self.equipment:
             if self.equipment[slot] == "":
-                if slot == "weapon": self.__stats["attack"] = [1, 1]
                 continue
+            
             effects += self.equipment[slot]["effect"]
             if slot == "weapon":
                 for effect in self.equipment["weapon"]["effect"]:
@@ -98,6 +83,7 @@ class Entity():
         hpAmount = 0
         attackerStats["pierce"] = 1
         attackerStats["variance"] = 20
+        
         for i in range(len(tags)):
             tag = tags[i].split(":")
             if tag[0] in ("noMiss", "hit"): attackerStats["hit"] = 100
