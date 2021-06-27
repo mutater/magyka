@@ -1,5 +1,5 @@
 import script.Globals as Globals
-import os, sys, time
+import os, sys
 
 class Text:
     def __init__(self):
@@ -30,6 +30,10 @@ class Text:
             "brown": "094",
             "option": "231"
         }
+        
+        for color in self.colors:
+            setattr(self, color, self.c(color))
+        
         self.reset = "\x1b[0m" if Globals.ansiEnabled else ""
         
         self.clearCommand = "cls" if Globals.system == "Windows" else "clear"
@@ -112,53 +116,5 @@ class Text:
             return numberToNumeral[number]
         except:
             return str(number)
-    
-    
-    # - Printing - #
-    
-    def header(self, text):
-        print("\n -= " + text + " =-")
-    
-    
-    def options(self, names):
-        if len(names) > 0: print("")
-        
-        for i in range(len(names)):
-            print(f' {self.c("option") + self.c("dark gray", True)}[{names[i][11 if ";" in names[i] else 0]}]{self.reset} {names[i]}')
-            if i < len(names)-1:
-                print(f' {self.c("option") + self.c("dark gray", True)} |{self.reset}')
-        
-        print(self.reset, end="")
-    
-    
-    def write(self, text, speed):
-        i = 0
-        delay = speed
-        while i < len(text):
-            if text[i:i+2] == "0m":
-                print(self.reset, end="")
-                i += 1
-            elif text[i:i+5] == "38;5;":
-                print("\x1b[" + text[i:i+10], end="")
-                i += 9
-            elif text[i] == "#":
-                input.press_enter()
-                delay = speed
-            elif text[i] == "<":
-                clear()
-                delay = speed
-            else:
-                print(text[i], end="")
-            
-            time.sleep(delay)
-            
-            if input.get_key() == "enter":
-                delay = 0
-            
-            sys.stdout.flush()
-            i += 1
-        
-        print("\n")
-    
 
 text = Text()

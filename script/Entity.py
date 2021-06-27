@@ -1,4 +1,3 @@
-import script.Globals as Globals
 import random, math, copy
 
 def ifNone(value, backup):

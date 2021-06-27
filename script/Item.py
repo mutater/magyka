@@ -1,4 +1,3 @@
-import script.Globals as Globals
 import copy
 
 class Item():

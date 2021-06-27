@@ -2,6 +2,7 @@ from script.Control import control
 from script.Entity import Entity, Player, Enemy
 import script.Globals as Globals
 from script.Item import Item
+from script.Printing import printing
 from script.Screen import screen
 from script.Text import text
 import copy, json, math, os, pickle, random, re, sqlite3, string, sys, time, traceback
@@ -45,6 +46,13 @@ class Magyka:
             "feet": "",
             "accessory": ""
             }, self.quests["main"])
+        
+        self.nextScreen = "title_screen"
+        self.lastScreen = ""
+        self.returnScreen = ""
+        
+        while 1:
+            self.next_screen()
     
     
     def load_from_db(self, table, name):
@@ -116,19 +124,52 @@ class Magyka:
                     elif enchantment["increase"][0] == "*": effect["value"] = round(float(value[1:]) * effect["value"])
         
         return enchantment
-
+    
+    
+    def next_screen(self):
+        try:
+            screen = getattr(self, self.nextScreen)
+            self.lastScreen = self.nextScreen
+        except:
+            print(f'\n Error: screen "{self.nextScreen}" does not exist.')
+            self.nextScreen = self.lastScreen
+            control.press_enter()
+            return
+        
+        screen()
+    
+    
+    def back_screen(self):
+        self.nextScreen = self.returnScreen
+        self.returnScreen = ""
+    
+    
+    # - Screens - #
+    
+    def title_screen(self):
+        while 1:
+            text.clear()
+            
+            print("\n ", end="")
+            printing.write("Welcome to the world of...\n", speed=0.01)
+            
+            if os.get_terminal_size()[0] >= 103:
+                title = open("text/magyka title.txt", "r").read().split("\n")
+                for i in range(len(title)):
+                    print(text.c(["026", "012", "006", "039", "045", "019", "020", "021", "004", "027", "026", "012", "006", "039", "000", "039", "006", "012"][i], code=True) + title[i] + text.reset)
+            else:
+                ttitle = open("text/magyka title small.txt", "r").read().split("\n")
+                for i in range(len(title)):
+                    print(text.c(["026", "026", "006", "045", "018", "004", "026", "006", "000", "039"][i], code=True) + title[i] + text.reset)
+            
+            printing.options(["Test"])
+            
+            option = control.get_input("alphabetic", options="to")
+            
+            if option == "t":
+                self.nextScreen = "test"
+                self.returnScreen = "title_screen"
+                return
 
 if __name__ == "__main__":
     magyka = Magyka()
-    
-    item = magyka.load_from_db("items", "Wheat Biscuit")
-    
-    print(item)
-    
-    item = Item(item)
-    
-    print(item)
-    
-    print(item.effect)
-    
-    control.press_enter()

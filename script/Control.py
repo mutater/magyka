@@ -1,6 +1,6 @@
-import script.Globals as Globals
-from script.Text import text
 import os, re, sys, time
+from script.Text import text
+import script.Globals as Globals
 
 if Globals.system == "Windows": import win32gui, msvcrt
 else: import tty, termios, select
@@ -56,15 +56,18 @@ class Control:
     
     def press_enter(self):
         text.set_cursor_visible(False)
-        print(f'\n {text.c("option")}[Press Enter]{text.reset}')
+        print(f'\n {text.option}[Press Enter]{text.reset}')
         self.wait_for_key("enter")
         text.set_cursor_visible(True)
     
     
     def get_input(self, mode, textField=True, back=True, options="", prompt=""):
+        if options != "": textField = False
+        if mode == "none": textField = False
+        
         if textField:
-            if mode == "command": print(f'\n{c("option")} Console >| {reset}', end = "")
-            else: print(f'\n{c("option")} > {reset}', end = "")
+            if mode == "command": print(f'\n{text.option} Console >| {text.reset}', end = "")
+            else: print(f'\n{text.option} > {text.reset}', end = "")
             text.set_cursor_visible(True)
         else:
             if mode == "none": helpText = ""
@@ -72,10 +75,11 @@ class Control:
             elif mode == "numeric": helpText = "- Press a number"
             elif mode == "alphanumeric": helpText = "- Press a letter or number"
             
-            if back: helpText += ", or press ESC to go back."
+            if back and mode != "none": helpText += ", or press ESC to go back."
+            elif back and mode == "none": helpText += "Press ESC to go back."
             else: helpText += "."
         
-        print("\n " + helpText)
+            print("\n " + helpText)
         
         a = prompt
         loc = len(prompt)
@@ -165,13 +169,12 @@ class Control:
         text.set_cursor_visible(False)
         
         if a == "": return ""
-        if not mode == "command": return (str.lower(a).strip() if lower else a.strip())
+        if not mode == "command": return a.lower().strip()
         
         """
         # Running command from console input
         devCommand(a)
         return "D"
         """
-
 
 control = Control()
