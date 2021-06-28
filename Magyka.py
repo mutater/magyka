@@ -19,7 +19,6 @@ def dict_factory(cursor, row):
 class Magyka:
     def __init__(self):
         text.clear()
-        print("\n Loading...")
         
         with open("map/world map.txt") as mapFile:
             self.worldMap = mapFile.readlines()
@@ -162,9 +161,9 @@ class Magyka:
                 for i in range(len(title)):
                     print(text.c(["026", "026", "006", "045", "018", "004", "026", "006", "000", "039"][i], code=True) + title[i] + text.reset)
             
-            printing.options(["Test"])
+            printing.options(["New Game", "Continue", "Help", "Options"])
             
-            option = control.get_input("alphabetic", options="to")
+            option = control.get_input("alphabetic", options="ncho", back=False)
             
             if option == "t":
                 self.nextScreen = "test"
