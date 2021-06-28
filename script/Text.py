@@ -1,8 +1,11 @@
 import script.Globals as Globals
-import os, sys
+import os
+import sys
+
 
 class Text:
     def __init__(self):
+        self.color = True
         self.colors = {
             "black": "232",
             "dark gray": "236",
@@ -32,73 +35,65 @@ class Text:
         }
         
         for color in self.colors:
-            setattr(self, color, self.c(color))
+            setattr(self, color.replace(" ", ""), self.c(color))
         
         self.reset = "\x1b[0m" if Globals.ansiEnabled else ""
         
         self.clearCommand = "cls" if Globals.system == "Windows" else "clear"
     
-    
     # - Ansi - #
-    
     def c(self, color, back=False, code=False):
-        if Globals.ansiEnabled:
+        if Globals.ansiEnabled and self.color:
             ansi = "\x1b[48;5;" if back else "\x1b[38;5;"
             return f'{ansi}{color if code else self.colors[color]}m'
         else:
             return ""
     
-    
-    def set_cursor_visible(self, visible):
+    @staticmethod
+    def set_cursor_visible(visible):
         if Globals.ansiEnabled:
             print("\x1b[?25h" if visible else "\x1b[?25l", end="")
             sys.stdout.flush()
-    
-    
+
+    @staticmethod
     def resizeConsole(rows, cols):
         if Globals.ansiEnabled:
             print(f'\x1b[8;{cols};{rows}t')
-    
     
     def clear(self):
         os.system(self.clearCommand)
         self.set_cursor_visible(False)
     
-    
     # - Returning - #
-    
     def hp(self):
         return self.c("red") + "♥"
-    
     
     def mp(self):
         return self.c("blue") + "♦"
     
-    
     def xp(self):
         return self.c("green") + "•"
-    
     
     def gp(self):
         return self.c("yellow") + "●"
     
-    
-    def title(self, name, level):
+    @staticmethod
+    def title(name, level):
         return f'{name} [Lvl {level}]'
     
-    
     def bar(self, value, maximum, color, length=32, number=False):
-        if value < 0: value = 0
+        if value < 0:
+            value = 0
         filledLength = round(value / maximum * length)
         
         filledText = self.c(color) + "#" * filledLength
-        backText = self.c(gray) + "-" * length - filledLength
+        backText = self.gray + "-" * length - filledLength
         number = f' {value}/{maximum}' if number else ""
         
         return filledText + backText + self.reset + number
     
-    
-    def numeral(self, number):
+    @staticmethod
+    def numeral(number):
         numberToNumeral = {
             1: "I",
             2: "II",
@@ -112,9 +107,10 @@ class Text:
             10: "X"
         }
         
-        try:
+        if number in numberToNumeral:
             return numberToNumeral[number]
-        except:
+        else:
             return str(number)
+
 
 text = Text()

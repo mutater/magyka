@@ -1,4 +1,4 @@
-import platform, sys
+import platform
 
 system = platform.system()
 release = platform.release()

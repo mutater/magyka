@@ -3,21 +3,32 @@ from script.Entity import Entity, Player, Enemy
 import script.Globals as Globals
 from script.Item import Item
 from script.Printing import printing
-from script.Screen import screen
 from script.Text import text
-import copy, json, math, os, pickle, random, re, sqlite3, string, sys, time, traceback
+import copy
+import json
+import math
+import os
+import pickle
+import random
+import re
+import sqlite3
+import string
+import sys
+import time
+import traceback
 
 
 def dict_factory(cursor, row):
-        # Converts sqlite return value into a dictionary with column names as keys
-        d = {}
-        for i, col in enumerate(cursor.description):
-            d[col[0]] = row[i]
-        
-        return d
+    # Converts sqlite return value into a dictionary with column names as keys
+    d = {}
+    for i, col in enumerate(cursor.description):
+        d[col[0]] = row[i]
+
+    return d
+
 
 class Magyka:
-    def __init__(self):
+    def __init__(self, screen):
         text.clear()
         
         with open("map/world map.txt") as mapFile:
@@ -46,14 +57,19 @@ class Magyka:
             "accessory": ""
             }, self.quests["main"])
         
-        self.nextScreen = "title_screen"
-        self.lastScreen = ""
-        self.returnScreen = ""
+        self.screen = screen
         
         while 1:
-            self.next_screen()
-    
-    
+            self.update()
+            
+            try:
+                next_screen = getattr(self.screen, self.screen.nextScreen)
+                self.screen.lastScreen = self.screen.nextScreen
+            except AttributeError:
+                print(f'\n Error: screen "{self.screen.nextScreen}" does not exist.')
+                next_screen = getattr(self.screen, self.screen.lastScreen)
+            next_screen()
+
     def load_from_db(self, table, name):
         # Select item from DB
         session = sqlite3.connect("data/data.db")
@@ -69,84 +85,116 @@ class Magyka:
             return None
         
         # Load required JSON text
-        if table == "passives": jsonLoads = ["effect", "tags", "turns"]
-        elif table == "enchantments": jsonLoads = ["effect", "tags", "increase", "value"]
-        elif table == "modifiers": jsonLoads = ["effect", "tags"]
-        elif table == "lootTables": jsonLoads = ["drops", "tags"]
-        elif table == "items": jsonLoads = ["effect", "tags", "enchantments"]
-        elif table == "enemies": jsonLoads = ["stats", "level", "tags"]
+        if table == "passives":
+            jsonLoads = ["effect", "tags", "turns"]
+        elif table == "enchantments":
+            jsonLoads = ["effect", "tags", "increase", "value"]
+        elif table == "modifiers":
+            jsonLoads = ["effect", "tags"]
+        elif table == "lootTables":
+            jsonLoads = ["drops", "tags"]
+        elif table == "items":
+            jsonLoads = ["effect", "tags", "enchantments"]
+        elif table == "enemies":
+            jsonLoads = ["stats", "level", "tags"]
+        else:
+            jsonLoads = []
         
-        if not obj.get("effect"): obj["effect"] = []
-        if not obj.get("tags"): obj["tags"] = []
-        if not obj.get("enchantments"): obj["enchantments"] = []
+        if not obj.get("effect"):
+            obj["effect"] = []
+        if not obj.get("tags"):
+            obj["tags"] = []
+        if not obj.get("enchantments"):
+            obj["enchantments"] = []
         
         for jsonLoad in jsonLoads:
-            if not jsonLoad in obj: continue
+            if jsonLoad not in obj:
+                continue
             try:
-                if obj[jsonLoad]: obj[jsonLoad] = json.loads(obj[jsonLoad])
-            except:
+                if obj[jsonLoad]:
+                    obj[jsonLoad] = json.loads(obj[jsonLoad])
+            except ValueError:
                 print(f'\n Error: "{jsonLoad}" could not be read from "{table}.{name}".')
-                print(  f'        Passed value was "{obj[jsonLoad]}".')
+                print(f'        Passed value was "{obj[jsonLoad]}".')
                 control.press_enter()
         
         # Object formatting
         if table == "items":
             if obj["type"] == "equipment":
                 for effect in obj["effect"]:
-                    if effect["type"] == "passive": effect["value"] = self.load_from_db("passives", effect["value"])
+                    if effect["type"] == "passive":
+                        effect["value"] = self.load_from_db("passives", effect["value"])
             for i in range(len(obj["enchantments"])):
                 obj["enchantments"][i] = self.update_enchantment(self.load_from_db("enchantments", obj["enchantments"][i][0]), obj["enchantments"][i][1], obj["enchantments"][i][2])
-            if obj["type"] == "equipment": obj.update({"modifier": self.load_from_db("modifiers", "Normal")})
+            if obj["type"] == "equipment":
+                obj.update({"modifier": self.load_from_db("modifiers", "Normal")})
         elif table == "enchantments":
             obj.update({"level": 1, "tier": 0, "real name": obj["name"]})
         
         return obj
-    
-    
-    def update_enchantment(self, enchantment, tier, level):
-        if tier == 0: enchantment["name"] = "Lesser " + enchantment["name"]
-        elif tier == 2: enchantment["name"] = "Advanced " + enchantment["name"]
+
+    def handle_codes(self, option):
+        if option == "/B":
+            self.screen.nextScreen = self.screen.returnScreen
+        elif option == "/D":
+            command = control.get_input("command")
+            self.dev_command(command)
+        elif option == "/C":
+            pass
         
-        if enchantment["increase"] != None:
-            for i in range(len(enchantment["tags"])):
-                for j in range(level - 1):
-                    if enchantment["increase"][0] == "+":
-                        enchantment["tags"][i] = enchantment["tags"][i].split(":")[0] + ":" + str(int(enchantment["tags"][i].split(":")[1]) + int(enchantment["increase"][1:]))
-                    elif enchantment["increase"][0] == "-":
-                        enchantment["tags"][i] = enchantment["tags"][i].split(":")[0] + ":" + str(int(enchantment["tags"][i].split(":")[1]) - int(enchantment["increase"][1:]))
-                    elif enchantment["increase"][0] == "*":
-                        enchantment["tags"][i] = enchantment["tags"][i].split(":")[0] + ":" + str(int(enchantment["tags"][i].split(":")[1]) * float(value[1:]))
-            for effect in enchantment["effect"]:
-                for i in range(level - 1):
-                    if enchantment["increase"][0] == "+": effect["value"] += int(enchantment["increase"][1:])
-                    elif enchantment["increase"][0] == "-": effect["value"] -= int(enchantment["increase"][1:])
-                    elif enchantment["increase"][0] == "*": effect["value"] = round(float(value[1:]) * effect["value"])
+        self.screen.handleCode = False
+        self.screen.code = ""
+    
+    def dev_command(self, command):
+        commandSplit = command.split(" ", 1)
         
-        return enchantment
-    
-    
-    def next_screen(self):
-        try:
-            screen = getattr(self, self.nextScreen)
-            self.lastScreen = self.nextScreen
-        except:
-            print(f'\n Error: screen "{self.nextScreen}" does not exist.')
-            self.nextScreen = self.lastScreen
-            control.press_enter()
-            return
+        # No Argument Command Handling
+        if command == "s":
+            self.player.name = "Vincent"
+            self.screen.nextScreen = "camp"
+        elif command == "qs":
+            self.player.name = "Dev"
+            self.player.gold = 999999999
+            self.screen.nextScreen = "camp"
+        elif command == "restart":
+            text.clear()
+            os.execv(sys.executable, ['python'] + sys.argv)
+        elif command == "color":
+            text.color = not text.color
         
-        screen()
+        # Single Argument Command Handling
+        if commandSplit[0] == "exec":
+            try:
+                exec(commandSplit[1])
+            except Exception as err:
+                print(err)
+                control.press_enter()
+        elif commandSplit[0] == "execp":
+            try:
+                print("\n " + str(eval(commandSplit[1])))
+                control.press_enter()
+            except Exception as err:
+                print(err)
+                control.press_enter()
+            
     
-    
-    def back_screen(self):
-        self.nextScreen = self.returnScreen
+    def update(self):
+        if self.screen.handleCode:
+            self.handle_codes(self.screen.code)
+
+
+class Screen:
+    def __init__(self):
+        self.nextScreen = "title_screen"
+        self.lastScreen = ""
         self.returnScreen = ""
-    
-    
-    # - Screens - #
+        
+        self.handleCode = False
+        self.code = ""
     
     def title_screen(self):
         while 1:
+            self.returnScreen = "title_screen"
             text.clear()
             
             print("\n ", end="")
@@ -157,7 +205,7 @@ class Magyka:
                 for i in range(len(title)):
                     print(text.c(["026", "012", "006", "039", "045", "019", "020", "021", "004", "027", "026", "012", "006", "039", "000", "039", "006", "012"][i], code=True) + title[i] + text.reset)
             else:
-                ttitle = open("text/magyka title small.txt", "r").read().split("\n")
+                title = open("text/magyka title small.txt", "r").read().split("\n")
                 for i in range(len(title)):
                     print(text.c(["026", "026", "006", "045", "018", "004", "026", "006", "000", "039"][i], code=True) + title[i] + text.reset)
             
@@ -165,10 +213,24 @@ class Magyka:
             
             option = control.get_input("alphabetic", options="ncho", back=False)
             
-            if option == "t":
-                self.nextScreen = "test"
-                self.returnScreen = "title_screen"
+            if option == "n":
+                self.nextScreen = "new_game"
+                return
+            elif option == "c":
+                self.nextScreen = "continue"
+                return
+            elif option == "h":
+                self.nextScreen = "help"
+                return
+            elif option == "o":
+                self.nextScreen = "options"
+                return
+            else:
+                self.handleCode = True
+                self.code = option
                 return
 
+
 if __name__ == "__main__":
-    magyka = Magyka()
+    screen = Screen()
+    magyka = Magyka(screen)
