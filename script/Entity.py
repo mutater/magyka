@@ -34,7 +34,7 @@ class Entity:
     
     stats = property(getStats)
     
-    def updateStats(self):
+    def update_stats(self):
         bufferhp = self.hp - self.__stats["max hp"]
         buffermp = self.mp - self.__stats["max mp"]
         oldMaxHp = self.__stats["max hp"]
@@ -49,9 +49,9 @@ class Entity:
             if self.equipment[slot] == "":
                 continue
             
-            effects += self.equipment[slot]["effect"]
+            effects += self.equipment[slot].effect
             if slot == "weapon":
-                for effect in self.equipment["weapon"]["effect"]:
+                for effect in self.equipment["weapon"].effect:
                     if effect["type"] == "attack":
                         self.__stats["attack"] = copy.deepcopy(effect["value"])
         
@@ -253,7 +253,7 @@ class Entity:
                 self.baseStats[effect["stat"]] = round(self.baseStats[effect["stat"]] * ((effect["value"] + 1) / 100))
             else:
                 self.baseStats[effect["stat"]] += effect["value"]
-            self.updateStats()
+            self.update_stats()
             color = ""
             symbol = ""
             if effect["stat"] == "max hp":
@@ -292,11 +292,11 @@ class Entity:
                 break
         if not passiveFound:
             self.passives.append(passive)
-        self.updateStats()
+        self.update_stats()
         return f'applying {text.c("light green" if passive["buff"] == True else "light red")}{passive["name"]}{text.reset} ({passive["turns"]})'
 
     def update(self):
-        self.updateStats()
+        self.update_stats()
         attackText = []
         tempDamage = 0
         for passive in self.passives:
@@ -325,6 +325,11 @@ class Entity:
                     passives += effect["passive"]
             attackSkill.update({"passive": passives})
         return attackSkill
+    
+    def show_passives(self):
+        if len(self.passives) > 0:
+            print(" ", end="")
+            print(", ".join([f'{text.c("light green" if passive["buff"] else "light red")}{passive["name"]}{text.reset} ({passive["turns"]})' for passive in self.passives]))
 
 
 class Player(Entity):
@@ -350,7 +355,7 @@ class Player(Entity):
         self.equipment = equipment
         self.magic = None
         
-        self.updateStats()
+        self.update_stats()
     
     def getXp(self):
         return self.__xp
@@ -365,7 +370,7 @@ class Player(Entity):
             self.mxp = math.ceil(self.mxp * 1.2)
             self.baseStats["max hp"] = math.ceil(self.baseStats["max hp"] * 1.1)
             self.baseStats["max mp"] = math.ceil(self.baseStats["max mp"] * 1.1)
-            self.updateStats()
+            self.update_stats()
             self.__hp = self.__stats["max hp"]
             self.__mp = self.__stats["max mp"]
             self.level += 1
@@ -392,7 +397,7 @@ class Player(Entity):
                         if self.quests[i]["objective"][j]["status"] >= self.quests[i]["objective"][j]["quantity"]:
                             self.quests[i]["objective"][j]["complete"] = True
                 elif self.quests[i]["objective"][j]["type"] == "obtain":
-                    if item and item[0]["name"] == self.quests[i]["objective"][j]["name"]:
+                    if item and item[0].name == self.quests[i]["objective"][j]["name"]:
                         self.quests[i]["objective"][j]["status"] += item[1]
                         if self.quests[i]["objective"][j]["status"] >= self.quests[i]["objective"][j]["quantity"]:
                             self.quests[i]["objective"][j]["complete"] = True
@@ -409,7 +414,7 @@ class Player(Entity):
             self.addQuest(self.mainQuests[self.mainQuest])
         if "item" in quest["reward"]:
             for item in quest["reward"]["item"]:
-                self.addItem(item[0], item[1])
+                self.add_item(item[0], item[1])
         if "xp" in quest["reward"]:
             self.xp += quest["reward"]["xp"]
         if "gold" in quest["reward"]:
@@ -421,18 +426,18 @@ class Player(Entity):
                 else:
                     self.baseStats[stat["type"]] += stat["value"]
 
-    def numOfItems(self, name):
+    def num_of_items(self, name):
         num = 0
         for item in self.inventory:
-            if item[0]["name"] == name:
+            if item[0].name == name:
                 num += item[1]
         return num
 
-    def addItem(self, item, quantity=1):
+    def add_item(self, item, quantity=1):
         self.updateQuests(item=[item, quantity])
-        if item["type"] in Globals.stackableItems:
+        if item.type in Globals.stackableItems:
             for i in self.inventory:
-                if i[0]["name"] == item["name"]:
+                if i[0].name == item.name:
                     i[1] += quantity
                     return
             self.inventory.append([item, quantity])
@@ -442,10 +447,10 @@ class Player(Entity):
                 self.inventory.append([item, 1])
             return
 
-    def removeItem(self, item, quantity=1):
-        if item["type"] in Globals.stackableItems:
+    def remove_item(self, item, quantity=1):
+        if item.type in Globals.stackableItems:
             for i in self.inventory:
-                if i[0]["name"] == item["name"]:
+                if i[0].name == item.name:
                     i[1] -= quantity
                     if i[1] <= 0:
                         self.inventory.remove([i[0], i[1]])
@@ -457,18 +462,18 @@ class Player(Entity):
             return
     
     def unequip(self, slot):
-        self.addItem(self.equipment[slot])
+        self.add_item(self.equipment[slot])
         self.equipment[slot] = ""
-        self.updateStats()
+        self.update_stats()
 
     def equip(self, item):
-        if self.equipment[item["slot"]] != "":
-            self.unequip(item["slot"])
-        self.equipment[item["slot"]] = item
-        self.removeItem(item)
-        if item["slot"] == "tome":
-            self.magic = item["effect"]
-        self.updateStats()
+        if self.equipment[item.slot] != "":
+            self.unequip(item.slot)
+        self.equipment[item.slot] = item
+        self.remove_item(item)
+        if item.slot == "tome":
+            self.magic = item.effect
+        self.update_stats()
 
     def get_magic(self):
         magicSkill = copy.deepcopy(self.magic)
@@ -488,6 +493,15 @@ class Player(Entity):
                 else:
                     magicSkill[i]["value"] += self.__stats["intelligence"]
         return magicSkill
+    
+    def show_stats(self, passives=True):
+        print("")
+        print("", text.title(self.name, self.level))
+        print("", text.hp, text.bar(self.hp, self.stats["max hp"], "red", number=True))
+        print("", text.mp, text.bar(self.mp, self.stats["max mp"], "blue", number=True))
+        print("", text.xp, text.bar(self.xp, self.mxp, "green", number=True))
+        print("", text.gp, text.reset + str(self.gold))
+        if passives: self.show_passives()
 
 
 class Enemy(Entity):
@@ -496,7 +510,7 @@ class Enemy(Entity):
         self.xp = kwargs["xp"]
         self.gold = kwargs["gold"]
         self.items = kwargs["items"]
-        self.updateStats()
+        self.update_stats()
         self.text = kwargs["text"]
         self.magic = kwargs.get("magic")
         self.tags = kwargs.get("tags")

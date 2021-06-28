@@ -28,17 +28,17 @@ class Item:
         
         # Getting the names of all enchantment and modifier stats
         statNames = []
-        if self.modifier.effect:
-            statNames = [effect["type"] for effect in self.modifier.effect]
+        if self.modifier["effect"]:
+            statNames = [effect["type"] for effect in self.modifier["effect"]]
         if self.enchantments:
             statNames += [effect["type"] for effect in [enchantment.effect for enchantment in self.enchantments][0]]
         effects, tags, values = [], [], []
         
         # Adding all enchantment and modifier effects, tags, and values to their respective lists
-        values.append(self.modifier.value)
+        values.append(self.modifier["value"])
         
-        tags += self.modifier.tags
-        for effect in self.modifier.effect:
+        tags += self.modifier["tags"]
+        for effect in self.modifier["effect"]:
             if effect["type"] in Globals.statList:
                 effects.append(effect)
         

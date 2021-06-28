@@ -92,13 +92,15 @@ class Control:
                 print(f'\n{text.option} > {text.reset}', end="")
             text.set_cursor_visible(True)
         else:
+            helpText = ""
+            
             if mode == "none":
                 helpText = ""
             elif mode == "alphabetic":
                 helpText = "- Press a letter"
             elif mode == "numeric":
                 helpText = "- Press a number"
-            elif mode == "alphanumeric":
+            elif mode == "alphanumeric" or mode == "optionumeric":
                 helpText = "- Press a letter or number"
             
             if back and mode != "none":
@@ -202,6 +204,9 @@ class Control:
             return a.lower().strip()
         else:
             return a
-
+    
+    @staticmethod
+    def reset_input_settings():
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, orig_settings)
 
 control = Control()

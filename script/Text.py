@@ -34,6 +34,11 @@ class Text:
             "option": "231"
         }
         
+        self.hp = self.c("red") + "♥"
+        self.mp = self.c("blue") + "♦"
+        self.xp = self.c("green") + "•"
+        self.gp = self.c("yellow") + "●"
+        
         for color in self.colors:
             setattr(self, color.replace(" ", ""), self.c(color))
         
@@ -65,17 +70,6 @@ class Text:
         self.set_cursor_visible(False)
     
     # - Returning - #
-    def hp(self):
-        return self.c("red") + "♥"
-    
-    def mp(self):
-        return self.c("blue") + "♦"
-    
-    def xp(self):
-        return self.c("green") + "•"
-    
-    def gp(self):
-        return self.c("yellow") + "●"
     
     @staticmethod
     def title(name, level):
@@ -87,7 +81,7 @@ class Text:
         filledLength = round(value / maximum * length)
         
         filledText = self.c(color) + "#" * filledLength
-        backText = self.gray + "-" * length - filledLength
+        backText = self.gray + "-" * (length - filledLength)
         number = f' {value}/{maximum}' if number else ""
         
         return filledText + backText + self.reset + number
