@@ -18,6 +18,50 @@ import sys
 import time
 import traceback
 
+# TODO
+"""
+Export function on BaseClass
+Town Screen
+ - Shops
+ - Tavern
+ - One other thing
+Inn Screen
+ - Random Quests
+ - Premade Quests
+ - Alcohol & Food
+ - Rest
+Shop Screen
+ - Buying
+ - Selling
+ - Crafting
+Explore Screen
+ - Quick Hunt based on area
+ - World Map
+Map Screen
+ - Further optimizations
+ - 13x13 grid
+ - Decoration
+Battle Screen
+ - Figure out new format
+Character Screen
+ - Stats Screen with More Info tab for buffs
+Inspect Screen
+ - More Stats showing enchantment and modifier effects of items
+Sounds Class
+ - BFXR Sounds
+ - Menu Selection
+ - Attack
+ - Dodge
+ - Miss
+ - Equip / Unequip
+ - Buy / Sell
+ - Use
+ - Die
+ - Battle Win
+ - Battle Defeat
+ - Rest
+"""
+
 
 def dict_factory(cursor, row):
     # Converts sqlite return value into a dictionary with column names as keys
