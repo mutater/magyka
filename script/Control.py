@@ -2,6 +2,7 @@ import os
 import re
 import sys
 import time
+from script.Sound import sound
 from script.Text import text
 import script.Globals as Globals
 
@@ -81,7 +82,7 @@ class Control:
         self.wait_for_key("enter")
         text.set_cursor_visible(True)
     
-    def get_input(self, mode, textField=True, back=True, options="", prompt=""):
+    def get_input(self, mode, textField=True, back=True, options="", prompt="", soundlessOptions=""):
         if options != "":
             textField = False
         if mode == "none":
@@ -134,6 +135,8 @@ class Control:
                         print("\b", end="")
                     sys.stdout.flush()
                 elif key in options or key.lower() in options:
+                    if key not in soundlessOptions:
+                        sound.play_sound("select")
                     a = key
                     break
             # Adding a space
@@ -181,6 +184,7 @@ class Control:
                         loc -= 1
             # Returning Back command
             if key == "esc" and (len(a) == 0 or mode == "all") and back:
+                sound.play_sound("select")
                 return "/B"
             # Breaking input loop and keeping value
             if key == "enter" and textField:

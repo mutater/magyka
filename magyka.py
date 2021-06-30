@@ -4,6 +4,7 @@ from script.Entity import Entity, Player, Enemy
 import script.Globals as Globals
 from script.Item import Item, Enchantment, Modifier
 from script.Printing import printing
+from script.Sound import sound
 from script.Text import text
 import copy
 import json
@@ -49,14 +50,6 @@ Inspect Screen
  - More Stats showing enchantment and modifier effects of items
 Sounds Class
  - BFXR Sounds
- - Menu Selection
- - Attack
- - Dodge
- - Miss
- - Equip / Unequip
- - Buy / Sell
- - Use
- - Die
  - Battle Win
  - Battle Defeat
  - Rest
@@ -588,7 +581,7 @@ class Screen:
             
             if magyka.inspectItem.type == "equipment":
                 printing.options((["Unequip"] if magyka.inspectItemEquipped else ["Equip", "Discard"])+["More Info"])
-                option = control.get_input("alphabetic", options=("u" if magyka.inspectItemEquipped else "ed")+"m")
+                option = control.get_input("alphabetic", options=("u" if magyka.inspectItemEquipped else "ed")+"m", soundlessOptions=("u" if magyka.inspectItemEquipped else "e"))
             elif magyka.inspectItem.type == "consumable":
                 printing.options((["Use"] if magyka.inspectItem.target == "self" else [])+["Discard"])
                 option = control.get_input("alphabetic", options=("u" if magyka.inspectItem.target == "self" else "")+"d")
@@ -600,6 +593,7 @@ class Screen:
                 option = control.get_input("alphabetic", options="d")
             
             if option == "u" and magyka.inspectItem.type == "equipment":
+                sound.play_sound("equip")
                 magyka.player.unequip(magyka.inspectItem.slot)
                 return
             elif option == "u" and magyka.inspectItem.type == "consumable" and magyka.inspectItem.target == "self":
@@ -614,6 +608,7 @@ class Screen:
                 if "infinite" not in magyka.inspectItem.tags: magyka.player.remove_item(magyka.inspectItem)
                 if magyka.player.num_of_items(magyka.inspectItem.name) <= 0: break
             elif option == "e" and magyka.inspectItem.type == "equipment":
+                sound.play_sound("equip")
                 magyka.player.equip(magyka.inspectItem)
                 return
             elif option == "d":
