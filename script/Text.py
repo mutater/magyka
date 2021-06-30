@@ -34,6 +34,16 @@ class Text:
             "option": "231"
         }
         
+        self.rarityColors = {
+            "garbage": "light red",
+            "common": "lightish gray",
+            "uncommon": "lightish green",
+            "rare": "light blue",
+            "epic": "light purple",
+            "legendary": "light orange",
+            "mythical": "lightish red"
+        }
+        
         self.hp = self.c("red") + "♥"
         self.mp = self.c("blue") + "♦"
         self.xp = self.c("green") + "•"

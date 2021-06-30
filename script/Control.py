@@ -20,6 +20,8 @@ class Control:
         if Globals.system != "Windows":
             self.orig_settings = termios.tcgetattr(sys.stdin)
             tty.setcbreak(sys.stdin)
+        
+        self.lastCommand = ""
 
     @staticmethod
     def get_key():
@@ -195,6 +197,21 @@ class Control:
                 a = ""
                 print("\b \b")
                 return "/C"
+            # Getting last command
+            if key == "up" and mode == "command":
+                if a:
+                    for i in range(len(a) - loc):
+                        print(" ")
+                        loc += 1
+                    for i in range(loc):
+                        print("\b \b")
+                    sys.stdout.flush()
+                
+                a = self.lastCommand
+                loc = len(a)
+                print(a, end="")
+                sys.stdout.flush()
+                
         
         text.set_cursor_visible(False)
         
@@ -203,6 +220,7 @@ class Control:
         if not mode == "command":
             return a.lower().strip()
         else:
+            self.lastCommand = a
             return a
     
     @staticmethod
