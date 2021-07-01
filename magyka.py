@@ -21,11 +21,6 @@ import traceback
 
 # TODO
 """
-Flea Market Screen
-Inn Screen
- - Random Quests
- - Premade Quests
- - Gambling
 Character Screen
  - Stats Screen with More Info tab for buffs
 Inspect Screen
@@ -33,8 +28,11 @@ Inspect Screen
 Explore Screen
 Battle Screen
  - Figure out new format
+Inn Screen
+ - Random Quests
+ - Premade Quests
+ - Gambling
 Sounds
- - Battle Win
  - Battle Defeat
 Export function on BaseClass
 """
@@ -93,6 +91,7 @@ class Magyka:
         self.craftItem = None
         self.craftRecipe = None
         self.sellItem = None
+        self.inspectPassive = None
         
         self.saves = []
         
@@ -691,7 +690,7 @@ class Screen:
                     quantity = True
                 else:
                     quantity = False
-                print(f' {i}) {itemList[i].get_name()} {" x1" if quantity else ""} {text.gp}{text.reset} {itemList[i].value}')
+                print(f' {i}) {itemList[i].get_name(effect=True)}{" x1" if quantity else ""} {text.gp}{text.reset} {itemList[i].value}')
             
             if len(itemList) == 0:
                 print(f' {text.darkgray}Empty{text.reset}')
@@ -994,10 +993,16 @@ class Screen:
             
             for i in range((self.page - 1) * 10, min(self.page * 10, len(magyka.player.inventory))):
                 if magyka.player.inventory[i][0].type == "equipment":
-                    quantity = False
+                    quantity = ""
                 else:
-                    quantity = True
-                print(f' {str(i)[:-1]}({str(i)[-1]}) {magyka.player.inventory[i][0].get_name()}{" x" + str(magyka.player.inventory[i][1]) if quantity else ""}')
+                    quantity = " x" + str(magyka.player.inventory[i][1])
+                if i >= 100:
+                    just = 0
+                elif i >= 10:
+                    just = 1
+                else:
+                    just = 2
+                print(f' {str(i)[:-1]}({str(i)[-1]}) {magyka.player.inventory[i][0].get_name(effect=True, nameJust=27+just, symbolJust=8)}{quantity}')
             
             if len(magyka.player.inventory) == 0:
                 print(f' {text.darkgray}Empty{text.reset}')
@@ -1112,6 +1117,72 @@ class Screen:
                     break
             elif self.code(option):
                 return
+    
+    def stats(self):
+        while 1:
+            self.returnScreen = "character"
+            text.clear()
+            printing.header("Stats")
+            
+            stats = magyka.player.stats.copy()
+            stats.pop("max hp")
+            stats.pop("max mp")
+            stats.pop("attack")
+            
+            statNamePad = len(max(magyka.player.stats, key=len)) + 1
+            statValuePad = len(max([str(magyka.player.stats[stat]) for stat in stats], key=len))
+            
+            magyka.player.show_stats(passives=False)
+            print("")
+            print(f' {"Attack".ljust(statNamePad)}: {(str(magyka.player.stats["attack"][0]) + " - " + str(magyka.player.stats["attack"][1])).ljust(statValuePad)}')
+            
+            for stat in stats:
+                if magyka.player.baseStats[stat] <= magyka.player.stats[stat]:
+                    changeString = "+"
+                else:
+                    changeString = "-"
+                print(f' {stat.capitalize().ljust(statNamePad)}: {str(magyka.player.stats[stat]).ljust(statValuePad)} ({changeString}{magyka.player.stats[stat] - magyka.player.baseStats[stat]})')
+            
+            printing.header("Passives")
+            
+            for i in range((self.page - 1) * 10, min(self.page * 10, len(magyka.player.passives))):
+                print(f' {str(i)[:-1]}({str(i)[-1]}) {magyka.player.passives[i].get_name(turns=True)}')
+            
+            if len(magyka.player.passives) == 0:
+                print(f' {text.darkgray}No Passives{text.reset}')
+            
+            next = len(magyka.player.passives) > self.page * 10
+            previous = self.page > 1
+            
+            printing.options((["Next"] if next else []) + (["Previous"] if previous else []))
+            option = control.get_input("optionumeric", textField=False, options=("n" if next else "")+("p" if previous else "")\
+            +"".join(tuple(map(str, range(0, len(magyka.player.passives))))))
+            
+            if option in tuple(map(str, range(0, len(magyka.player.passives) + (self.page-1) * 10 + 1))):
+                magyka.inspectPassive = magyka.player.passives[int(option) + (self.page - 1) * 10]
+                self.nextScreen = "inspect_passive"
+                return
+            elif option == "n":
+                self.page += 1
+            elif option == "p":
+                self.page -= 1
+            elif self.code(option):
+                return
+    
+    def inspect_passive(self):
+        while 1:
+            self.returnScreen = "stats"
+            self.nextScreen = self.returnScreen
+            text.clear()
+            printing.header("Inspect passive")
+            print(f'\n Name: {magyka.inspectPassive.get_name(turns=True)}')
+            print(f' Description: {magyka.inspectPassive.description}\n')
+            
+            for effect in magyka.inspectPassive.effect:
+                effect.show_stats()
+            
+            control.get_input("none")
+            return
     
     def rest(self):
         self.nextScreen = self.returnScreen

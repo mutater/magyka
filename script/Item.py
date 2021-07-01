@@ -153,39 +153,32 @@ class Item(BaseClass):
         
         self.update()
     
-    def get_name(self):
-        return text.c(text.rarityColors[self.rarity]) + self.name + text.reset
-    
-    def show_stats(self):
-        color, character = "", ""
-        
-        statList = ("max hp", "max mp", "armor", "strength", "intelligence", "vitality")
-        
-        for effect in self.effect:
-            if effect.type in statList:
-                print("")
-                break
-        
-        for effect in self.effect:
-            if effect.type == "attack" and type(effect.value) is not list:
-                if effect.opp == "*":
-                    print(f' {abs(effect.value)}% {"Increased" if effect.value > 0 else "Decreased"} Attack')
-                else:
-                    print(f' {"+" if effect.value > 0 else "-"}{effect.value} Attack')
-            if effect.type in statList:
-                if effect.type == "max hp":
-                    color, character = text.red, " ♥"
-                elif effect.type == "max mp":
-                    color, character = text.blue, " ♦"
-                else:
-                    color, character = "", ""
-                
-                if effect.opp == "*":
-                    print(f' {abs(effect.value)}% {"Increased" if effect.value > 0 else "Decreased"} {color}{effect.type.capitalize()}{character}{text.reset}')
-                else:
-                    print(f' {"+" if effect.value > 0 else ""}{effect.value} {color}{effect.type.capitalize()}{character}{text.reset}')
-            elif effect.type in ("crit", "hit", "dodge"):
-                print(f' {abs(effect.value)}% {"Increased" if effect.value > 0 else "Decreased"} {effect.type.capitalize()} Chance')
+    def get_name(self, effect=False, nameJust=0, symbolJust=0):
+        hp = ""
+        mp = ""
+        divider = ""
+        symbol = ""
+        symbolText = ""
+        if effect:
+            for effect in self.effect:
+                if effect.type == "healHp" and not self.slot:
+                    hp = "♥"
+                if effect.type == "healMp" and not self.slot:
+                    mp = "♦"
+            
+            if hp and mp:
+                divider = "/"
+            
+            if self.slot == "weapon":
+                symbol = "Weapon"
+            elif self.slot == "tome":
+                symbol = "Tome"
+            elif self.slot:
+                symbol = "Armor"
+            
+            if hp or mp or symbol:
+                symbolText = f' {symbol}{hp}{divider}{mp}'
+        return f'{text.c(text.rarityColors[self.rarity])}{self.name.ljust(nameJust)}{text.reset}{symbolText.ljust(symbolJust)}'
     
     def show_item_stats(self):
         print("\n", self.get_name())
@@ -213,10 +206,11 @@ class Item(BaseClass):
             print(f'\n Costs {text.blue}{self.mana} ♦{text.reset}')
         print("")
         for effect in effects:
-            effect.show_stats()
+            effect.show_stats(stats=False)
         for passive in passives:
             passive.show_stats()
-        self.show_stats()
+        for effect in effects:
+            effect.show_stats(damage=False)
         if len(self.tags) > 0:
             print("")
         if "hit" in self.tags:

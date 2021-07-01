@@ -16,47 +16,74 @@ class Effect(BaseClass):
         
         super().__init__(attributes, self.defaults)
     
-    def show_stats(self):
-        hpDamage, hpDamageText, hpMult = 0, "", False
-        mpDamage, mpDamageText, mpMult = 0, "", False
-        
-        if self.type in ("damageHp", "damageMp", "attack"):
-            attack = True
-        else:
-            attack = False
-        if self.type in ("healHp", "healMp"):
-            heal = True
-        else:
-            heal = False
-        
-        for stat in ("healHp", "healMp", "damageHp", "damageMp"):
-            if self.type == stat:
-                if "Hp" in stat:
-                    hpDamage = self.value
-                    hpMult = self.opp == "*"
+    def show_stats(self, damage=True, stats=True):
+        # Printing healing/ damage
+        if damage:
+            hpDamage, hpDamageText, hpMult = 0, "", False
+            mpDamage, mpDamageText, mpMult = 0, "", False
+            
+            if self.type in ("damageHp", "damageMp", "attack"):
+                attack = True
+            else:
+                attack = False
+            if self.type in ("healHp", "healMp"):
+                heal = True
+            else:
+                heal = False
+            
+            for stat in ("healHp", "healMp", "damageHp", "damageMp"):
+                if self.type == stat:
+                    if "Hp" in stat:
+                        hpDamage = self.value
+                        hpMult = self.opp == "*"
+                    else:
+                        mpDamage = self.value
+                        mpMult = self.opp == "*"
+            
+            if self.type == "attack" and type(self.value) is list:
+                hpDamage = self.value
+                hpMult = False
+            
+            if hpDamage:
+                if type(hpDamage) is list:
+                    hpDamageText = f'{hpDamage[0]} - {hpDamage[1]}{"%" if hpMult else ""} {text.hp}{text.reset}'
                 else:
-                    mpDamage = self.value
-                    mpMult = self.opp == "*"
+                    hpDamageText = f'{hpDamage}{"%" if hpMult else ""}{text.hp}{text.reset}'
+            if mpDamage:
+                if type(mpDamage) is list:
+                    mpDamageText = f'{mpDamage[0]} - {mpDamage[1]}{"%" if mpMult else ""} {text.mp}{text.reset}'
+                else:
+                    mpDamageText = f'{mpDamage}{"%" if mpMult else ""}{text.mp}{text.reset}'
+            
+            if attack:
+                print(f' Damages {hpDamageText if hpDamageText else mpDamageText}')
+            if heal:
+                print(f' Heals {hpDamageText if hpDamageText else mpDamageText}')
         
-        if self.type == "attack" and type(self.value) is list:
-            hpDamage = self.value
-            hpMult = False
-        
-        if hpDamage:
-            if type(hpDamage) is list:
-                hpDamageText = f'{text.red}{hpDamage[0]} - {hpDamage[1]}{"%" if hpMult else ""} ♥{text.reset}'
-            else:
-                hpDamageText = f'{text.red}{hpDamage}{"%" if hpMult else ""} ♥{text.reset}'
-        if mpDamage:
-            if type(mpDamage) is list:
-                mpDamageText = f'{text.blue}{mpDamage[0]} - {mpDamage[1]}{"%" if mpMult else ""} ♦{text.reset}'
-            else:
-                mpDamageText = f'{text.blue}{mpDamage}{"%" if mpMult else ""} ♦{text.reset}'
-        
-        if attack:
-            print(f' Damages {hpDamageText if hpDamageText else mpDamageText}')
-        if heal:
-            print(f' Heals {hpDamageText if hpDamageText else mpDamageText}')
+        # Printing stats
+        if stats:
+            color, character = "", ""
+            statList = ("max hp", "max mp", "armor", "strength", "intelligence", "vitality")
+            
+            if self.type == "attack" and type(self.value) is not list:
+                if self.opp == "*":
+                    print(f' {abs(self.value)}% {"Increased" if self.value > 0 else "Decreased"} Attack')
+                else:
+                    print(f' {"+" if self.value > 0 else "-"}{self.value} Attack')
+            if self.type in statList:
+                if self.type == "max hp":
+                    color, character = text.red, " ♥"
+                elif self.type == "max mp":
+                    color, character = text.blue, " ♦"
+                else:
+                    color, character = "", ""
+                
+                if self.opp == "*":
+                    print(f' {abs(self.value)}% {"Increased" if self.value > 0 else "Decreased"} {color}{self.type.capitalize()}{character}{text.reset}')
+                else:
+                    print(f' {"+" if self.value > 0 else ""}{self.value} {color}{self.type.capitalize()}{character}{text.reset}')
+            elif self.type in ("crit", "hit", "dodge"):
+                print(f' {abs(self.value)}% {"Increased" if self.value > 0 else "Decreased"} {self.type.capitalize()} Chance')
 
 
 class Passive(BaseClass):
