@@ -21,12 +21,8 @@ import traceback
 
 # TODO
 """
-Map Screen
- - Further optimizations
- - 13x13 grid
- - Decoration
+Better Screen Code handling
 Shop Screen
- - Buying
  - Crafting
 Flea Market Screen
 Inn Screen
@@ -85,9 +81,20 @@ class Magyka:
         with open("data/settings.json", "r+") as settingsFile:
             self.settings = json.load(settingsFile)
         
+        session = sqlite3.connect("data/data.db")
+        session.row_factory = dict_factory
+        cur = session.cursor()
+        self.recipes = cur.execute('select * from recipes').fetchall()
+        session.close()
+        
+        for i in range(len(self.recipes)):
+            self.recipes[i]["ingredients"] = json.loads(self.recipes[i]["ingredients"])
+        
         self.nextScreen = ""
         self.inspectItem = None
         self.purchaseItem = None
+        self.craftItem = None
+        self.craftRecipe = None
         
         self.saves = []
         
@@ -294,14 +301,10 @@ class Screen:
         self.oldScreen = ""
         self.storeType = ""
         self.page = 1
-        self.code = ""
         
         magyka.inspectItemEquipped = False
         
         while 1:
-            if self.code:
-                self.handle_codes(self.code)
-            
             if magyka.nextScreen:
                 self.nextScreen = magyka.nextScreen
                 magyka.nextScreen = ""
@@ -317,14 +320,16 @@ class Screen:
                 next_screen = getattr(self, self.lastScreen)
             next_screen()
     
-    def handle_codes(self, option):
+    def code(self, option):
         if option == "/B":
             self.nextScreen = self.returnScreen
+            return True
         elif option == "/D":
             command = control.get_input("command")
             magyka.dev_command(command)
+            return False
         
-        self.code = None
+        return False
     
     # - Main Menu
     def title_screen(self):
@@ -361,10 +366,8 @@ class Screen:
             elif option == "o":
                 self.nextScreen = "options"
                 return
-            else:
-                self.code = option
+            elif self.code(option):
                 return
-    
     def new_game(self):
         self.nextScreen = "camp"
     
@@ -399,8 +402,7 @@ class Screen:
             elif option == "d":
                 self.nextScreen = "delete_save"
                 return
-            else:
-                self.code = option
+            elif self.code(option):
                 return
     
     def delete_save(self):
@@ -424,8 +426,7 @@ class Screen:
                 os.remove("saves/" + save.name + str(save.saveId))
                 magyka.saves.pop(int(option))
                 return
-            else:
-                self.code = option
+            elif self.code(option):
                 return
     
     def help(self):
@@ -461,8 +462,7 @@ class Screen:
             elif option == "o":
                 self.nextScreen = "options"
                 return
-            else:
-                self.code = option
+            elif self.code(option):
                 return
     
     def explore(self):
@@ -595,8 +595,7 @@ class Screen:
             elif option == "c":
                 self.nextScreen = "camp"
                 return
-            else:
-                self.code = option
+            elif self.code(option):
                 return
     
     def town(self):
@@ -627,8 +626,7 @@ class Screen:
                 return
             elif option == "f":
                 self.nextScreen = "market"
-            else:
-                self.code = option
+            elif self.code(option):
                 return
     
     def store(self):
@@ -667,22 +665,24 @@ class Screen:
                 print(f' {text.darkgray}Empty{text.reset}')
             
             printing.options((["Next"] if next else [])+(["Previous"] if previous else [])+(["Reforge"] if self.storeType == "blacksmith" else [])+["Crafting"])
-            option = control.get_input("optionumeric", options=("n" if next else "")+("p" if previous else "")+("r" if self.storeType == "blacksmith" else "")+"c"\
-            +"".join(tuple(map(str, range(0, len(itemList))))), textField=False)
+            option = control.get_input("optionumeric", options=("n" if next else "")+("p" if previous else "")+("r" if self.storeType == "blacksmith" else "")+"c"+"".join(tuple(map(str, range(0, len(itemList))))), textField=False)
             
             if option in tuple(map(str, range(0, len(itemList) + (self.page-1) * 10 + 1))):
                 magyka.purchaseItem = itemList[int(option) + (self.page-1) * 10]
                 self.nextScreen = "purchase"
                 return
             elif option == "r":
-                self.nextScreen = "reforge"
+                self.nextScreen = "reforging"
+                return
+            elif option == "c":
+                self.page = 1
+                self.nextScreen = "crafting"
                 return
             elif option == "n":
                 self.page += 1
             elif option == "p":
                 self.page -= 1
-            else:
-                self.code = option
+            elif self.code(option):
                 return
     
     def purchase(self):
@@ -690,7 +690,7 @@ class Screen:
             self.returnScreen = "store"
             text.clear()
             
-            printing.header("Purchase" + magyka.purchaseItem.name.capitalize())
+            printing.header("Purchase " + magyka.purchaseItem.name.capitalize())
             
             magyka.purchaseItem.show_stats()
             
@@ -709,6 +709,7 @@ class Screen:
             
             if type(option) is int:
                 if option * magyka.purchaseItem.value <= magyka.player.gold:
+                    sound.play_sound("coin")
                     magyka.player.add_item(magyka.purchaseItem, option)
                     magyka.player.gold -= option * magyka.purchaseItem.value
                     
@@ -716,7 +717,7 @@ class Screen:
                         quantity = True
                     else:
                         quantity = False
-                    print(f'\n {magyka.purchaseItem.get_name()}{" x" + str(option) if quantity else ""} added to your inventory!')
+                    print(f' {magyka.purchaseItem.get_name()}{" x" + str(option) if quantity else ""} added to your inventory!')
                     
                     control.press_enter()
                     return
@@ -725,11 +726,116 @@ class Screen:
                         quantity = True
                     else:
                         quantity = False
-                    print(f'\n {text.lightred}You don\'t have enough gold to buy {magyka.purchaseItem.name} {" x" + str(option) if quantity else ""}.')
+                    print(f' {text.lightred} You cannot buy that many.')
                     control.press_enter()
                 return
-            else:
-                self.code = option
+            elif self.code(option):
+                return
+    
+    def crafting(self):
+        while 1:
+            self.returnScreen = "store"
+            text.clear()
+            
+            printing.header("Crafting")
+            print("")
+            
+            recipes = []
+            for recipe in magyka.recipes:
+                addRecipe = False
+                for item in recipe["ingredients"]:
+                    if magyka.player.num_of_items(item[0]) > 0:
+                        addRecipe = True
+                        break
+                
+                if addRecipe and recipe["type"] == self.storeType:
+                    recipes.append(recipe)
+            
+            for i in range(-10 + 10*self.page, 10*self.page if 10*self.page < len(recipes) else len(recipes)):
+                item = magyka.load_from_db("items", recipes[i]["result"])
+                if item.type in Globals.stackableItems:
+                    quantity = True
+                else:
+                    quantity = False
+                print(f' {str(i)[:-1]}({str(i)[-1]}) {item.get_name()}{" x" + str(recipe["quantity"]) if quantity else ""}')
+            
+            if len(recipes) == 0:
+                print(f' {text.darkgray}No Items Craftable{text.reset}')
+            
+            next = len(recipes) > self.page * 10
+            previous = self.page > 1
+            
+            printing.options((["Next"] if next else [])+(["Previous"] if previous else []))
+            option = control.get_input("optionumeric", options=("N" if next else "")+("p" if previous else "")+"".join(tuple(map(str, range(0, len(recipes))))))
+            
+            if option in tuple(map(str, range(0, len(recipes) + (self.page-1) * 10 + 1))):
+                magyka.craftRecipe = recipes[int(option) + (self.page-1) * 10]
+                self.nextScreen = "craft"
+                return
+            elif option == "n":
+                self.page += 1
+            elif option == "p":
+                self.page -= 1
+            elif self.code(option):
+                return
+    
+    def craft(self):
+        while 1:
+            self.returnScreen = "crafting"
+            text.clear()
+            
+            printing.header("Craft " + magyka.craftRecipe["result"])
+            
+            magyka.craftItem = magyka.load_from_db("items", magyka.craftRecipe["result"])
+            
+            magyka.craftItem.show_stats()
+            print(f'\n Value: {text.gp}{text.reset} {magyka.craftItem.value}')
+            
+            craftable = True
+            numCraftable = 99999999
+            print("\n Requires:\n")
+            for i in range(len(magyka.craftRecipe["ingredients"])):
+                playerIngredientCount = magyka.player.num_of_items(magyka.craftRecipe["ingredients"][i][0])
+                recipeIngredientCount = magyka.craftRecipe["ingredients"][i][1]
+                if playerIngredientCount < recipeIngredientCount:
+                    craftable = False
+                    numCraftable = 0
+                elif playerIngredientCount // recipeIngredientCount < numCraftable:
+                    numCraftable = playerIngredientCount // recipeIngredientCount
+                ingredient = magyka.load_from_db("items", magyka.craftRecipe["ingredients"][i][0])
+                print(f' {recipeIngredientCount}x {ingredient.get_name()} ({playerIngredientCount}/{recipeIngredientCount})')
+            
+            if magyka.craftItem.type == "equipment" and craftable:
+                numCraftable = 1
+            
+            print(f'\n Type the quantity of items to be crafted ({numCraftable} craftable)')
+            option = control.get_input("numeric")
+            
+            print("")
+            
+            try:
+                option = int(option)
+            except:
+                pass
+            
+            if type(option) is int:
+                if option <= numCraftable:
+                    for item in magyka.craftRecipe["ingredients"]:
+                        magyka.player.remove_item(magyka.load_from_db("items", item[0]), item[1])
+                    magyka.player.add_item(magyka.craftItem, magyka.craftRecipe["quantity"] * option)
+                    
+                    if magyka.craftItem.type in Globals.stackableItems:
+                        quantity = True
+                    else:
+                        quantity = False
+                    print(f' {magyka.craftItem.get_name()}{" x" + str(magyka.craftRecipe["quantity"] * option) if quantity else ""} added to your inventory!')
+                    
+                    control.press_enter()
+                    return
+                else:
+                    print(f' {text.lightred} You cannot craft that many.')
+                    control.press_enter()
+            elif self.code(option):
                 return
     
     def character(self):
@@ -756,8 +862,7 @@ class Screen:
             elif option == "s":
                 self.nextScreen = "stats"
                 return
-            else:
-                self.code = option
+            elif self.code(option):
                 return
     
     def inventory(self):
@@ -794,8 +899,7 @@ class Screen:
                 self.page += 1
             elif option == "p":
                 self.page -= 1
-            else:
-                self.code = option
+            elif self.code(option):
                 return
     
     def equipment(self):
@@ -819,8 +923,7 @@ class Screen:
                 magyka.inspectItemEquipped = True
                 self.nextScreen = "inspect"
                 return
-            else:
-                self.code = option
+            elif self.code(option):
                 return
     
     def inspect(self):
@@ -885,8 +988,7 @@ class Screen:
                 else:
                     magyka.player.remove_item(magyka.inspectItem)
                     break
-            else:
-                self.code = option
+            elif self.code(option):
                 return
     
     def rest(self):

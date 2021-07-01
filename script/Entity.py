@@ -354,7 +354,6 @@ class Player(Entity):
         self.completedQuests = []
         
         self.inventory = []
-        self.recipes = []
         self.equipment = equipment
         self.magic = None
         
