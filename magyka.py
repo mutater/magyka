@@ -21,14 +21,11 @@ import traceback
 
 # TODO
 """
-Better Screen Code handling
-Shop Screen
- - Crafting
 Flea Market Screen
 Inn Screen
  - Random Quests
  - Premade Quests
- - Rest
+ - Gambling
 Character Screen
  - Stats Screen with More Info tab for buffs
 Inspect Screen
@@ -95,6 +92,7 @@ class Magyka:
         self.purchaseItem = None
         self.craftItem = None
         self.craftRecipe = None
+        self.sellItem = None
         
         self.saves = []
         
@@ -227,6 +225,7 @@ class Magyka:
             self.player.name = "Vincent"
             self.player.saveId = 69420
             self.nextScreen = "camp"
+            return True
         elif command == "qs":
             self.init_player()
             self.player.name = "Dev"
@@ -234,6 +233,7 @@ class Magyka:
             self.player.gold = 999999999
             self.dev_command("give all")
             self.nextScreen = "camp"
+            return True
         elif command == "q":
             sys.exit()
         elif command == "restart":
@@ -287,6 +287,8 @@ class Magyka:
             print("\n That's not a command, stupid.")
             control.press_enter()
     
+        return False
+    
     def save_game(self):
         fileName = self.player.name + str(self.player.saveId)
         with open("saves/" + fileName, "wb+") as saveFile:
@@ -326,8 +328,7 @@ class Screen:
             return True
         elif option == "/D":
             command = control.get_input("command")
-            magyka.dev_command(command)
-            return False
+            return magyka.dev_command(command)
         
         return False
     
@@ -368,6 +369,7 @@ class Screen:
                 return
             elif self.code(option):
                 return
+
     def new_game(self):
         self.nextScreen = "camp"
     
@@ -606,13 +608,13 @@ class Screen:
             printing.header(magyka.player.location.title())
             
             printing.options(["Inn", "General Store", "Blacksmith", "Arcanist", "Flea Market"])
-            option = control.get_input("alphabetic", options="tgbaf")
+            option = control.get_input("alphabetic", options="igbaf")
             
             if option in ("gba"):
                 self.nextScreen = "store"
                 self.page = 1
             
-            if option == "t":
+            if option == "i":
                 self.nextScreen = "inn"
                 return
             elif option == "g":
@@ -626,6 +628,36 @@ class Screen:
                 return
             elif option == "f":
                 self.nextScreen = "market"
+                return
+            elif self.code(option):
+                return
+    
+    def inn(self):
+        while 1:
+            self.returnScreen = "town"
+            text.clear()
+            
+            printing.header("Inn")
+            
+            price = 5 + magyka.player.level * 2
+
+            print(f'\n Price to rest: {text.gp}{text.reset} {price}')
+            
+            printing.options(["Rest", text.darkgray + "Quest", text.darkgray + "Gamble"])
+            option = control.get_input("alphabetic", options = "r")
+            
+            if option == "r":
+                if magyka.player.gold >= price:
+                    sound.play_sound("rest")
+                    magyka.player.gold -= price
+                    magyka.player.hp = magyka.player.stats["max hp"]
+                    magyka.player.mp = magyka.player.stats["max mp"]
+                    magyka.player.add_passive(magyka.load_from_db("passives", "Well Rested"))
+                    print("\n You fell well rested. HP and MP restored to full.")
+                    control.press_enter()
+                else:
+                    print(f'\n {text.lightred} You do not have enough gold to rest.')
+                    control.press_enter()
             elif self.code(option):
                 return
     
@@ -688,9 +720,10 @@ class Screen:
     def purchase(self):
         while 1:
             self.returnScreen = "store"
+            self.nextScreen = self.returnScreen
             text.clear()
             
-            printing.header("Purchase " + magyka.purchaseItem.name.capitalize())
+            printing.header("Purchase " + magyka.purchaseItem.name)
             
             magyka.purchaseItem.show_stats()
             
@@ -728,7 +761,7 @@ class Screen:
                         quantity = False
                     print(f' {text.lightred} You cannot buy that many.')
                     control.press_enter()
-                return
+                    return
             elif self.code(option):
                 return
     
@@ -782,6 +815,7 @@ class Screen:
     def craft(self):
         while 1:
             self.returnScreen = "crafting"
+            self.nextScreen = self.returnScreen
             text.clear()
             
             printing.header("Craft " + magyka.craftRecipe["result"])
@@ -835,6 +869,91 @@ class Screen:
                 else:
                     print(f' {text.lightred} You cannot craft that many.')
                     control.press_enter()
+            elif self.code(option):
+                return
+    
+    def market(self):
+        while 1:
+            self.returnScreen = "town"
+            text.clear()
+            
+            printing.header("Flea Market")
+            print("")
+            
+            for i in range((self.page - 1) * 10, min(self.page * 10, len(magyka.player.inventory))):
+                if magyka.player.inventory[i][0].type == "equipment":
+                    quantity = False
+                else:
+                    quantity = True
+                print(f' {str(i)[:-1]}({str(i)[-1]}) {magyka.player.inventory[i][0].get_name()}{" x" + str(magyka.player.inventory[i][1]) if quantity else ""}')
+            
+            if len(magyka.player.inventory) == 0:
+                print(f' {text.darkgray}Empty{text.reset}')
+            
+            next = len(magyka.player.inventory) > self.page * 10
+            previous = self.page > 1
+            
+            printing.options((["Next"] if next else []) + (["Previous"] if previous else []))
+            option = control.get_input("optionumeric", textField=False, options=("n" if next else "")+("p" if previous else "")\
+            +"".join(tuple(map(str, range(0, len(magyka.player.inventory))))))
+            
+            if option in tuple(map(str, range(0, len(magyka.player.inventory) + (self.page-1) * 10 + 1))):
+                magyka.sellItem = magyka.player.inventory[int(option) + (self.page - 1) * 10][0]
+                self.nextScreen = "sell"
+                return
+            elif option == "n":
+                self.page += 1
+            elif option == "p":
+                self.page -= 1
+            elif self.code(option):
+                return
+    
+    def sell(self):
+        while 1:
+            self.returnScreen = "market"
+            self.nextScreen = self.returnScreen
+            text.clear()
+            
+            printing.header("Sell " + magyka.sellItem.name)
+            
+            magyka.sellItem.show_stats()
+            
+            print(f'\n {text.gp}{text.reset} {magyka.player.gold}')
+            print(f'\n Currently owned: {magyka.player.num_of_items(magyka.sellItem.name)}')
+            print(f'\n Sell Value: {text.gp}{text.reset} {round(magyka.sellItem.value * 0.7)}')
+            print(f' Type the quantity of items to be sold ({magyka.player.num_of_items(magyka.sellItem.name)} can be sold).')
+            
+            option = control.get_input("numeric")
+            
+            print("")
+            
+            try:
+                option = int(option)
+            except:
+                pass
+            
+            if type(option) is int:
+                if option <= magyka.player.num_of_items(magyka.sellItem.name):
+                    sound.play_sound("coin")
+                    magyka.player.remove_item(magyka.sellItem, option)
+                    magyka.player.gold += round(magyka.sellItem.value * 0.7)
+                    
+                    if magyka.sellItem.type in Globals.stackableItems:
+                        quantity = True
+                    else:
+                        quantity = False
+                    print(f' Sold {magyka.sellItem.get_name()}{" x" + str(option) if quantity else ""}.')
+                    
+                    control.press_enter()
+                    return
+                else:
+                    if magyka.sellItem.type in Globals.stackableItems:
+                        quantity = True
+                    else:
+                        quantity = False
+                    print(f' {text.lightred} You cannot sell that many.')
+                    control.press_enter()
+                    return
             elif self.code(option):
                 return
     
@@ -963,11 +1082,13 @@ class Screen:
                 #for line in text:
                 #    print(evalText(line))
                 control.press_enter()
-                if magyka.player.num_of_items(magyka.inspectItem.name) <= 0: return
+                if magyka.player.num_of_items(magyka.inspectItem.name) <= 0:
+                    return
             elif option == "u" and magyka.inspectItem.type == "modifier":
                 s_applyModifier(magyka.inspectItem)
                 if "infinite" not in magyka.inspectItem.tags: magyka.player.remove_item(magyka.inspectItem)
-                if magyka.player.num_of_items(magyka.inspectItem.name) <= 0: break
+                if magyka.player.num_of_items(magyka.inspectItem.name) <= 0:
+                    return
             elif option == "e" and magyka.inspectItem.type == "equipment":
                 sound.play_sound("equip")
                 magyka.player.equip(magyka.inspectItem)
@@ -975,16 +1096,17 @@ class Screen:
             elif option == "d":
                 if magyka.player.num_of_items(magyka.inspectItem.name) > 1:
                     while 1:
-                        clear()
-                        header("Quantity")
-                        print(f'\n Type the quantity to discard (1-{player.num_of_items(magyka.inspectItem.name)})')
+                        text.clear()
+                        printing.header("Quantity")
+                        print(f'\n Type the quantity to discard (1-{magyka.player.num_of_items(magyka.inspectItem.name)})')
 
-                        option = command(True, "numeric")
+                        option = control.get_input("numeric")
 
-                        if option == "B": break
-                        elif option in tuple(map(str, range(1, magyka.player.num_of_items(magyka.inspectItem.name)+1))):
+                        if option in tuple(map(str, range(1, magyka.player.num_of_items(magyka.inspectItem.name)+1))):
                             magyka.player.remove_item(magyka.inspectItem, int(option))
                             return
+                        elif self.code(option):
+                            break
                 else:
                     magyka.player.remove_item(magyka.inspectItem)
                     break

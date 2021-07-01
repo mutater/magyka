@@ -54,9 +54,7 @@ class Entity(BaseClass):
                         self.stats["attack"] = copy.deepcopy(effect.value)
         
         for passive in self.passives:
-            if not type(passive["effect"]) is list:
-                passive["effect"] = [passive["effect"]]
-            effects += passive["effect"]
+            effects += passive.effect
         
         for effect in effects:
             if effect.type not in self.stats or effect.type == "attack":
@@ -276,37 +274,39 @@ class Entity(BaseClass):
         return attackText, hpAmount
 
     def add_passive(self, passive):
-        passive.update({"dodge": 0, "hit": 100})
+        passive.dodge = 0
+        passive.hit = 100
         passiveFound = False
-        if type(passive["turns"]) is list:
-            turns = random.randint(passive["turns"][0], passive["turns"][1])
+        if type(passive.turns) is list:
+            turns = random.randint(passive.turns[0], passive.turns[1])
         else:
-            turns = passive["turns"]
-        passive["turns"] = turns
+            turns = passive.turns
+        passive.turns = turns
+        
         for p in self.passives:
-            if passive["name"] == p["name"]:
+            if passive.name == p.name:
                 passiveFound = True
-                p["turns"] = turns
+                p.turns = turns
                 break
         if not passiveFound:
             self.passives.append(passive)
         self.update_stats()
-        return f'applying {text.c("light green" if passive["buff"] == True else "light red")}{passive["name"]}{text.reset} ({passive["turns"]})'
+        return f'applying {text.c("light green" if passive.buff == True else "light red")}{passive.name}{text.reset} ({passive.turns})'
 
     def update(self):
         self.update_stats()
         attackText = []
         for passive in self.passives:
-            for effect in passive["effect"]:
-                if effect.type in ("-hp", "-mp", "-all", "hp", "mp", "all"):
-                    prefix = f' {text.c("light green" if passive["buff"] else "light red")}{passive["name"]}{text.reset} persists, '
+            for effect in passive.effect:
+                if effect.type in ("damageHp", "damageMp", "healHp", "healMp"):
+                    prefix = f' {passive.get_name()} persists, '
                     suffix, tempDamage = self.defend(effect)
                     attackText.append(prefix + suffix)
             
-            passive["turns"] -= 1
-            if passive["turns"] <= 0:
+            passive.turns -= 1
+            if passive.turns <= 0:
                 self.passives.remove(passive)
-                attackText.append(f' {passive["name"]} wears off.')
+                attackText.append(f' {passive.get_name()} wears off.')
                 continue
         return attackText, tempDamage
 
@@ -325,7 +325,7 @@ class Entity(BaseClass):
     def show_passives(self):
         if len(self.passives) > 0:
             print(" ", end="")
-            print(", ".join([f'{text.c("light green" if passive["buff"] else "light red")}{passive["name"]}{text.reset} ({passive["turns"]})' for passive in self.passives]))
+            print(", ".join([f'{passive.get_name(turns=True)}' for passive in self.passives]))
 
 
 class Player(Entity):

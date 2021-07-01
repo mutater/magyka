@@ -72,6 +72,19 @@ class Passive(BaseClass):
         
         super().__init__(attributes, self.defaults)
     
+    def get_name(self, turns=False):
+        if self.buff:
+            effectColor = "light green"
+        else:
+            effectColor = "light red"
+        
+        if turns:
+            turnText = f'({self.turns})'
+        else:
+            turnText = ""
+        
+        return text.c(effectColor) + self.name + text.reset + turnText
+    
     def show_stats(self):
         if self.buff:
             effectColor = "light green"
