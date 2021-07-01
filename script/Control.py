@@ -82,7 +82,7 @@ class Control:
         self.wait_for_key("enter")
         text.set_cursor_visible(True)
     
-    def get_input(self, mode, textField=True, back=True, options="", prompt="", soundlessOptions=""):
+    def get_input(self, mode, textField=True, back=True, options="", prompt="", silentOptions=""):
         if options != "":
             textField = False
         if mode == "none":
@@ -135,7 +135,7 @@ class Control:
                         print("\b", end="")
                     sys.stdout.flush()
                 elif key in options or key.lower() in options:
-                    if key not in soundlessOptions:
+                    if key not in silentOptions:
                         sound.play_sound("select")
                     a = key
                     break

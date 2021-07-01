@@ -1,7 +1,6 @@
 {
   "fordsville": {
     "arcanist": {
-      "description": "\n The very air seems to glitter, as it flows around a neat and clean store.\n From the counter, that was empty just a second ago, a woman appears.\n\n {c(\"yellow\")}Arcanist: {reset}Need something, dear?",
       "inventory": [
         "Tome of Sparks",
         "Poison Tome",
@@ -11,7 +10,6 @@
       ]
     },
     "blacksmith": {
-      "description": "\n A strong scent of coal and metal hangs about the room, which is dirty, but well organized.\n You hear the pounding of the hammer stop, and a large, muscled man walks in from a side door.\n\n {c(\"yellow\")}Blacksmith: {reset}Whaddya want? I'm busy here, make it quick.",
       "inventory": [
         "Copper Sword",
         "Copper Helmet",
@@ -22,8 +20,7 @@
         "Iron Bar"
       ]
     },
-    "general store": {
-      "description": "\n You're in a dusty but well-stocked store, well lit by a large fireplace and multiple lanterns.\n A large man behind the counter beckons you over.\n\n {c(\"yellow\")}Store Keeper: {reset}What'll it be for you today, lad?",
+    "general": {
       "inventory": [
         "Wheat Biscuit",
         "Rough Bandage",

@@ -21,38 +21,29 @@ import traceback
 
 # TODO
 """
-Export function on BaseClass
-Town Screen
- - Shops
- - Tavern
- - One other thing
-Inn Screen
- - Random Quests
- - Premade Quests
- - Alcohol & Food
- - Rest
-Shop Screen
- - Buying
- - Selling
- - Crafting
-Explore Screen
- - Quick Hunt based on area
- - World Map
 Map Screen
  - Further optimizations
  - 13x13 grid
  - Decoration
-Battle Screen
- - Figure out new format
+Shop Screen
+ - Buying
+ - Crafting
+Flea Market Screen
+Inn Screen
+ - Random Quests
+ - Premade Quests
+ - Rest
 Character Screen
  - Stats Screen with More Info tab for buffs
 Inspect Screen
  - More Stats showing enchantment and modifier effects of items
-Sounds Class
- - BFXR Sounds
+Explore Screen
+Battle Screen
+ - Figure out new format
+Sounds
  - Battle Win
  - Battle Defeat
- - Rest
+Export function on BaseClass
 """
 
 
@@ -79,6 +70,8 @@ class Magyka:
         with open("map/world map.txt") as mapFile:
             self.worldMap = mapFile.readlines()
         self.worldMap = [line.strip() for line in self.worldMap]
+        with open("data/portals.json") as portalFile:
+            self.mapPortals = json.load(portalFile)
         
         with open("data/encounters.json", "r") as encounterFile:
             self.encounters = json.load(encounterFile)
@@ -94,6 +87,7 @@ class Magyka:
         
         self.nextScreen = ""
         self.inspectItem = None
+        self.purchaseItem = None
         
         self.saves = []
         
@@ -243,6 +237,8 @@ class Magyka:
         elif command == "heal":
             self.player.hp = self.player.stats["max hp"]
             self.player.mp = self.player.stats["max mp"]
+        elif command == "buy":
+            self.player.add_item(self.purchaseItem)
         
         # Single Argument Command Handling
         elif commandSplit[0] == "exec":
@@ -296,9 +292,8 @@ class Screen:
         self.lastScreen = ""
         self.returnScreen = ""
         self.oldScreen = ""
-        
+        self.storeType = ""
         self.page = 1
-        
         self.code = ""
         
         magyka.inspectItemEquipped = False
@@ -343,7 +338,8 @@ class Screen:
             if os.get_terminal_size()[0] >= 103:
                 title = open("text/magyka title.txt", "r").read().split("\n")
                 for i in range(len(title)):
-                    print(text.c(["026", "012", "006", "039", "045", "019", "020", "021", "004", "027", "026", "012", "006", "039", "000", "039", "006", "012"][i], code=True) + title[i] + text.reset)
+                    print(text.c(["026", "012", "006", "039", "045", "019", "020", "021", "004", "027", "026", "012", "006", "039", "000", "039", "006", "012"][i],\
+                    code=True) + title[i] + text.reset)
             else:
                 title = open("text/magyka title small.txt", "r").read().split("\n")
                 for i in range(len(title)):
@@ -473,7 +469,268 @@ class Screen:
         self.nextScreen = self.returnScreen
     
     def map(self):
-        self.nextScreen = self.returnScreen
+        mapName = "world map"
+        while 1:
+            self.returnScreen = "map"
+            text.clear()
+            
+            printing.header(mapName.title())
+            
+            if mapName == "World Map":
+                mapTiles = magyka.worldMap
+            else:
+                with open("map/" + mapName + ".txt") as mapFile:
+                    mapTiles = mapFile.readlines()
+                mapTiles = [line.strip() for line in mapTiles]
+            
+            mapWidth = 26
+            mapHeight = 13
+            
+            if len(mapTiles[0]) < mapWidth:
+                mapWidth = len(mapTiles[0])
+            if len(mapTiles) < mapHeight:
+                mapHeight = len(mapTiles)
+            
+            top = magyka.player.y - mapHeight // 2
+            bottom = magyka.player.y + mapHeight // 2
+            left = magyka.player.x - mapWidth // 2
+            right = magyka.player.x + mapWidth // 2
+            
+            tileToColor = {
+                "=": text.green,
+                "M": text.darkgreen,
+                ";": text.lightishgreen,
+                ">": text.yellow,
+                ".": text.lightblue,
+                "~": text.blue,
+                "<": text.darkblue,
+                "8": text.verydarkblue,
+                "#": text.brown,
+                "$": text.white,
+                "+": text.gray,
+                "T": text.red,
+                "o": text.red
+            }
+            impassable = ["#", "M", "8", "<", "~", "."]
+            campable = ["=", ";", "-", ">", "$", "T"]
+            
+            if top < 0:
+                top = 0
+            if bottom > len(mapTiles):
+                bottom = len(mapTiles)
+            if left < 0:
+                left = 0
+            if right > len(mapTiles[0]):
+                right = len(mapTiles[0])
+            
+            print("")
+            
+            print(" ", end="")
+            for i in range(left - 1, right + 1):
+                print("#", end="")
+            print("")
+            
+            for y in range(top, bottom):
+                print("  ", end="")
+                for x in range(left, right):
+                    tile = mapTiles[y][x]
+                    
+                    if x == magyka.player.x and y == magyka.player.y:
+                        print(text.reset + "*", end="")
+                        if x < right - 1 and tile == mapTiles[y][x + 1]:
+                            print(tileToColor[tile], end="")
+                        continue
+                    
+                    if x > left and tile == mapTiles[y][x - 1]:
+                        tileText = tile
+                    else:
+                        tileText = tileToColor[tile] + tile
+                    
+                    print(tileText, end="")
+                print("")
+            
+            print(text.reset, end="")
+            
+            print(" ", end="")
+            for i in range(left - 1, right + 1):
+                print("#", end="")
+            print("")
+            
+            if mapTiles[magyka.player.y][magyka.player.x] in campable:
+                camp = True
+            else:
+                camp = False
+            
+            portal = False
+            for p in magyka.mapPortals[mapName]:
+                if p[0] == magyka.player.x and p[1] == magyka.player.y:
+                    portal = p
+            
+            print("\n Use WASD to move.")
+            
+            printing.options((["Camp"] if camp else []) + (["Enter"] if portal else []))
+            option = control.get_input("alphabetic", options="wasd"+("c" if camp else "")+("e" if portal else ""), silentOptions="wasd")
+            
+            if option == "w" and mapTiles[magyka.player.y-1][magyka.player.x] not in impassable:
+                magyka.player.y -= 1
+            elif option == "a" and mapTiles[magyka.player.y][magyka.player.x-1] not in impassable:
+                magyka.player.x -= 1
+            elif option == "s" and mapTiles[magyka.player.y+1][magyka.player.x] not in impassable:
+                magyka.player.y += 1
+            elif option == "d" and mapTiles[magyka.player.y][magyka.player.x+1] not in impassable:
+                magyka.player.x += 1
+            elif option == "e":
+                if portal[2] == "map":
+                    mapName = portal[3]
+                    magyka.player.x = portal[4]
+                    magyka.player.y = portal[5]
+                elif portal[2] == "town":
+                    magyka.player.location = portal[3]
+                    self.nextScreen = "town"
+                    return
+                elif portal[2] == "location":
+                    magyka.player.location = portal[3]
+                    self.nextScreen = "location"
+                    return
+            elif option == "c":
+                self.nextScreen = "camp"
+                return
+            else:
+                self.code = option
+                return
+    
+    def town(self):
+        while 1:
+            self.returnScreen = "map"
+            text.clear()
+            
+            printing.header(magyka.player.location.title())
+            
+            printing.options(["Inn", "General Store", "Blacksmith", "Arcanist", "Flea Market"])
+            option = control.get_input("alphabetic", options="tgbaf")
+            
+            if option in ("gba"):
+                self.nextScreen = "store"
+                self.page = 1
+            
+            if option == "t":
+                self.nextScreen = "inn"
+                return
+            elif option == "g":
+                self.storeType = "general"
+                return
+            elif option == "b":
+                self.storeType = "blacksmith"
+                return
+            elif option == "a":
+                self.storeType = "arcanist"
+                return
+            elif option == "f":
+                self.nextScreen = "market"
+            else:
+                self.code = option
+                return
+    
+    def store(self):
+        while 1:
+            self.returnScreen = "town"
+            text.clear()
+            
+            printing.header(self.storeType.capitalize())
+            
+            storeData = magyka.stores[magyka.player.location][self.storeType]
+            itemList = []
+            
+            for item in storeData["inventory"]:
+                try:
+                    itemList.append(magyka.load_from_db("items", item))
+                except:
+                    pass
+            
+            next = len(itemList) > self.page * 10
+            previous = self.page > 1
+            
+            if self.storeType != "general":
+                print("\n Equipment:")
+                for i in range(len(Globals.slotList)):
+                    if magyka.player.equipment[Globals.slotList[i]] != "": print(f'  - {magyka.player.equipment[Globals.slotList[i]].get_name()}')
+            print(f'\n {text.gp}{text.reset} {magyka.player.gold}\n')
+            
+            for i in range(-10 + 10*self.page, 10*self.page if 10*self.page < len(itemList) else len(itemList)):
+                if itemList[i].type in Globals.stackableItems:
+                    quantity = True
+                else:
+                    quantity = False
+                print(f' {i}) {itemList[i].get_name()} {" x1" if quantity else ""} {text.gp}{text.reset} {itemList[i].value}')
+            
+            if len(itemList) == 0:
+                print(f' {text.darkgray}Empty{text.reset}')
+            
+            printing.options((["Next"] if next else [])+(["Previous"] if previous else [])+(["Reforge"] if self.storeType == "blacksmith" else [])+["Crafting"])
+            option = control.get_input("optionumeric", options=("n" if next else "")+("p" if previous else "")+("r" if self.storeType == "blacksmith" else "")+"c"\
+            +"".join(tuple(map(str, range(0, len(itemList))))), textField=False)
+            
+            if option in tuple(map(str, range(0, len(itemList) + (self.page-1) * 10 + 1))):
+                magyka.purchaseItem = itemList[int(option) + (self.page-1) * 10]
+                self.nextScreen = "purchase"
+                return
+            elif option == "r":
+                self.nextScreen = "reforge"
+                return
+            elif option == "n":
+                self.page += 1
+            elif option == "p":
+                self.page -= 1
+            else:
+                self.code = option
+                return
+    
+    def purchase(self):
+        while 1:
+            self.returnScreen = "store"
+            text.clear()
+            
+            printing.header("Purchase" + magyka.purchaseItem.name.capitalize())
+            
+            magyka.purchaseItem.show_stats()
+            
+            print(f'\n {text.gp}{text.reset} {magyka.player.gold}')
+            print(f'\n Currently owned: {magyka.player.num_of_items(magyka.purchaseItem.name)}')
+            print(f' Type the quantity of items to be purchased ({magyka.player.gold // magyka.purchaseItem.value} can be bought).')
+            
+            option = control.get_input("numeric")
+            
+            print("")
+            
+            try:
+                option = int(option)
+            except:
+                pass
+            
+            if type(option) is int:
+                if option * magyka.purchaseItem.value <= magyka.player.gold:
+                    magyka.player.add_item(magyka.purchaseItem, option)
+                    magyka.player.gold -= option * magyka.purchaseItem.value
+                    
+                    if magyka.purchaseItem.type in Globals.stackableItems:
+                        quantity = True
+                    else:
+                        quantity = False
+                    print(f'\n {magyka.purchaseItem.get_name()}{" x" + str(option) if quantity else ""} added to your inventory!')
+                    
+                    control.press_enter()
+                    return
+                else:
+                    if magyka.purchaseItem.type in Globals.stackableItems:
+                        quantity = True
+                    else:
+                        quantity = False
+                    print(f'\n {text.lightred}You don\'t have enough gold to buy {magyka.purchaseItem.name} {" x" + str(option) if quantity else ""}.')
+                    control.press_enter()
+                return
+            else:
+                self.code = option
+                return
     
     def character(self):
         while 1:
@@ -525,7 +782,8 @@ class Screen:
             previous = self.page > 1
             
             printing.options((["Next"] if next else []) + (["Previous"] if previous else []))
-            option = control.get_input("optionumeric", textField=False, options=("n" if next else "") + ("p" if previous else "") + "".join(tuple(map(str, range(0, len(magyka.player.inventory))))))
+            option = control.get_input("optionumeric", textField=False, options=("n" if next else "")+("p" if previous else "")\
+            +"".join(tuple(map(str, range(0, len(magyka.player.inventory))))))
             
             if option in tuple(map(str, range(0, len(magyka.player.inventory) + (self.page-1) * 10 + 1))):
                 magyka.inspectItem = magyka.player.inventory[int(option) + (self.page - 1) * 10][0]
@@ -581,7 +839,7 @@ class Screen:
             
             if magyka.inspectItem.type == "equipment":
                 printing.options((["Unequip"] if magyka.inspectItemEquipped else ["Equip", "Discard"])+["More Info"])
-                option = control.get_input("alphabetic", options=("u" if magyka.inspectItemEquipped else "ed")+"m", soundlessOptions=("u" if magyka.inspectItemEquipped else "e"))
+                option = control.get_input("alphabetic", options=("u" if magyka.inspectItemEquipped else "ed")+"m", silentOptions=("u" if magyka.inspectItemEquipped else "e"))
             elif magyka.inspectItem.type == "consumable":
                 printing.options((["Use"] if magyka.inspectItem.target == "self" else [])+["Discard"])
                 option = control.get_input("alphabetic", options=("u" if magyka.inspectItem.target == "self" else "")+"d")
@@ -633,6 +891,9 @@ class Screen:
     
     def rest(self):
         self.nextScreen = self.returnScreen
+        sound.play_sound("rest")
+        magyka.player.hp = magyka.player.stats["max hp"]
+        magyka.player.mp = magyka.player.stats["max mp"]
 
 
 if __name__ == "__main__":
