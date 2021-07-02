@@ -76,13 +76,22 @@ class Control:
             if self.get_key() == key:
                 break
     
-    def press_enter(self):
-        text.set_cursor_visible(False)
-        print(f'\n {text.option}[Press Enter]{text.reset}')
-        self.wait_for_key("enter")
-        text.set_cursor_visible(True)
+    def time_keypress(self):
+        reactionTime = 0
+        while 1:
+            time.sleep(0.01)
+            reactionTime += 0.01
+            if self.get_key() == "space":
+                return round(reactionTime * 1.6, 2) * 1000
     
-    def get_input(self, mode, textField=True, back=True, options="", prompt="", silentOptions=""):
+    def press_enter(self, prompt=True, nl=True):
+        text.set_cursor_visible(False)
+        nl = "\n " if nl else ""
+        if prompt:
+            print(f'{nl}{text.option}[Press Enter]{text.reset}')
+        self.wait_for_key("enter")
+    
+    def get_input(self, mode, textField=True, back=True, options="", prompt="", silentOptions="", showText=True):
         if options != "":
             textField = False
         if mode == "none":
@@ -112,12 +121,13 @@ class Control:
                 helpText += "Press ESC to go back."
             else:
                 helpText += "."
-        
-            print("\n " + helpText)
+            
+            if showText:
+                print("\n " + helpText)
         
         a = prompt
         loc = len(prompt)
-        print(a, end="")
+        if textField: print(a, end="")
         sys.stdout.flush()
         terminalSize = os.get_terminal_size()
         while 1:

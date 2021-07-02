@@ -2,12 +2,25 @@ import random
 import math
 import copy
 from script.BaseClass import BaseClass
+from script.Effect import Effect, Passive
 from script.Text import text
 import script.Globals as Globals
 
 
 class Entity(BaseClass):
-    def __init__(self):
+    def __init__(self, attributes, defaults):
+        self.defaults = {
+            "name": "Name",
+            "equipment": {"": ""},
+            "passives": [],
+            "baseStats": {},
+            "statChanges": {}
+        }
+        
+        self.defaults.update(defaults)
+        
+        super().__init__(attributes, self.defaults)
+        
         self.defaultStats = {
             "attack": [1, 1],
             "armor": 0,
@@ -28,8 +41,6 @@ class Entity(BaseClass):
         self.baseStats = self.stats.copy()
         self.statChanges = dict((stat, [[0, 0], [0, 0], 0]) for stat in self.stats)
 
-        self.equipment = {"": ""}
-        self.passives = []
         self.guard = ""
 
     def update_stats(self):
@@ -40,7 +51,7 @@ class Entity(BaseClass):
         effects = []
         self.statChanges = {statName: [[0, 0], [0, 0], -1] for statName in self.stats}
         
-        if self.equipment["weapon"] == "":
+        if not self.equipment.get("weapon"):
             self.stats["attack"] = [1, 1]
         
         for slot in self.equipment:
@@ -83,7 +94,6 @@ class Entity(BaseClass):
             self.__mp = 0
 
     def defend(self, effect, attackerStats={}, tags=[], passive=False):
-        effect = copy.deepcopy(effect)
         attackText = ""
         hpAmount = 0
         
@@ -96,51 +106,46 @@ class Entity(BaseClass):
         if "variance" not in attackerStats:
             attackerStats["variance"] = 20
         
-        for i in range(len(tags)):
-            tag = tags[i].split(":")
-            if tag[0] in ("noMiss", "hit"):
+        for tag in tags:
+            if tag in ("noMiss", "hit"):
                 attackerStats["hit"] = 100
-            elif tag[0] in ("noDodge", "hit"):
+            elif tag in ("noDodge", "hit"):
                 attackerStats["dodge"] = 0
-            elif tag[0] == "pierce":
+            elif tag == "pierce":
                 try:
-                    attackerStats["pierce"] = 1 / float(tag[1])
+                    attackerStats["pierce"] = 100/tags[tag]
                 except ZeroDivisionError:
                     attackerStats["pierce"] = 0
-            elif tag[0] == "variance":
+            elif tag == "variance":
                 try:
-                    attackerStats["variance"] = float(tag[1])
-                except ZeroDivisionError:
+                    attackerStats["variance"] = int(tag[1])
+                except:
                     attackerStats["variance"] = 20
         
-        if effect.type in ("-hp", "-mp", "-all", "passive"):
+        if effect.type in ("damageHp", "damageMp", "passive"):
             if effect.type != "passive":
                 amount, a, r, v = [([0, 0] if effect.type == "-all" else 0) for i in range(4)]
-                if effect.get("crit"):
-                    crit = effect.crit
-                elif attackerStats.get("crit"):
-                    crit = attackerStats["crit"]
-                else:
-                    crit = 4
+                crit = 0
+                if attackerStats.get("crit"):
+                    crit = attackerStats.get("crit")
+                crit += effect.crit
 
                 critical = ''
                 if random.randint(1, 100) <= crit:
                     crit = 2
                     critical = 'critical '
+                else:
+                    crit = 1
 
-            if effect.get("hit"):
-                h = effect.hit
-            elif attackerStats.get("hit"):
+            if attackerStats.get("hit"):
                 h = attackerStats["hit"]
             else:
-                h = 95
-
-            if effect.get("dodge"):
-                d = effect.dodge
-            elif attackerStats.get("dodge"):
-                d = attackerStats["dodge"]
+                h = effect.hit
+            
+            if attackerStats.get("dodge"):
+                d = 100 - attackerStats["dodge"]
             else:
-                d = 0
+                d = 100 * effect.dodge
 
             if random.randint(1, 100) <= h:
                 h = 1
@@ -158,120 +163,94 @@ class Entity(BaseClass):
                 deflect = False
 
             if self.guard == "block":
-                return f'but {self.name} blocks the attack.', 0
+                print(f'but {self.name} blocks the attack.')
+                return
             elif self.guard == "counter":
-                return f'but {self.name} counters, ', 0
+                print(f'but {self.name} counters, ', end="")
+                return
             elif not h:
-                return 'but misses.', 0
+                print("but misses.")
+                return
             elif not d:
-                return f'but {self.name} dodges.', 0
+                print(f'but {self.name} dodges.')
+                return
 
-            if effect.type == "-all":
-                if type(effect.value[0]) is list:
-                    a[0] = random.randint(effect.value[0][0], effect.value[0][1])
-                else:
-                    a[0] = effect.value[0]
-                if type(effect.value[1]) is list:
-                    a[1] = random.randint(effect.value[1][0], effect.value[1][1])
-                else:
-                    a[1] = effect.value[1]
-                r = (self.stats["armor"] / 2 + self.stats["vitality"]) * attackerStats["pierce"]
-                v = [random.randint(100 - attackerStats["variance"], 100 + attackerStats["variance"]) / 100, random.randint(100 - attackerStats["variance"], 100 + attackerStats["variance"]) / 100]
-
-                amount = [round((a[0] - r) * v[0] * crit), round((a[1] - r) * v[1] * crit)]
-                if deflect:
-                    amount = [round(amount[0] / 2), round(amount[1] / 2)]
-                amount = [(1 if amount[0] < 1 else amount[0]), (1 if amount[1] < 1 else amount[1])]
-
-                self.__hp -= amount[0]*h*d
-                hpAmount = amount[0]*h*d*-1
-                self.__mp -= amount[1]*h*d
-                attackText = 'dealing {text.red}' + str(amount[0]) + ' ♥{reset} and {text.blue}' + str(amount[1]) + ' ♦{reset} ' + critical + 'damage'
-            if effect.type in ("-hp", "-mp"):
+            if effect.type in ("damageHp", "damageMp"):
                 if type(effect.value) is list:
                     a = random.randint(effect.value[0], effect.value[1])
                 else:
                     a = effect.value
                 r = (self.stats["armor"] / 2 + self.stats["vitality"]) * attackerStats["pierce"]
                 v = random.randint(100 - attackerStats["variance"], 100 + attackerStats["variance"]) / 100
-
+                
                 amount = round((a - r) * v * crit)
                 if deflect:
-                    amount = round(amount / 2)
+                    amount //= 2
                 amount = 1 if amount < 1 else amount
 
-                if effect.type == "-hp":
-                    self.__hp -= amount*h*d
+                if effect.type == "damageHp":
+                    self.hp -= amount*h*d
                     hpAmount = amount*h*d*-1
-                    attackText = 'dealing {text.red}' + str(amount) + ' ♥{reset} ' + critical + 'damage'
+                    print(f'dealing {amount} {text.hp}{text.reset} {critical}damage', end="")
                 else:
-                    self.__mp -= amount*h*d
-                    attackText = 'dealing {text.blue}' + str(amount) + ' ♦{reset} ' + critical + 'damage'
+                    self.mp -= amount*h*d
+                    print(f'dealing {amount} {text.mp}{text.reset} {critical}damage', end="")
             if effect.type == "passive":
-                attackText = self.add_passive(effect)
-        elif effect.type in ("hp", "mp", "all"):
-            if effect.type == "all":
-                if "*" in effect:
-                    amount = [(effect.value[0] / 100) * self.stats["max hp"], (effect.value[1] / 100) * self.stats["max mp"]]
-                else:
-                    amount = [effect.value[0], effect.value[1]]
-                amount = [1 if amount[0] < 1 else amount[0], 1 if amount[1] < 1 else amount[1]]
-                if amount[0] + self.__hp > self.stats["max hp"]:
-                    amount[0] = self.stats["max hp"] - self.__hp
-                if amount[1] + self.__mp > self.stats["max mp"]:
-                    amount[1] = self.stats["max mp"] - self.__mp
-
-                self.__hp += amount[0]
-                hpAmount = amount[0]
-                self.__mp += amount[1]
-                attackText = 'healing {text.red}{amount[0]} ♥{reset} and {text.blue}{amount[1]} ♦{reset}'
-            else:
-                if "*" in effect:
+                self.add_passive(effect)
+        elif effect.type in ("healHp", "healMp"):
+            if effect.opp == "*":
+                if effec.type == "healHp":
                     amount = (effect.value / 100) * self.stats["max hp"]
                 else:
-                    amount = effect.value
-                if amount < 1:
-                    amount = 1
+                    amount = (effect.value / 100) * self.stats["max mp"]
+            else:
+                amount = effect.value
+            
+            amount = round(amount)
+            if amount < 1:
+                amount = 1
 
-                if effect.type == "hp":
-                    if amount + self.__hp > self.stats["max hp"]:
-                        amount = self.stats["max hp"] - self.__hp
-                    self.__hp += amount
-                    hpAmount = amount
-                    attackText = 'healing {text.red}' + str(amount) + ' ♥{reset}'
-                else:
-                    if amount + self.__mp > self.stats["max mp"]:
-                        amount = self.stats["max mp"] - self.__mp
-                    self.__mp += amount
-                    attackText = 'healing {text.blue}' + str(amount) + ' ♦{reset}'
+            if effect.type == "healHp":
+                if amount + self.hp > self.stats["max hp"]:
+                    amount = self.stats["max hp"] - self.hp
+                self.hp += amount
+                hpAmount = amount
+                print(f'healing {amount} {text.hp}{text.reset}', end="")
+            else:
+                if amount + self.mp > self.stats["max mp"]:
+                    amount = self.stats["max mp"] - self.mp
+                self.mp += amount
+                print(f'healing {amount} {text.mp}{text.reset}', end="")
         elif effect.type == "stat":
-            if "*" in effect:
+            if effect.opp == "*":
                 self.baseStats[effect.stat] = round(self.baseStats[effect.stat] * ((effect.value + 1) / 100))
             else:
                 self.baseStats[effect.stat] += effect.value
             self.update_stats()
-            color = ""
-            symbol = ""
+
             if effect.stat == "max hp":
-                color = '{text.red}'
-                symbol = " ♥"
+                symbol = text.hp
             if effect.stat == "max mp":
-                color = '{text.blue}'
-                symbol = " ♦"
-            return 'increasing ' + effect.stat.title() + ' by ' + color + str(effect.value) + '{reset}' + ("%" if "*" in effect else "") + color + symbol + '{reset}.', 0
-        if passive:
-            if type(passive) is list:
-                for i in range(len(passive)):
-                    attackText += ", "
-                    if i == len(passive) - 1:
-                        attackText += "and "
-                    attackText += self.add_passive(passive[i])
+                symbol = text.mp
             else:
-                attackText += " and "
-                attackText += self.add_passive(passive)
+                symbol = ""
+            
+            if (effect.opp == "*" and effect.value >= 1) or (effect.opp != "*" and effect.opp > 0):
+                increase = "increasing"
+            else:
+                increase = "decreasing"
+            
+            print(f'{increase} {effect.stat.title()} by {str(effect.value)}{"%" if "*" in effect else ""}{text.reset}.')
+        if passive:
+            for i in range(len(passive)):
+                print(", ", end="")
+                if i == len(passive) - 1:
+                    print("and ", end="")
+                self.add_passive(passive[i])
         else:
-            attackText += "."
-        return attackText, hpAmount
+            print(".")
+        
+        return hpAmount
 
     def add_passive(self, passive):
         passive.dodge = 0
@@ -291,7 +270,7 @@ class Entity(BaseClass):
         if not passiveFound:
             self.passives.append(passive)
         self.update_stats()
-        return f'applying {text.c("light green" if passive.buff == True else "light red")}{passive.name}{text.reset} ({passive.turns})'
+        print(f'applying {passive.get_name(turns=True)}', end="")
 
     def update(self):
         self.update_stats()
@@ -310,75 +289,92 @@ class Entity(BaseClass):
                 continue
         return attackText, tempDamage
 
-    def attack(self):
-        attackSkill = {"type": "-hp", "value": [self.stats["attack"][0] + self.stats["strength"], self.stats["attack"][1] + self.stats["strength"]], "crit": self.stats["crit"], "hit": self.stats["hit"]}
-        if "weapon" in self.equipment and self.equipment["weapon"] != "":
+    def attack(self, entity, type="attack"):
+        attackText = ""
+        if hasattr(self, "attackText"):
+            attackText = self.attackText
+        else:
+            if self.equipment.get("weapon"):
+                attackText = self.equipment["weapon"].text
+            else:
+                attackText = "attacks"
+        
+        text.slide_cursor(1, 3)
+        print(f'{self.name} {attackText} {entity.name}, ', end="")
+        damage = entity.defend(self.get_attack())
+
+    def get_attack(self):
+        attackSkill = {"type": "damageHp", "value": [self.stats["attack"][0]+self.stats["strength"], self.stats["attack"][1]+self.stats["strength"]], "crit": self.stats["crit"], "hit": self.stats["hit"]}
+        if self.equipment.get("weapon"):
             passives = []
-            for effect in self.equipment["weapon"]["effect"]:
+            for effect in self.equipment["weapon"].effect:
                 if effect.type == "passive":
-                    passives.append(effect.value)
-                if "passive" in effect:
+                    passives += effect.value
+                if effect.passive:
                     passives += effect.passive
             attackSkill.update({"passive": passives})
-        return attackSkill
+        return Effect(attackSkill)
     
     def show_passives(self):
         if len(self.passives) > 0:
             print(" ", end="")
             print(", ".join([f'{passive.get_name(turns=True)}' for passive in self.passives]))
+    
+    def show_stats(self, gpxp=True, passives=True):
+        print("")
+        print("", text.title(self.name, self.level))
+        print("", text.hp, text.bar(self.hp, self.stats["max hp"], "red", number=True))
+        print("", text.mp, text.bar(self.mp, self.stats["max mp"], "blue", number=True))
+        if gpxp:
+            print("", text.xp, text.bar(self.xp, self.mxp, "green", number=True))
+            print("", text.gp, text.reset + str(self.gold))
+        if passives: self.show_passives()
 
 
 class Player(Entity):
-    def __init__(self, equipment, mainQuests):
-        self.hp = 7
-        self.mp = 10
-        self.level = 1
-        self.name = "Name"
-        self.stats = {}
+    def __init__(self, attributes):
+        self.defaults = {
+            "hp": 7,
+            "mp": 10,
+            "level": 1,
+            "name": "Name",
+            "stats": {},
+            "location": "fordsville",
+            "x": 799,
+            "y": 690,
+            "saveId": random.randint(10000, 99999),
+            "quests": [],
+            "mainQuests": [],
+            "levelsGained": 0,
+            "mainQuest": 0,
+            "completedQuests": [],
+            "inventory": [],
+            "equipment": {},
+            "magic": None,
+            "xp": 0,
+            "mxp": 10,
+            "gold": 0
+        }
         
-        super().__init__()
+        super().__init__(attributes, self.defaults)
         
-        self.__xp, self.mxp, self.gold = 0, 10, 0
-        self.levelsGained = 0
-        self.saveId = random.randint(1000, 9999)
-        
-        self.location = "fordsville"
-        self.x = 799
-        self.y = 690
-        self.quests = []
-        self.mainQuests = mainQuests
-        for quest in mainQuests:
+        for quest in self.mainQuests:
             quest.update({"main": True})
-        self.addQuest(mainQuests[0])
-        self.mainQuest = 0
-        self.completedQuests = []
-        
-        self.inventory = []
-        self.equipment = equipment
-        self.magic = None
+        self.addQuest(self.mainQuests[0])
         
         self.update_stats()
-    
-    def getXp(self):
-        return self.__xp
 
-    def setXp(self, xp):
-        self.__xp = xp
-        if xp < self.mxp:
-            self.__xp = xp
-            return
-        while self.__xp >= self.mxp:
-            self.__xp -= self.mxp
+    def level_up(self):
+        while self.xp >= self.mxp:
+            self.xp -= self.mxp
             self.mxp = math.ceil(self.mxp * 1.2)
             self.baseStats["max hp"] = math.ceil(self.baseStats["max hp"] * 1.1)
             self.baseStats["max mp"] = math.ceil(self.baseStats["max mp"] * 1.1)
             self.update_stats()
-            self.__hp = self.stats["max hp"]
-            self.__mp = self.stats["max mp"]
+            self.hp = self.stats["max hp"]
+            self.mp = self.stats["max mp"]
             self.level += 1
-            self.levelsGained += self.level % 2
-            
-    xp = property(getXp, setXp)
+            self.levelsGained += 1
 
     def addQuest(self, quest):
         for i in range(len(quest["objective"])):
@@ -497,15 +493,6 @@ class Player(Entity):
                 else:
                     magicSkill[i]["value"] += self.stats["intelligence"]
         return magicSkill
-    
-    def show_stats(self, passives=True):
-        print("")
-        print("", text.title(self.name, self.level))
-        print("", text.hp, text.bar(self.hp, self.stats["max hp"], "red", number=True))
-        print("", text.mp, text.bar(self.mp, self.stats["max mp"], "blue", number=True))
-        print("", text.xp, text.bar(self.xp, self.mxp, "green", number=True))
-        print("", text.gp, text.reset + str(self.gold))
-        if passives: self.show_passives()
 
 
 class Enemy(Entity):
@@ -523,7 +510,6 @@ class Enemy(Entity):
             "levelDifference": 0
         }
         
-        super().super().__init__(attributes, self.defaults)
-        super().__init__()
+        super().__init__(attributes, self.defaults)
         
         self.update_stats()

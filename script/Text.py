@@ -1,6 +1,8 @@
 import script.Globals as Globals
+from script.Mapper import mapper
 import os
 import sys
+import time
 
 
 class Text:
@@ -31,7 +33,8 @@ class Text:
             "light purple": "135",
             "purple": "128",
             "brown": "094",
-            "option": "231"
+            "option": "231",
+            "terminal": "000"
         }
         
         self.rarityColors = {
@@ -54,7 +57,9 @@ class Text:
         
         self.reset = "\x1b[0m" if Globals.ansiEnabled else ""
         
-        self.clearCommand = "cls" if Globals.system == "Windows" else "clear"
+        os.system("cls" if Globals.system == "Windows" else "clear")
+        
+        animations = []
     
     # - Ansi - #
     def c(self, color, back=False, code=False):
@@ -76,8 +81,92 @@ class Text:
             print(f'\x1b[8;{cols};{rows}t')
     
     def clear(self):
-        os.system(self.clearCommand)
+        if Globals.ansiEnabled:
+            print("\x1b[255A", end="")
+            print("\x1b[2J", end="")
         self.set_cursor_visible(False)
+    
+    def move_cursor(self, row, col):
+        if Globals.ansiEnabled:
+            print(f'\x1b[{row};{col}H', end="")
+        else:
+            print("\n You shouldn't be seeing this. (text.move_cursor)")
+    
+    def slide_cursor(self, row=0, col=0):
+        if Globals.ansiEnabled:
+            if row:
+                print(f'\x1b[{row}B', end="")
+            if col:
+                print(f'\x1b[{col}C', end="")
+    
+    # - Printing - #
+    @staticmethod
+    def header(string):
+        print("\n -= " + string + " =-")
+    
+    def options(self, names, space=0):
+        if len(names) > 0:
+            print("")
+        
+        for i in range(len(names)):
+            self.slide_cursor(0, space)
+            print(f' {self.option + self.c("dark gray", True)}[{names[i][11 if ";" in names[i] else 0]}]{self.reset} {names[i]}')
+            if i < len(names)-1:
+                self.slide_cursor(0, space)
+                print(f' {self.option + self.c("dark gray", True)} |{self.reset + self.c("terminal", back=True)} ')
+        
+        print(self.reset, end="")
+    
+    def fill_screen(self, color):
+        if color:
+            print(self.c(color, back=True))
+        else:
+            print(self.reset)
+        for i in range(os.get_terminal_size()[1] - 1):
+            self.move_cursor(i, 0)
+            print(" "*os.get_terminal_size()[0], end="")
+    
+    def fill_rect(self, color, r, c, w, h):
+        for i in range(h):
+            self.move_cursor(i + r, c)
+            if color:
+                print(self.c(color, back=True) + " "*w, end="")
+            else:
+                print(self.reset + " "*w, end="")
+        
+    
+    def image(self, file, r=-1, c=-1, x=-1, y=-1, w=-1, h=-1):
+        img = mapper.get_text(mapper.imageColors, "image/" + file)
+        if x >= 0:
+            left = x
+        else:
+            left = 0
+        if y >= 0:
+            top = y
+        else:
+            top = 0
+        if w >= 0:
+            width = w
+        else:
+            width = len(img[0])
+        if h >= 0:
+            height = h
+        else:
+            height = len(img)
+        
+        self.move_cursor(1, 1)
+        for i in range(height):
+            if r >= 0 and c >= 0:
+                self.move_cursor(r + i, c)
+            for j in range(width):
+                print(f'{self.c(img[i + top][j + left], back=True, code=True)}  ', end="")
+            if r < 0 and c < 0:
+                print(self.reset)
+        print(self.reset, end="")
+    
+    def print_at_loc(self, string, r, c):
+        self.move_cursor(r, c)
+        print(string, end="")
     
     # - Returning - #
     

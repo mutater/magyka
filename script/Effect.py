@@ -11,7 +11,10 @@ class Effect(BaseClass):
             "passive": None,
             "opp": "+",
             "attack": None,
-            "values": []
+            "values": [],
+            "crit": 4,
+            "hit": 95,
+            "dodge": 1
         }
         
         super().__init__(attributes, self.defaults)
@@ -48,12 +51,12 @@ class Effect(BaseClass):
                 if type(hpDamage) is list:
                     hpDamageText = f'{hpDamage[0]} - {hpDamage[1]}{"%" if hpMult else ""} {text.hp}{text.reset}'
                 else:
-                    hpDamageText = f'{hpDamage}{"%" if hpMult else ""}{text.hp}{text.reset}'
+                    hpDamageText = f'{hpDamage}{"%" if hpMult else ""} {text.hp}{text.reset}'
             if mpDamage:
                 if type(mpDamage) is list:
                     mpDamageText = f'{mpDamage[0]} - {mpDamage[1]}{"%" if mpMult else ""} {text.mp}{text.reset}'
                 else:
-                    mpDamageText = f'{mpDamage}{"%" if mpMult else ""}{text.mp}{text.reset}'
+                    mpDamageText = f'{mpDamage}{"%" if mpMult else ""} {text.mp}{text.reset}'
             
             if attack:
                 print(f' Damages {hpDamageText if hpDamageText else mpDamageText}')
@@ -72,16 +75,16 @@ class Effect(BaseClass):
                     print(f' {"+" if self.value > 0 else "-"}{self.value} Attack')
             if self.type in statList:
                 if self.type == "max hp":
-                    color, character = text.red, " ♥"
+                    symbol = " " + text.hp
                 elif self.type == "max mp":
-                    color, character = text.blue, " ♦"
+                    symbol = " " + text.mp
                 else:
-                    color, character = "", ""
+                    symbol = ""
                 
                 if self.opp == "*":
-                    print(f' {abs(self.value)}% {"Increased" if self.value > 0 else "Decreased"} {color}{self.type.capitalize()}{character}{text.reset}')
+                    print(f' {abs(self.value)}% {"Increased" if self.value > 0 else "Decreased"} {self.type.capitalize()}{symbol}{text.reset}')
                 else:
-                    print(f' {"+" if self.value > 0 else ""}{self.value} {color}{self.type.capitalize()}{character}{text.reset}')
+                    print(f' {"+" if self.value > 0 else ""}{self.value} {self.type.capitalize()}{symbol}{text.reset}')
             elif self.type in ("crit", "hit", "dodge"):
                 print(f' {abs(self.value)}% {"Increased" if self.value > 0 else "Decreased"} {self.type.capitalize()} Chance')
 

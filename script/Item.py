@@ -169,12 +169,13 @@ class Item(BaseClass):
             if hp and mp:
                 divider = "/"
             
-            if self.slot == "weapon":
-                symbol = "Weapon"
-            elif self.slot == "tome":
-                symbol = "Tome"
-            elif self.slot:
-                symbol = "Armor"
+            if self.type == "equipment":
+                if self.slot == "weapon":
+                    symbol = "Weapon"
+                elif self.slot == "tome":
+                    symbol = "Tome"
+                elif self.slot:
+                    symbol = "Armor"
             
             if hp or mp or symbol:
                 symbolText = f' {symbol}{hp}{divider}{mp}'
