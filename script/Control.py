@@ -86,9 +86,9 @@ class Control:
     
     def press_enter(self, prompt=True, nl=True):
         text.set_cursor_visible(False)
-        nl = "\n " if nl else ""
+        text.move_cursor(28, 4)
         if prompt:
-            print(f'{nl}{text.option}[Press Enter]{text.reset}')
+            print(f'{text.option}[Press Enter]{text.reset}')
         self.wait_for_key("enter")
     
     def get_input(self, mode, textField=True, back=True, options="", prompt="", silentOptions="", showText=True):
@@ -98,10 +98,11 @@ class Control:
             textField = False
         
         if textField:
+            text.slide_cursor(1, 3)
             if mode == "command":
-                print(f'\n{text.option} Console >| {text.reset}', end="")
+                print(f'{text.option}Console >| {text.reset}', end="")
             else:
-                print(f'\n{text.option} > {text.reset}', end="")
+                print(f'{text.option}> {text.reset}', end="")
             text.set_cursor_visible(True)
         else:
             helpText = ""
@@ -123,7 +124,7 @@ class Control:
                 helpText += "."
             
             if showText:
-                print("\n " + helpText)
+                pass #print("\n " + helpText)
         
         a = prompt
         loc = len(prompt)
@@ -208,6 +209,7 @@ class Control:
                 return "/D"
             # Closing console
             if key in ("`", "~") and mode == "command":
+                text.set_cursor_visible(False)
                 a = ""
                 print("\b \b")
                 return "/C"

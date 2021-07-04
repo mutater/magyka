@@ -2,6 +2,7 @@ import random
 import math
 import copy
 from script.BaseClass import BaseClass
+from script.Control import control
 from script.Effect import Effect, Passive
 from script.Text import text
 import script.Globals as Globals
@@ -52,7 +53,7 @@ class Entity(BaseClass):
         self.statChanges = {statName: [[0, 0], [0, 0], -1] for statName in self.stats}
         
         if not self.equipment.get("weapon"):
-            self.stats["attack"] = [1, 1]
+            self.stats["attack"] = self.baseStats["attack"].copy()
         
         for slot in self.equipment:
             if self.equipment[slot] == "":
@@ -322,12 +323,17 @@ class Entity(BaseClass):
     
     def show_stats(self, gpxp=True, passives=True):
         print("")
-        print("", text.title(self.name, self.level))
-        print("", text.hp, text.bar(self.hp, self.stats["max hp"], "red", number=True))
-        print("", text.mp, text.bar(self.mp, self.stats["max mp"], "blue", number=True))
+        text.slide_cursor(1, 3)
+        print(text.title(self.name, self.level))
+        text.slide_cursor(0, 3)
+        print(text.hp, text.bar(self.hp, self.stats["max hp"], "red", length=40, number=True))
+        text.slide_cursor(0, 3)
+        print(text.mp, text.bar(self.mp, self.stats["max mp"], "blue", length=40, number=True))
         if gpxp:
-            print("", text.xp, text.bar(self.xp, self.mxp, "green", number=True))
-            print("", text.gp, text.reset + str(self.gold))
+            text.slide_cursor(0, 3)
+            print(text.xp, text.bar(self.xp, self.mxp, "green", length=40, number=True))
+            text.slide_cursor(0, 3)
+            print(text.gp, text.reset + str(self.gold))
         if passives: self.show_passives()
 
 
@@ -509,6 +515,9 @@ class Enemy(Entity):
             "magic": [],
             "levelDifference": 0
         }
+        
+        attributes["stats"]["max hp"] = attributes.get("hp", self.defaults["hp"])
+        attributes["stats"]["max mp"] = attributes.get("mp", self.defaults["mp"])
         
         super().__init__(attributes, self.defaults)
         

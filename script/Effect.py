@@ -59,9 +59,11 @@ class Effect(BaseClass):
                     mpDamageText = f'{mpDamage}{"%" if mpMult else ""} {text.mp}{text.reset}'
             
             if attack:
-                print(f' Damages {hpDamageText if hpDamageText else mpDamageText}')
+                text.slide_cursor(0, 3)
+                print(f'Damages {hpDamageText if hpDamageText else mpDamageText}')
             if heal:
-                print(f' Heals {hpDamageText if hpDamageText else mpDamageText}')
+                text.slide_cursor(0, 3)
+                print(f'Heals {hpDamageText if hpDamageText else mpDamageText}')
         
         # Printing stats
         if stats:
@@ -69,10 +71,11 @@ class Effect(BaseClass):
             statList = ("max hp", "max mp", "armor", "strength", "intelligence", "vitality")
             
             if self.type == "attack" and type(self.value) is not list:
+                text.slide_cursor(0, 3)
                 if self.opp == "*":
-                    print(f' {abs(self.value)}% {"Increased" if self.value > 0 else "Decreased"} Attack')
+                    print(f'{abs(self.value)}% {"Increased" if self.value > 0 else "Decreased"} Attack')
                 else:
-                    print(f' {"+" if self.value > 0 else "-"}{self.value} Attack')
+                    print(f'{"+" if self.value > 0 else "-"}{self.value} Attack')
             if self.type in statList:
                 if self.type == "max hp":
                     symbol = " " + text.hp
@@ -81,12 +84,14 @@ class Effect(BaseClass):
                 else:
                     symbol = ""
                 
+                text.slide_cursor(0, 3)
                 if self.opp == "*":
-                    print(f' {abs(self.value)}% {"Increased" if self.value > 0 else "Decreased"} {self.type.capitalize()}{symbol}{text.reset}')
+                    print(f'{abs(self.value)}% {"Increased" if self.value > 0 else "Decreased"} {self.type.capitalize()}{symbol}{text.reset}')
                 else:
                     print(f' {"+" if self.value > 0 else ""}{self.value} {self.type.capitalize()}{symbol}{text.reset}')
             elif self.type in ("crit", "hit", "dodge"):
-                print(f' {abs(self.value)}% {"Increased" if self.value > 0 else "Decreased"} {self.type.capitalize()} Chance')
+                text.slide_cursor(0, 3)
+                print(f'{abs(self.value)}% {"Increased" if self.value > 0 else "Decreased"} {self.type.capitalize()} Chance')
 
 
 class Passive(BaseClass):

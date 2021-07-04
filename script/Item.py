@@ -126,7 +126,7 @@ class Item(BaseClass):
                         else:
                             selfEffect.value += effect.value
     
-    def modifyEquipment(self, modifier):
+    def modify(self, modifier):
         if not modifier:
             return
 
@@ -153,40 +153,41 @@ class Item(BaseClass):
         
         self.update()
     
-    def get_name(self, effect=False, nameJust=0, symbolJust=0):
+    def get_name(self, info=False, quantity=0):
         hp = ""
         mp = ""
-        divider = ""
         symbol = ""
         symbolText = ""
-        if effect:
+        quantityText = ""
+        typeText = ""
+        if info:
             for effect in self.effect:
                 if effect.type == "healHp" and not self.slot:
                     hp = "♥"
                 if effect.type == "healMp" and not self.slot:
                     mp = "♦"
             
-            if hp and mp:
-                divider = "/"
-            
-            if self.type == "equipment":
-                if self.slot == "weapon":
-                    symbol = "Weapon"
-                elif self.slot == "tome":
-                    symbol = "Tome"
-                elif self.slot:
-                    symbol = "Armor"
-            
             if hp or mp or symbol:
-                symbolText = f' {symbol}{hp}{divider}{mp}'
-        return f'{text.c(text.rarityColors[self.rarity])}{self.name.ljust(nameJust)}{text.reset}{symbolText.ljust(symbolJust)}'
+                symbolText = f' {symbol}{hp}{mp}'
+            
+            if quantity and self.type != "equipment":
+                quantityText = " x" + str(quantity).ljust(5)
+            else:
+                quantityText = "       "
+            
+            typeText = self.type.capitalize()
+        return f'{text.c(text.rarityColors[self.rarity])}{self.name.ljust(27)}{text.reset}{symbolText.ljust(8)}{quantityText}{typeText}'
     
     def show_item_stats(self):
-        print("\n", self.get_name())
+        text.slide_cursor(1, 3)
+        print(self.get_name())
         if self.type == "equipment":
-            print("", self.modifier.get_name())
-        print(" Rarity:      " + self.rarity.capitalize())
-        print(" Description: " + self.description)
+            text.slide_cursor(0, 3)
+            print(self.modifier.get_name())
+        text.slide_cursor(0, 3)
+        print("Rarity:      " + self.rarity.capitalize())
+        text.slide_cursor(0, 3)
+        print("Description: " + self.description)
         
         effects = []
         passives = []
@@ -204,7 +205,8 @@ class Item(BaseClass):
                     effects.append(effect)
         
         if self.type == "equipment" and self.slot == "tome":
-            print(f'\n Costs {text.blue}{self.mana} ♦{text.reset}')
+            text.slide_cursor(0, 3)
+            print(f'Costs {text.blue}{self.mana} ♦{text.reset}')
         print("")
         for effect in effects:
             effect.show_stats(stats=False)
@@ -215,27 +217,38 @@ class Item(BaseClass):
         if len(self.tags) > 0:
             print("")
         if "hit" in self.tags:
-            print(" Accurate: Never misses\n Seeking: Undodgeable")
+            text.slide_cursor(0, 3)
+            print("Accurate: Never misses")
+            text.slide_cursor(0, 3)
+            print("Seeking: Undodgeable")
         if "noMiss" in self.tags:
-            print(" Accurate: Never misses")
+            text.slide_cursor(0, 3)
+            print("Accurate: Never misses")
         if "noDodge" in self.tags:
-            print(" Seeking: Undodgeable")
+            text.slide_cursor(0, 3)
+            print("Seeking: Undodgeable")
         if "pierece" in self.tags:
-            print(f' Piercing: Ignores {self.tags["pierce"]}% of enemy armor')
+            text.slide_cursor(0, 3)
+            print(f'Piercing: Ignores {self.tags["pierce"]}% of enemy armor')
         if "variance" in self.tags:
+            text.slide_cursor(0, 3)
             if self.tags["variance"] == 0:
-                print(" Unvarying: Damage does not vary")
+                print("Unvarying: Damage does not vary")
             else:
-                print(f' Varying: Damage varies by {self.tags["variance"]}%')
+                print(f'Varying: Damage varies by {self.tags["variance"]}%')
         if "infinite" in self.tags:
-            print(" Infinite: Item is not consumed upon use")
+            text.slide_cursor(0, 3)
+            print("Infinite: Item is not consumed upon use")
         if "lifesteal" in self.tags:
-            print(f' Lifesteal: Heales for {self.tags["lifesteal"]}% of damage dealt')
+            text.slide_cursor(0, 3)
+            print(f'Lifesteal: Heales for {self.tags["lifesteal"]}% of damage dealt')
         
         if self.enchantments:
-            print(text.lightblue + "\n Enchantments:" + text.reset)
+            text.slide_cursor(1, 3)
+            print(text.lightblue + "Enchantments:" + text.reset)
             for enchantment in self.enchantments:
-                print(f'  - {enchantment.return_name()}')
+                text.slide_cursor(0, 5)
+                print(f'- {enchantment.return_name()}')
 
 
 class Enchantment(BaseClass):

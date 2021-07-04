@@ -58,6 +58,7 @@ class Text:
         self.reset = "\x1b[0m" if Globals.ansiEnabled else ""
         
         os.system("cls" if Globals.system == "Windows" else "clear")
+        self.set_cursor_visible(False)
         
         animations = []
     
@@ -82,9 +83,8 @@ class Text:
     
     def clear(self):
         if Globals.ansiEnabled:
-            print("\x1b[255A", end="")
-            print("\x1b[2J", end="")
-        self.set_cursor_visible(False)
+            self.fill_screen("")
+            self.move_cursor(1, 1)
     
     def move_cursor(self, row, col):
         if Globals.ansiEnabled:
@@ -100,20 +100,25 @@ class Text:
                 print(f'\x1b[{col}C', end="")
     
     # - Printing - #
-    @staticmethod
-    def header(string):
-        print("\n -= " + string + " =-")
+    def header(self, string, row=3, col=85):
+        self.print_at_loc(("-= " + string + " =-").center(32), row, col)
     
-    def options(self, names, space=0):
+    def clear_header(self, row=3, col=85):
+        self.print_at_loc(" "*32, row, col)
+    
+    def clear_description(self):
+        self.print_at_loc((" "*36 + "\n") * 28, 2, 83)
+    
+    def options(self, names):
         if len(names) > 0:
             print("")
         
         for i in range(len(names)):
-            self.slide_cursor(0, space)
-            print(f' {self.option + self.c("dark gray", True)}[{names[i][11 if ";" in names[i] else 0]}]{self.reset} {names[i]}')
+            self.slide_cursor(0, 3)
+            print(f'{self.option + self.c("dark gray", True)}[{names[i][11 if ";" in names[i] else 0]}]{self.reset} {names[i]}')
             if i < len(names)-1:
-                self.slide_cursor(0, space)
-                print(f' {self.option + self.c("dark gray", True)} |{self.reset + self.c("terminal", back=True)} ')
+                self.slide_cursor(0, 3)
+                print(f'{self.option + self.c("dark gray", True)} | {self.reset}')
         
         print(self.reset, end="")
     
@@ -122,8 +127,8 @@ class Text:
             print(self.c(color, back=True))
         else:
             print(self.reset)
-        for i in range(os.get_terminal_size()[1] - 1):
-            self.move_cursor(i, 0)
+        for i in range(os.get_terminal_size()[1]):
+            self.move_cursor(i + 1, 0)
             print(" "*os.get_terminal_size()[0], end="")
     
     def fill_rect(self, color, r, c, w, h):
@@ -133,36 +138,6 @@ class Text:
                 print(self.c(color, back=True) + " "*w, end="")
             else:
                 print(self.reset + " "*w, end="")
-        
-    
-    def image(self, file, r=-1, c=-1, x=-1, y=-1, w=-1, h=-1):
-        img = mapper.get_text(mapper.imageColors, "image/" + file)
-        if x >= 0:
-            left = x
-        else:
-            left = 0
-        if y >= 0:
-            top = y
-        else:
-            top = 0
-        if w >= 0:
-            width = w
-        else:
-            width = len(img[0])
-        if h >= 0:
-            height = h
-        else:
-            height = len(img)
-        
-        self.move_cursor(1, 1)
-        for i in range(height):
-            if r >= 0 and c >= 0:
-                self.move_cursor(r + i, c)
-            for j in range(width):
-                print(f'{self.c(img[i + top][j + left], back=True, code=True)}  ', end="")
-            if r < 0 and c < 0:
-                print(self.reset)
-        print(self.reset, end="")
     
     def print_at_loc(self, string, r, c):
         self.move_cursor(r, c)
