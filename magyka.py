@@ -123,7 +123,6 @@ class Magyka:
                 "head": "",
                 "chest": self.load_from_db("items", "Patched Shirt"),
                 "legs": self.load_from_db("items", "Patched Jeans"),
-                "feet": "",
                 "accessory": ""
                 },
             "mainQuests": self.quests["main"]
