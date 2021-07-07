@@ -292,17 +292,24 @@ class Entity(BaseClass):
 
     def attack(self, entity, type="attack"):
         attackText = ""
-        if hasattr(self, "attackText"):
-            attackText = self.attackText
-        else:
-            if self.equipment.get("weapon"):
-                attackText = self.equipment["weapon"].text
+        attack = None
+        if type == "attack":
+            if hasattr(self, "attackText"):
+                attackText = self.attackText
             else:
-                attackText = "attacks"
+                if self.equipment.get("weapon"):
+                    attackText = self.equipment["weapon"].text
+                else:
+                    attackText = "attacks"
+            attack = self.get_attack()
+        elif type == "magic":
+            attackText = "magics"
+            attack = self.get_magic()
         
-        text.slide_cursor(1, 3)
-        print(f'{self.name} {attackText} {entity.name}, ', end="")
-        damage = entity.defend(self.get_attack())
+        for effect in attack:
+            text.slide_cursor(1, 3)
+            print(f'{self.name} {attackText} {entity.name}, ', end="")
+            damage = entity.defend(effect)
 
     def get_attack(self):
         attackSkill = {"type": "damageHp", "value": [self.stats["attack"][0]+self.stats["strength"], self.stats["attack"][1]+self.stats["strength"]], "crit": self.stats["crit"], "hit": self.stats["hit"]}
@@ -314,7 +321,28 @@ class Entity(BaseClass):
                 if effect.passive:
                     passives += effect.passive
             attackSkill.update({"passive": passives})
-        return Effect(attackSkill)
+        return [Effect(attackSkill)]
+    
+    def get_magic(self):
+        magicSkill = copy.deepcopy(self.magic)
+        """
+        for i in range(len(magicSkill)):
+            if magicSkill[i]["type"] in ("all", "-all"):
+                if type(magicSkill[i]["value"][0]) is list:
+                    magicSkill[i]["value"][0] = [magicSkill[i]["value"][0][0] + self.stats["intelligence"], magicSkill[i]["value"][0][1] + self.stats["intelligence"]]
+                else:
+                    magicSkill[i]["value"][0] += self.stats["intelligence"]
+                if type(magicSkill[i]["value"][1]) is list:
+                    magicSkill[i]["value"][1] = [magicSkill[i]["value"][1][0] + self.stats["intelligence"], magicSkill[i]["value"][1][1] + self.stats["intelligence"]]
+                else:
+                    magicSkill[i]["value"][1] += self.stats["intelligence"]
+            else:
+                if type(magicSkill[i]["value"]) is list:
+                    magicSkill[i]["value"] = [magicSkill[i]["value"][0] + self.stats["intelligence"], magicSkill[i]["value"][1] + self.stats["intelligence"]]
+                else:
+                    magicSkill[i]["value"] += self.stats["intelligence"]
+        """
+        return magicSkill
     
     def show_passives(self):
         if len(self.passives) > 0:
@@ -335,7 +363,7 @@ class Entity(BaseClass):
             text.slide_cursor(0, 3)
             print(text.gp, text.reset + str(self.gold))
         if passives: self.show_passives()
-
+    
 
 class Player(Entity):
     def __init__(self, attributes):
@@ -346,8 +374,8 @@ class Player(Entity):
             "name": "Name",
             "stats": {},
             "location": "fordsville",
-            "x": 799,
-            "y": 690,
+            "x": 142,
+            "y": 130,
             "saveId": random.randint(10000, 99999),
             "quests": [],
             "mainQuests": [],
@@ -363,6 +391,9 @@ class Player(Entity):
         }
         
         super().__init__(attributes, self.defaults)
+        
+        for slot in Globals.slotList:
+            self.equipment.update({slot: ""})
         
         for quest in self.mainQuests:
             quest.update({"main": True})
@@ -473,32 +504,20 @@ class Player(Entity):
         self.update_stats()
 
     def equip(self, item):
-        if self.equipment[item.slot] != "":
-            self.unequip(item.slot)
-        self.equipment[item.slot] = item
+        if item.slot == "accessory":
+            if not self.equipment.get("acc 2"):
+                slot = "acc 2"
+            else:
+                slot = "acc 1"
+        else:
+            slot = item.slot
+        if self.equipment.get(slot):
+            self.unequip(slot)
+        self.equipment[slot] = item
         self.remove_item(item)
         if item.slot == "tome":
             self.magic = item.effect
         self.update_stats()
-
-    def get_magic(self):
-        magicSkill = copy.deepcopy(self.magic)
-        for i in range(len(magicSkill)):
-            if magicSkill[i]["type"] in ("all", "-all"):
-                if type(magicSkill[i]["value"][0]) is list:
-                    magicSkill[i]["value"][0] = [magicSkill[i]["value"][0][0] + self.stats["intelligence"], magicSkill[i]["value"][0][1] + self.stats["intelligence"]]
-                else:
-                    magicSkill[i]["value"][0] += self.stats["intelligence"]
-                if type(magicSkill[i]["value"][1]) is list:
-                    magicSkill[i]["value"][1] = [magicSkill[i]["value"][1][0] + self.stats["intelligence"], magicSkill[i]["value"][1][1] + self.stats["intelligence"]]
-                else:
-                    magicSkill[i]["value"][1] += self.stats["intelligence"]
-            else:
-                if type(magicSkill[i]["value"]) is list:
-                    magicSkill[i]["value"] = [magicSkill[i]["value"][0] + self.stats["intelligence"], magicSkill[i]["value"][1] + self.stats["intelligence"]]
-                else:
-                    magicSkill[i]["value"] += self.stats["intelligence"]
-        return magicSkill
 
 
 class Enemy(Entity):

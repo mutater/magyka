@@ -6,7 +6,7 @@ from script.Text import text
 class Image:
     def __init__(self, path, mode="image"):
         try:
-            self.image = mapper.get_text(mapper.imageColors, "image/" + path + ".png")
+            self.image = mapper.get_text(None, "image/" + path + ".png")
         except:
             self.image = [[""]]
         self.r = 1
@@ -51,7 +51,7 @@ class Image:
                     if self.image[i + top][j + left] == "000":
                         text.slide_cursor(0, 2)
                         continue
-                    print(f'{text.c(self.image[i + top][j + left], back=True, code=True)}  ', end="")
+                    print(f'{text.rgb(self.image[i + top][j + left], back=True)}  ', end="")
         else:
             i = 0
             while i < len(self.image[0]):
@@ -65,6 +65,9 @@ class Image:
     
     def show_at_origin(self):
         self.show(1, 1)
+    
+    def show_description(self):
+        self.show(1, 79)
     
     def erase(self):
         if not self.image:

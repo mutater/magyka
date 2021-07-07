@@ -66,7 +66,23 @@ class Text:
     def c(self, color, back=False, code=False):
         if Globals.ansiEnabled and self.color:
             ansi = "\x1b[48;5;" if back else "\x1b[38;5;"
-            return f'{ansi}{color if code else self.colors[color]}m'
+            return f'{ansi}{self.colors[color]}m'
+        else:
+            return ""
+    
+    def cc(self, color, back=False):
+        if Globals.ansiEnabled and self.color:
+            ansi = "\x1b[48;5;" if back else "\x1b[38;5;"
+            return f'{ansi}{color}m'
+        else:
+            return ""
+    
+    def rgb(self, color, back=False):
+        if Globals.ansiEnabled and self.color:
+            if color == "255;0;255":
+                color = "12;12;12"
+            ansi = "\x1b[48;2;" if back else "\x1b[38;2;"
+            return f'{ansi}{color}m'
         else:
             return ""
     
@@ -100,14 +116,22 @@ class Text:
                 print(f'\x1b[{col}C', end="")
     
     # - Printing - #
-    def header(self, string, row=3, col=85):
-        self.print_at_loc(("-= " + string + " =-").center(32), row, col)
+    def header(self, string, row=3, col=85, w=32):
+        self.print_at_loc(("-= " + string + " =-").center(w), row, col)
     
     def clear_header(self, row=3, col=85):
+        print(self.reset, end="")
         self.print_at_loc(" "*32, row, col)
     
+    def clear_main(self):
+        print(self.reset, end="")
+        for i in range(28):
+            self.print_at_loc(" "*78, 2 + i, 3)
+    
     def clear_description(self):
-        self.print_at_loc((" "*36 + "\n") * 28, 2, 83)
+        print(self.reset, end="")
+        for i in range(28):
+            self.print_at_loc(" "*36, 2 + i, 83)
     
     def options(self, names):
         if len(names) > 0:

@@ -25,6 +25,11 @@ class Mapper:
             "9f9f9f": "o", # ENEMY
         }
         
+        self.collision = {
+            "ffffff": True, # PASSABLE
+            "000000": False # IMPASSABLE
+        }
+        
         self.regionColors = {
             "63c74d": "P", # PLAINS
             "3e8948": "F", # FOREST
@@ -96,10 +101,14 @@ class Mapper:
             for i in range(W):
                 r, g, b = image.getpixel((i, j))
                 hex = '%02x%02x%02x' % (r, g, b)
-                if hex in colors:
-                    aimg[j].append(colors[hex])
+                rgb = f'{r};{g};{b}'
+                if colors:
+                    if hex in colors:
+                        aimg[j].append(colors[hex])
+                    else:
+                        aimg[j].append(" ")
                 else:
-                    aimg[j].append(" ")
+                    aimg[j].append(rgb)
         
         if outPath:
             with open(outPath, "w+") as mapFile:

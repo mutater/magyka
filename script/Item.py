@@ -176,18 +176,16 @@ class Item(BaseClass):
                 quantityText = "       "
             
             typeText = self.type.capitalize()
-        return f'{text.c(text.rarityColors[self.rarity])}{self.name.ljust(27)}{text.reset}{symbolText.ljust(8)}{quantityText}{typeText}'
+        return f'{text.c(text.rarityColors[self.rarity])}{self.name.ljust(27 if info else 0)}{text.reset}{symbolText.ljust(8 if info else 0)}{quantityText}{typeText}'
     
-    def show_item_stats(self):
+    def show_stats(self):
         text.slide_cursor(1, 3)
         print(self.get_name())
         if self.type == "equipment":
             text.slide_cursor(0, 3)
             print(self.modifier.get_name())
         text.slide_cursor(0, 3)
-        print("Rarity:      " + self.rarity.capitalize())
-        text.slide_cursor(0, 3)
-        print("Description: " + self.description)
+        print(self.rarity.capitalize())
         
         effects = []
         passives = []
@@ -249,6 +247,12 @@ class Item(BaseClass):
             for enchantment in self.enchantments:
                 text.slide_cursor(0, 5)
                 print(f'- {enchantment.return_name()}')
+    
+    def use(self, user, target):
+        for effect in self.effect:
+            text.slide_cursor(1, 3)
+            print(f'{user.name} {self.text} {self.get_name()} on {target.name}, ', end="")
+            target.defend(effect)
 
 
 class Enchantment(BaseClass):
