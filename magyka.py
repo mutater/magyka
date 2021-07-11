@@ -25,7 +25,6 @@ import traceback
 EVERYTHING NEEDS TO CHANGE TO NEW COORDINATE DISPLAY SYSTEM MWUHAHAHAHA
  Map Screen
  - Enemy Regions
- - Chance of encounter on move based on region level
  - Reaction time Flash Test based on enemy level
   - Fleeing or Attacking
   - Flee has escape, fear state, caught
@@ -45,8 +44,6 @@ Pages and Map
   - Left
   - Right
   - Interact
-Sounds
- - Battle Defeat
 Export function on BaseClass
 """
 
@@ -104,6 +101,7 @@ class Magyka:
         self.inspectPassive = None
         self.battleEnemy = None
         self.itemLog = None
+        self.hunt = False
         
         self.saves = []
         
@@ -253,6 +251,8 @@ class Magyka:
             self.worldMap = mapper.get_text(mapper.mapColors, "map/world map.png", "map/world map.txt")
             self.worldMapLevel = mapper.get_text(mapper.levelColors, "map/world map level.png", "map/world map level.txt")
             self.worldMapRegion = mapper.get_text(mapper.regionColors, "map/world map region.png", "map/world map region.txt")
+        elif command == "kill":
+            self.battleEnemy.hp = 0
         elif command == "test":
             Image("item/Copper Sword").show_at_origin()
             control.press_enter()
@@ -315,14 +315,65 @@ class Magyka:
         with open("saves/" + fileName, "wb+") as saveFile:
             pickle.dump(self.player, saveFile)
     
-    def react_flash(self, delay):
-        time.sleep(delay)
+    def react_flash(self):
+        time.sleep(0.1)
         text.clear()
         text.fill_screen("light red")
-        time.sleep(0.01)
+        time.sleep(0.02)
         text.clear()
-        print(control.time_keypress())
+        return control.time_keypress()
+    
+    def load_encounter(self, level=1):
+        enemies = copy.deepcopy(self.encounters[self.player.location])
+        weight = 0
+        minLevel = 0
+        if self.player.level - 2 > 0:
+            minLevel = self.player.level - 2
+        level = random.randint(minLevel, 2) + self.player.level
+        
+        print(enemies)
+        
+        for i in range(len(enemies)-1, -1, -1):
+            enemy = enemies[i][1] = self.load_from_db("enemies", enemies[i][1])
+            if enemy.level[1] < level:
+                enemies.pop(i)
+                continue
+            
+            if level - enemy.level[0] > 1:
+                enemy.levelDifference = level - enemy.level[0]
+            else:
+                enemy.levelDifference = 0
+            
+            enemy.level = max(min(level, enemy.level[1]), enemy.level[0])
+            
+            if enemy.level - self.player.level > 0:
+                enemies[i][0] -= (enemy.level - self.player.level) * 50
+            if enemies[i][0] <= 0:
+                enemies[i][0] = 1
+            
+            for stat in enemy.baseStats:
+                if stat in ("strength", "vitality", "intelligence", "crit", "hit", "dodge"):
+                    enemy.baseStats[stat] += round(0.5 * enemy.levelDifference)
+                elif stat in ("max hp", "max mp"):
+                    enemy.baseStats[stat] += round(enemy.baseStats[stat] * 0.1 * enemy.levelDifference)
+            enemy.update_stats()
+            enemies[i][0] += weight
+            weight += enemies[i][0] - weight
+        
+        enemies = dict(enemies[::-1])
+        
+        print(enemies)
         control.press_enter()
+        
+        try:
+            enemyNum = random.randint(1, weight)
+        except:
+            self.battleEnemy = None
+            return
+        
+        for enemy in enemies:
+            if enemyNum <= enemy:
+                self.battleEnemy = enemies[enemy]
 
 
 class Screen:
@@ -524,55 +575,6 @@ class Screen:
             elif self.code(option):
                 return
     
-    """
-    enemies = copy.deepcopy(magyka.encounters[magyka.player.location])
-    weight = 0
-    minLevel = 0
-    if magyka.player.level - 2 > 0:
-        minLevel = magyka.player.level - 2
-    level = random.randint(minLevel, 2) + magyka.player.level
-    
-    for i in range(len(enemies)-1, -1, -1):
-        enemy = enemies[i][1] = magyka.load_from_db("enemies", enemies[i][1])
-        if enemy.level[0] > level or enemy.level[1] < level:
-            enemies.pop(i)
-            continue
-        
-        if level - enemy.level[0] > 1:
-            enemy.levelDifference = level - enemy.level[0]
-        else:
-            enemy.levelDifference = 0
-        
-        enemy.level = max(min(level, enemy.level[1]), enemy.level[0])
-        
-        if enemy.level - magyka.player.level > 0:
-            enemies[i][0] -= (enemy.level - magyka.player.level) * 50
-        if enemies[i][0] <= 0:
-            enemies[i][0] = 1
-        
-        for stat in enemy.baseStats:
-            if stat in ("strength", "vitality", "intelligence", "crit", "hit", "dodge"):
-                enemy.baseStats[stat] += round(0.5 * enemy.levelDifference)
-            elif stat in ("max hp", "max mp"):
-                enemy.baseStats[stat] += round(enemy.baseStats[stat] * 0.1 * enemy.levelDifference)
-        enemy.update_stats()
-        enemies[i][0] += weight
-        weight += enemies[i][0] - weight
-    
-    enemies = dict(enemies[::-1])
-    try:
-        enemyNum = random.randint(1, weight)
-    except:
-        print("\n You do not spot any monsters.")
-        control.press_enter()
-        continue
-    
-    for enemy in enemies:
-        if enemyNum <= enemy:
-            enemy = enemies[enemy]
-            break
-    """
-    
     def battle(self):
         magyka.itemLog = []
         if type(magyka.battleEnemy.level) is list:
@@ -714,7 +716,6 @@ class Screen:
                                     if not itemFound:
                                         magyka.itemLog.append([item, 1])
                                     
-                                    control.press_enter()
                                     break
                                 elif self.code(option):
                                     break
@@ -853,12 +854,12 @@ class Screen:
     def map(self):
         mapName = "magyka"
         mapTiles = mapper.get_text(None, "image/map/" + mapName + ".png")
-        mapCollision = mapper.get_text(mapper.collision, "image/map/" + mapName + " collision.png")
+        mapCollision = mapper.get_text(None, "image/map/" + mapName + " collision.png")
         text.clear()
         Image("map background").show_at_origin()
         text.header(mapName.title(), row=3, col=3, w=38)
         while 1:
-            self.returnScreen = "map"
+            self.returnScreen = "camp"
             
             mapHeight = 28
             mapWidth = 38
@@ -890,11 +891,14 @@ class Screen:
                 left = 0
             if right > len(mapTiles[0]):
                 right = len(mapTiles[0])
-        
-            #text.clear_main()
-            #text.move_cursor(3, 4)
-            #print("Use WASD to move.")
-            #text.options((["Camp"] if camp else []) + (["Enter"] if portal else []))
+            
+            text.clear_main_small()
+            text.move_cursor(5, 4)
+            print(text.reset + "Use WASD to move.")
+            text.options(["Hunt"] + (["Enter"] if portal else []))
+            text.slide_cursor(1, 3)
+            
+            print(f'Hunting: {"True" if magyka.hunt else "False"}')
             
             for y in range(top, bottom):
                 text.move_cursor(mapTop + y - top, mapLeft)
@@ -914,17 +918,39 @@ class Screen:
                     
                     print(tileText, end="")
             
-            option = control.get_input("alphabetic", options="wasdc"+("e" if portal else ""), silentOptions="wasd", showText=False)
+            option = control.get_input("alphabetic", options="wasdh"+("e" if portal else ""), silentOptions="wasd", showText=False)
             
-            if option == "w" and mapCollision[magyka.player.y-1][magyka.player.x]:
-                magyka.player.y -= 1
-            elif option == "a" and mapCollision[magyka.player.y][magyka.player.x-1]:
-                magyka.player.x -= 1
-            elif option == "s" and mapCollision[magyka.player.y+1][magyka.player.x]:
-                magyka.player.y += 1
-            elif option == "d" and mapCollision[magyka.player.y][magyka.player.x+1]:
-                magyka.player.x += 1
-            elif option == "e":
+            moveX = 0
+            moveY = 0
+            
+            if option == "w" and mapCollision[magyka.player.y-1][magyka.player.x] != "0;0;0":
+                moveY -= 1
+            elif option == "a" and mapCollision[magyka.player.y][magyka.player.x-1] != "0;0;0":
+                moveX -= 1
+            elif option == "s" and mapCollision[magyka.player.y+1][magyka.player.x] != "0;0;0":
+                moveY += 1
+            elif option == "d" and mapCollision[magyka.player.y][magyka.player.x+1] != "0;0;0":
+                moveX += 1
+            
+            if moveX or moveY:
+                magyka.player.x += moveX
+                magyka.player.y += moveY
+                
+                if random.randint(1, (20 if magyka.hunt else 100)) == 1:
+                    responseTime = magyka.react_flash()
+                    if responseTime <= 320:
+                        self.nextScreen = "map"
+                        return
+                    elif responseTime <= 450:
+                        magyka.player.add_passive(magyka.load_from_db("passives", "Shaken"))
+                        self.nextScreen = "map"
+                        return
+                    else:
+                        magyka.load_encounter(mapCollision[magyka.player.x][magyka.player.y].split(";")[0])
+                        self.nextScreen = "battle"
+                        return
+            
+            if option == "e":
                 if portal[2] == "map":
                     mapName = portal[3]
                     magyka.player.x = portal[4]
@@ -937,9 +963,8 @@ class Screen:
                     magyka.player.location = portal[3]
                     self.nextScreen = "location"
                     return
-            elif option == "c":
-                self.nextScreen = "camp"
-                return
+            elif option == "h":
+                magyka.hunt = not magyka.hunt
             elif self.code(option):
                 return
     

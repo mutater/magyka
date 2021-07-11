@@ -252,7 +252,7 @@ class Item(BaseClass):
         for effect in self.effect:
             text.slide_cursor(1, 3)
             print(f'{user.name} {self.text} {self.get_name()} on {target.name}, ', end="")
-            target.defend(effect)
+            target.defend(effect, self.tags)
 
 
 class Enchantment(BaseClass):

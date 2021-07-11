@@ -82,7 +82,7 @@ class Control:
             time.sleep(0.01)
             reactionTime += 0.01
             if self.get_key() == "space":
-                return round(reactionTime * 1.6, 2) * 1000
+                return round(reactionTime, 2) * 1000
     
     def press_enter(self, prompt=True, nl=True):
         text.set_cursor_visible(False)

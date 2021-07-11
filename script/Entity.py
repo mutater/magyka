@@ -125,7 +125,7 @@ class Entity(BaseClass):
         
         if effect.type in ("damageHp", "damageMp", "passive"):
             if effect.type != "passive":
-                amount, a, r, v = [([0, 0] if effect.type == "-all" else 0) for i in range(4)]
+                amount, a, r, v = 0, 0, 0, 0
                 crit = 0
                 if attackerStats.get("crit"):
                     crit = attackerStats.get("crit")
@@ -251,6 +251,15 @@ class Entity(BaseClass):
         else:
             print(".")
         
+        if self.hp < 0:
+            self.hp = 0
+        if self.hp >= self.stats["max hp"]:
+            self.hp = self.stats["max hp"]
+        if self.mp < 0:
+            self.mp = 0
+        if self.mp >= self.stats["max mp"]:
+            self.mp = self.stats["max mp"]
+        
         return hpAmount
 
     def add_passive(self, passive):
@@ -373,7 +382,7 @@ class Player(Entity):
             "level": 1,
             "name": "Name",
             "stats": {},
-            "location": "fordsville",
+            "location": "magyka",
             "x": 142,
             "y": 130,
             "saveId": random.randint(10000, 99999),

@@ -56,6 +56,7 @@ class Text:
             setattr(self, color.replace(" ", ""), self.c(color))
         
         self.reset = "\x1b[0m" if Globals.ansiEnabled else ""
+        self.underline = "\x1b[4m" if Globals.ansiEnabled else ""
         
         os.system("cls" if Globals.system == "Windows" else "clear")
         self.set_cursor_visible(False)
@@ -128,20 +129,25 @@ class Text:
         for i in range(28):
             self.print_at_loc(" "*78, 2 + i, 3)
     
+    def clear_main_small(self):
+        print(self.reset, end="")
+        for i in range(28):
+            self.print_at_loc(" "*38, 2 + i, 3)
+    
     def clear_description(self):
         print(self.reset, end="")
         for i in range(28):
             self.print_at_loc(" "*36, 2 + i, 83)
     
-    def options(self, names):
+    def options(self, names, space=3):
         if len(names) > 0:
             print("")
         
         for i in range(len(names)):
-            self.slide_cursor(0, 3)
+            self.slide_cursor(0, space)
             print(f'{self.option + self.c("dark gray", True)}[{names[i][11 if ";" in names[i] else 0]}]{self.reset} {names[i]}')
             if i < len(names)-1:
-                self.slide_cursor(0, 3)
+                self.slide_cursor(0, space)
                 print(f'{self.option + self.c("dark gray", True)} | {self.reset}')
         
         print(self.reset, end="")
@@ -182,7 +188,7 @@ class Text:
         backText = self.gray + "-" * (length - filledLength)
         number = f' {value}/{maximum}' if number else ""
         
-        return filledText + backText + self.reset + number
+        return self.underline + filledText + backText + self.reset + number
     
     @staticmethod
     def numeral(number):
