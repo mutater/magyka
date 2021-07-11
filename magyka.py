@@ -254,8 +254,9 @@ class Magyka:
         elif command == "kill":
             self.battleEnemy.hp = 0
         elif command == "test":
-            Image("item/Copper Sword").show_at_origin()
-            control.press_enter()
+            self.load_encounter(1)
+            self.nextScreen = "battle"
+            return True
         
         # Single Argument Command Handling
         elif commandSplit[0] == "exec":
@@ -326,28 +327,30 @@ class Magyka:
     def load_encounter(self, level=1):
         enemies = copy.deepcopy(self.encounters[self.player.location])
         weight = 0
-        minLevel = 0
-        if self.player.level - 2 > 0:
+        minLevel = level
+        maxLevel = level + 4
+        if self.player.level - 2 > minLevel:
             minLevel = self.player.level - 2
-        level = random.randint(minLevel, 2) + self.player.level
-        
-        print(enemies)
+            maxLevel = self.player.level + 2
+        if self.player.level < 3:
+            minLevel = 1
+            maxLevel = 2
+        level = random.randint(minLevel, maxLevel)
         
         for i in range(len(enemies)-1, -1, -1):
             enemy = enemies[i][1] = self.load_from_db("enemies", enemies[i][1])
-            if enemy.level[1] < level:
+            if enemy.level[0] > maxLevel or enemy.level[1] < minLevel:
                 enemies.pop(i)
                 continue
             
-            if level - enemy.level[0] > 1:
+            if level - enemy.level[0] > 0:
                 enemy.levelDifference = level - enemy.level[0]
-            else:
-                enemy.levelDifference = 0
             
             enemy.level = max(min(level, enemy.level[1]), enemy.level[0])
             
-            if enemy.level - self.player.level > 0:
-                enemies[i][0] -= (enemy.level - self.player.level) * 50
+            enemies[i][0] *= 10
+            if enemy.level - minLevel > 0:
+                enemies[i][0] -= (enemy.level - minLevel) * 100
             if enemies[i][0] <= 0:
                 enemies[i][0] = 1
             
@@ -356,24 +359,23 @@ class Magyka:
                     enemy.baseStats[stat] += round(0.5 * enemy.levelDifference)
                 elif stat in ("max hp", "max mp"):
                     enemy.baseStats[stat] += round(enemy.baseStats[stat] * 0.1 * enemy.levelDifference)
+            
             enemy.update_stats()
             enemies[i][0] += weight
             weight += enemies[i][0] - weight
         
         enemies = dict(enemies[::-1])
         
-        print(enemies)
-        control.press_enter()
-        
         try:
-            enemyNum = random.randint(1, weight)
+            weightNum = random.randint(1, weight)
         except:
             self.battleEnemy = None
             return
         
-        for enemy in enemies:
-            if enemyNum <= enemy:
-                self.battleEnemy = enemies[enemy]
+        for weight, enemy in enemies.items():
+            if weight > weightNum:
+                self.battleEnemy = enemy
+                break
 
 
 class Screen:
@@ -731,7 +733,7 @@ class Screen:
                 elif option == "c":
                     pass # FLEEING
                 elif self.code(option):
-                    break
+                    return
             
             print_enemy()
             
@@ -946,7 +948,7 @@ class Screen:
                         self.nextScreen = "map"
                         return
                     else:
-                        magyka.load_encounter(mapCollision[magyka.player.x][magyka.player.y].split(";")[0])
+                        magyka.load_encounter(int(mapCollision[magyka.player.x][magyka.player.y].split(";")[0]))
                         self.nextScreen = "battle"
                         return
             
