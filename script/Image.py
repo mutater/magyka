@@ -1,6 +1,7 @@
 import script.Globals as Globals
 from script.Mapper import mapper
 from script.Text import text
+import sys
 
 
 class Image:
@@ -59,6 +60,7 @@ class Image:
                     print("")
                 print(f'{text.c(self.image[i + top])}{self.image[i + top]}', end="")
         print(text.reset, end="")
+        sys.stdout.flush()
     
     def show_at_description(self):
         self.show(7, 85)

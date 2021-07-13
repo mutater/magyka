@@ -76,13 +76,15 @@ class Control:
             if self.get_key() == key:
                 break
     
-    def time_keypress(self):
+    def time_keypress(self, timeout):
         reactionTime = 0
         while 1:
             time.sleep(0.01)
             reactionTime += 0.01
             if self.get_key() == "space":
                 return round(reactionTime, 2) * 1000
+            if round(reactionTime, 2) * 1000 >= timeout:
+                return timeout + 1
     
     def press_enter(self, prompt=True, nl=True):
         text.set_cursor_visible(False)
@@ -204,14 +206,11 @@ class Control:
             # Opening console
             if key in ("`", "~") and mode != "command":
                 a = ""
-                print("\b \b", end = "")
-                sys.stdout.flush()
                 return "/D"
             # Closing console
             if key in ("`", "~") and mode == "command":
                 text.set_cursor_visible(False)
                 a = ""
-                print("\b \b")
                 return "/C"
             # Getting last command
             if key == "up" and mode == "command":

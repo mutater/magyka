@@ -1,7 +1,11 @@
 import platform
+import datetime
 
 system = platform.system()
 release = platform.release()
+
+now = datetime.datetime.now()
+runTime = now.strftime("%Y-%m-%d_%H-%M-%S")
 
 ansiEnabled = (system == "Windows" and release in ("8", "8.1", "10")) or system == "Linux"
 

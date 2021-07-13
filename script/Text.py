@@ -184,8 +184,8 @@ class Text:
             value = 0
         filledLength = round(value / maximum * length)
         
-        filledText = self.c(color) + "#" * filledLength
-        backText = self.gray + "-" * (length - filledLength)
+        filledText = self.c(color) + self.c("dark " + color, back=True) + "#" * filledLength
+        backText = self.gray + self.c("dark gray", back=True) + "-" * (length - filledLength)
         number = f' {value}/{maximum}' if number else ""
         
         return self.underline + filledText + backText + self.reset + number

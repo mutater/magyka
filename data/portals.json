@@ -1,10 +1,10 @@
 {
-  "world map": [
-    [799, 690, "town", "fordsville"],
-    [799, 691, "town", "fordsville"],
-    [800, 690, "town", "fordsville"],
-    [800, 691, "town", "fordsville"],
-    [804, 685, "location", "slime garden"],
+  "magyka": [
+    [127, 112, "town", "fordsville"],
+    [127, 113, "town", "fordsville"],
+    [128, 112, "town", "fordsville"],
+    [128, 113, "town", "fordsville"],
+    [155, 112, "location", "slime garden"],
     [742, 567, "map", "world map", 742, 547],
     [742, 547, "map", "world map", 742, 567]
   ]

@@ -153,13 +153,14 @@ class Item(BaseClass):
         
         self.update()
     
-    def get_name(self, info=False, quantity=0):
+    def get_name(self, info=False, value=False, quantity=0):
         hp = ""
         mp = ""
         symbol = ""
         symbolText = ""
         quantityText = ""
         typeText = ""
+        valueText = ""
         if info:
             for effect in self.effect:
                 if effect.type == "healHp" and not self.slot:
@@ -175,8 +176,11 @@ class Item(BaseClass):
             else:
                 quantityText = "       "
             
-            typeText = self.type.capitalize()
-        return f'{text.c(text.rarityColors[self.rarity])}{self.name.ljust(27 if info else 0)}{text.reset}{symbolText.ljust(8 if info else 0)}{quantityText}{typeText}'
+            typeText = self.type.capitalize().ljust(11)
+            
+            if value:
+                valueText = text.gp + text.reset + " " + str(self.value)
+        return f'{text.c(text.rarityColors[self.rarity])}{self.name.ljust(27 if info else 0)}{text.reset}{symbolText.ljust(8 if info else 0)}{quantityText}{typeText}{valueText}'
     
     def show_stats(self):
         text.slide_cursor(1, 3)

@@ -1,2 +1,4 @@
 *.pyc
 oldMagyka.py
+log/!*.keep
+saves/!README.txt

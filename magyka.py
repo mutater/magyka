@@ -4,7 +4,9 @@ from script.Entity import Entity, Player, Enemy
 import script.Globals as Globals
 from script.Image import Image
 from script.Item import Item, Enchantment, Modifier
+from script.Logger import logger
 from script.Mapper import mapper
+from script.Settings import settings
 from script.Sound import sound
 from script.Text import text
 import copy
@@ -22,14 +24,7 @@ import traceback
 
 # TODO
 """
-EVERYTHING NEEDS TO CHANGE TO NEW COORDINATE DISPLAY SYSTEM MWUHAHAHAHA
  Map Screen
- - Enemy Regions
- - Reaction time Flash Test based on enemy level
-  - Fleeing or Attacking
-  - Flee has escape, fear state, caught
-  - Attack has surprise attack, normal battle, or enemy surprise attack
- - Random encounter mode toggle
  - Chance of random event occuring
 Inspect Screen
  - More Stats showing enchantment and modifier effects of items
@@ -160,9 +155,7 @@ class Magyka:
                 if obj[jsonLoad]:
                     obj[jsonLoad] = json.loads(obj[jsonLoad])
             except ValueError:
-                print(f'\n Error: "{jsonLoad}" could not be read from "{table}.{name}".')
-                print(f'        Passed value was "{obj[jsonLoad]}".')
-                control.press_enter()
+                logger.log(f'"{jsonLoad}" could not be read from "{table}.{name}".\nPassed value was "{obj[jsonLoad]}".')
         
         # Object formatting
         if "effect" in obj:
@@ -316,13 +309,11 @@ class Magyka:
         with open("saves/" + fileName, "wb+") as saveFile:
             pickle.dump(self.player, saveFile)
     
-    def react_flash(self):
+    def react_flash(self, timeout):
         time.sleep(0.1)
         text.clear()
-        text.fill_screen("light red")
-        time.sleep(0.02)
-        text.clear()
-        return control.time_keypress()
+        Image("red").show_at_origin()
+        return control.time_keypress(timeout)
     
     def load_encounter(self, level=1):
         enemies = copy.deepcopy(self.encounters[self.player.location])
@@ -332,7 +323,10 @@ class Magyka:
         if self.player.level - 2 > minLevel:
             minLevel = self.player.level - 2
             maxLevel = self.player.level + 2
-        if self.player.level < 3:
+        if self.player.level == 1 and level == 1:
+            minLevel = 1
+            maxLevel = 2
+        elif self.player.level == 2 and level <= 2:
             minLevel = 1
             maxLevel = 2
         level = random.randint(minLevel, maxLevel)
@@ -346,7 +340,7 @@ class Magyka:
             if level - enemy.level[0] > 0:
                 enemy.levelDifference = level - enemy.level[0]
             
-            enemy.level = max(min(level, enemy.level[1]), enemy.level[0])
+            enemy.level = level
             
             enemies[i][0] *= 10
             if enemy.level - minLevel > 0:
@@ -797,7 +791,7 @@ class Screen:
         
         text.print_at_loc(f'Obtained: (x{lootModifier} Loot Modifier)', 3, 4)
         for i in range(len(items)):
-            text.print_at_loc(f'- {items[i][0].get_name(True, items[i][1])}', 4 + i, 5)
+            text.print_at_loc(f'- {items[i][0].get_name(info=True, quantity=items[i][1])}', 4 + i, 5)
         
         print("")
         text.slide_cursor(0, 4)
@@ -818,7 +812,7 @@ class Screen:
         # SHOW COMPLETED QUESTS
         
         control.press_enter()
-        self.nextScreen = "camp"
+        self.nextScreen = "map"
     
     def defeat(self):
         text.clear()
@@ -938,17 +932,25 @@ class Screen:
                 magyka.player.x += moveX
                 magyka.player.y += moveY
                 
-                if random.randint(1, (20 if magyka.hunt else 100)) == 1:
-                    responseTime = magyka.react_flash()
-                    if responseTime <= 320:
+                if magyka.hunt:
+                    encounter = random.randint(1, 100 / settings.encounterChanceHuntTrue)
+                else:
+                    if encounters:
+                        encounter = 0
+                    else:
+                        encounter = random.randint(1, 100 / settings.encounterChanceHuntFalse)
+                
+                if encounter == 1:
+                    responseTime = magyka.react_flash(480)
+                    if responseTime < 320:
                         self.nextScreen = "map"
                         return
-                    elif responseTime <= 450:
+                    elif responseTime < 480:
                         magyka.player.add_passive(magyka.load_from_db("passives", "Shaken"))
                         self.nextScreen = "map"
                         return
                     else:
-                        magyka.load_encounter(int(mapCollision[magyka.player.x][magyka.player.y].split(";")[0]))
+                        magyka.load_encounter(int(mapCollision[magyka.player.y][magyka.player.x].split(";")[0]))
                         self.nextScreen = "battle"
                         return
             
@@ -1053,17 +1055,21 @@ class Screen:
             previous = self.page > 1
             
             if self.storeType != "general":
-                print("\n Equipment:")
+                text.print_at_loc("Equipment:", 3, 4)
+                print("")
                 for i in range(len(Globals.slotList)):
-                    if magyka.player.equipment[Globals.slotList[i]] != "": print(f'  - {magyka.player.equipment[Globals.slotList[i]].get_name()}')
-            print(f'\n {text.gp}{text.reset} {magyka.player.gold}\n')
+                    if magyka.player.equipment[Globals.slotList[i]] != "":
+                        text.slide_cursor(0, 3)
+                        print(f'  - {magyka.player.equipment[Globals.slotList[i]].get_name()}')
+                text.slide_cursor(1, 3)
+            else:
+                text.move_cursor(3, 4)
+            print(f'{text.gp}{text.reset} {magyka.player.gold}\n')
             
             for i in range(-10 + 10*self.page, 10*self.page if 10*self.page < len(itemList) else len(itemList)):
-                if itemList[i].type in Globals.stackableItems:
-                    quantity = True
-                else:
-                    quantity = False
-                print(f' {i}) {itemList[i].get_name(effect=True)}{" x1" if quantity else ""} {text.gp}{text.reset} {itemList[i].value}')
+                quantity = itemList[i].type in Globals.stackableItems
+                text.slide_cursor(0, 3)
+                print(f'{i}) {itemList[i].get_name(info=True, value=True, quantity=1 if quantity else 0)}')
             
             if len(itemList) == 0:
                 print(f' {text.darkgray}Empty{text.reset}')
@@ -1094,14 +1100,16 @@ class Screen:
             self.returnScreen = "store"
             self.nextScreen = self.returnScreen
             text.clear()
-            
-            text.header("Purchase " + magyka.purchaseItem.name)
-            
+            Image("background").show_at_origin()
+            Image("item/" + magyka.purchaseItem.name).show_at_description()
+            text.header("Purchase")
+            text.move_cursor(3, 4)
+            print(f'{text.gp}{text.reset} {magyka.player.gold}')
             magyka.purchaseItem.show_stats()
-            
-            print(f'\n {text.gp}{text.reset} {magyka.player.gold}')
-            print(f'\n Currently owned: {magyka.player.num_of_items(magyka.purchaseItem.name)}')
-            print(f' Type the quantity of items to be purchased ({magyka.player.gold // magyka.purchaseItem.value} can be bought).')
+            text.slide_cursor(1, 3)
+            print(f'Currently owned: {magyka.player.num_of_items(magyka.purchaseItem.name)}')
+            text.slide_cursor(0, 3)
+            print(f'Type the quantity of items to be purchased ({magyka.player.gold // magyka.purchaseItem.value} can be bought).')
             
             option = control.get_input("numeric")
             
@@ -1118,20 +1126,15 @@ class Screen:
                     magyka.player.add_item(magyka.purchaseItem, option)
                     magyka.player.gold -= option * magyka.purchaseItem.value
                     
-                    if magyka.purchaseItem.type in Globals.stackableItems:
-                        quantity = True
-                    else:
-                        quantity = False
-                    print(f' {magyka.purchaseItem.get_name()}{" x" + str(option) if quantity else ""} added to your inventory!')
+                    quantity = magyka.purchaseItem.type in Globals.stackableItems
+                    text.slide_cursor(0, 3)
+                    print(f'{magyka.purchaseItem.get_name()}{" x" + str(option) if quantity else ""} added to your inventory!')
                     
                     control.press_enter()
                     return
                 else:
-                    if magyka.purchaseItem.type in Globals.stackableItems:
-                        quantity = True
-                    else:
-                        quantity = False
-                    print(f' {text.lightred} You cannot buy that many.')
+                    text.slide_cursor(0, 3)
+                    print(f'{text.lightred} You cannot buy that many.')
                     control.press_enter()
                     return
             elif self.code(option):
@@ -1141,9 +1144,9 @@ class Screen:
         while 1:
             self.returnScreen = "store"
             text.clear()
-            
+            Image("background").show_at_origin()
+            Image("screen/Craft").show_at_description()
             text.header("Crafting")
-            print("")
             
             recipes = []
             for recipe in magyka.recipes:
@@ -1162,10 +1165,10 @@ class Screen:
                     quantity = True
                 else:
                     quantity = False
-                print(f' {str(i)[:-1]}({str(i)[-1]}) {item.get_name()}{" x" + str(recipe["quantity"]) if quantity else ""}')
+                text.print_at_loc(f'{str(i)[:-1]}({str(i)[-1]}) {item.get_name(info=True, quantity=recipe["quantity"] if quantity else 0)}', 3 + i, 4)
             
             if len(recipes) == 0:
-                print(f' {text.darkgray}No Items Craftable{text.reset}')
+                text.print_at_loc(f' {text.darkgray}No Items Craftable{text.reset}', 3, 4)
             
             next = len(recipes) > self.page * 10
             previous = self.page > 1
@@ -1376,7 +1379,7 @@ class Screen:
                     just = " "
                 else:
                     just = "  "
-                text.print_at_loc(f'{str(i)[:-1]}({str(i)[-1]}) {just}{item[0].get_name(True, item[1])}', 3 + int(str(i)[-1]), 4)
+                text.print_at_loc(f'{str(i)[:-1]}({str(i)[-1]}) {just}{item[0].get_name(info=True, quantity=item[1])}', 3 + int(str(i)[-1]), 4)
             
             if len(magyka.player.inventory) == 0:
                 text.print_at_loc('{text.darkgray}Empty{text.reset}', 3, 4)
@@ -1504,6 +1507,7 @@ class Screen:
         while 1:
             self.returnScreen = "character"
             text.clear()
+            Image("background").show_at_origin()
             text.header("Stats")
             
             stats = magyka.player.stats.copy()
@@ -1514,24 +1518,30 @@ class Screen:
             statNamePad = len(max(magyka.player.stats, key=len)) + 1
             statValuePad = len(max([str(magyka.player.stats[stat]) for stat in stats], key=len))
             
+            text.move_cursor(1, 1)
             magyka.player.show_stats(passives=False)
-            print("")
-            print(f' {"Attack".ljust(statNamePad)}: {(str(magyka.player.stats["attack"][0]) + " - " + str(magyka.player.stats["attack"][1])).ljust(statValuePad)}')
+            text.slide_cursor(1, 3)
+            print(f'{"Attack".ljust(statNamePad)}: {(str(magyka.player.stats["attack"][0]) + " - " + str(magyka.player.stats["attack"][1])).ljust(statValuePad)}')
             
             for stat in stats:
                 if magyka.player.baseStats[stat] <= magyka.player.stats[stat]:
                     changeString = "+"
                 else:
                     changeString = "-"
-                print(f' {stat.capitalize().ljust(statNamePad)}: {str(magyka.player.stats[stat]).ljust(statValuePad)} ({changeString}{magyka.player.stats[stat] - magyka.player.baseStats[stat]})')
+                text.slide_cursor(0, 3)
+                print(f'{stat.capitalize().ljust(statNamePad)}: {str(magyka.player.stats[stat]).ljust(statValuePad)} ({changeString}{magyka.player.stats[stat] - magyka.player.baseStats[stat]})')
             
-            text.header("Passives")
+            text.slide_cursor(1, 3)
+            print("- Passives -")
+            text.slide_cursor(1, 0)
             
             for i in range((self.page - 1) * 10, min(self.page * 10, len(magyka.player.passives))):
-                print(f' {str(i)[:-1]}({str(i)[-1]}) {magyka.player.passives[i].get_name(turns=True)}')
+                text.slide_cursor(0, 3)
+                print(f'{str(i)[:-1]}({str(i)[-1]}) {magyka.player.passives[i].get_name(turns=True)}')
             
             if len(magyka.player.passives) == 0:
-                print(f' {text.darkgray}No Passives{text.reset}')
+                text.slide_cursor(0, 3)
+                print(f'{text.darkgray}No Passives{text.reset}')
             
             next = len(magyka.player.passives) > self.page * 10
             previous = self.page > 1
@@ -1583,6 +1593,7 @@ if __name__ == "__main__":
     if Globals.system == "Windows":
         import win32api
         win32api.SetConsoleCtrlHandler(exit_handler, True)
+        os.system("title Magyka")
     else:
         import signal
         signal.signal(signal.SIGHUP, exit_handler)
@@ -1593,4 +1604,5 @@ if __name__ == "__main__":
     except Exception as err:
         print("")
         traceback.print_exc()
+        logger.log(traceback.format_exc())
         control.press_enter()
