@@ -1,0 +1,10 @@
+A magye wears light and
+magyk armor. The magye
+is an absolute nerd.
+
+ + Health
+ ++ Mana
+ ++ Intelligence
+ ++ Wisdom
+ + Dodge Chance
+ - Crit Chance

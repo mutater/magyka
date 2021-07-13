@@ -1,0 +1,14 @@
+The spellsword wears light,
+medium, and magic armor.
+He is the most versatile
+warrior, capable of
+weilding both magic and
+sword with high proficiency.
+
+ + Health
+ + Mana
+ + Strength
+ + Vitality
+ + Intelligence
+ + Wisdom
+ + Hit Chance

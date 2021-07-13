@@ -114,7 +114,7 @@ class Passive(BaseClass):
             effectColor = "light red"
         
         if turns:
-            turnText = f'({self.turns})'
+            turnText = f' ({self.turns})'
         else:
             turnText = ""
         

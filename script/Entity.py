@@ -30,7 +30,7 @@ class Entity(BaseClass):
             "vitality": 0,
             "crit": 4,
             "hit": 90,
-            "dodge": 5,
+            "dodge": 3,
             "max hp": 7,
             "max mp": 10
         }
@@ -355,7 +355,7 @@ class Entity(BaseClass):
     
     def show_passives(self):
         if len(self.passives) > 0:
-            print(" ", end="")
+            text.slide_cursor(0, 3)
             print(", ".join([f'{passive.get_name(turns=True)}' for passive in self.passives]))
     
     def show_stats(self, gpxp=True, passives=True):
@@ -382,6 +382,7 @@ class Player(Entity):
             "level": 1,
             "name": "Name",
             "stats": {},
+            "extraStats": {},
             "location": "magyka",
             "x": 135,
             "y": 110,
@@ -414,13 +415,19 @@ class Player(Entity):
         while self.xp >= self.mxp:
             self.xp -= self.mxp
             self.mxp = math.ceil(self.mxp * 1.2)
-            self.baseStats["max hp"] = math.ceil(self.baseStats["max hp"] * 1.1)
-            self.baseStats["max mp"] = math.ceil(self.baseStats["max mp"] * 1.1)
-            self.update_stats()
-            self.hp = self.stats["max hp"]
-            self.mp = self.stats["max mp"]
             self.level += 1
             self.levelsGained += 1
+            
+            self.baseStats["max hp"] += self.extraStats["hpPerLevel"]
+            self.baseStats["max mp"] += self.extraStats["mpPerLevel"]
+            if self.level % 3 == 0:
+                self.baseStats["strength"] += self.extraStats["strengthPerLevel"]
+                self.baseStats["vitality"] += self.extraStats["vitalityPerLevel"]
+                self.baseStats["intelligence"] += self.extraStats["intelligencePerLevel"]
+            self.update_stats()
+            
+            self.hp = self.stats["max hp"]
+            self.mp = self.stats["max mp"]
 
     def addQuest(self, quest):
         for i in range(len(quest["objective"])):
@@ -494,6 +501,8 @@ class Player(Entity):
             return
 
     def remove_item(self, item, quantity=1):
+        if not item:
+            return
         if item.type in Globals.stackableItems:
             for i in self.inventory:
                 if i[0].name == item.name:
@@ -513,6 +522,8 @@ class Player(Entity):
         self.update_stats()
 
     def equip(self, item):
+        if not item:
+            return
         if item.slot == "accessory":
             if not self.equipment.get("acc 2"):
                 slot = "acc 2"

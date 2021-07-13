@@ -1,0 +1,11 @@
+The infantryman wears light
+and medium armor. He is a
+decently quick and accurate
+fellow.
+
+ + Health
+ ++ Strength
+ ++ Vitality
+ ++ Hit Chance
+ +++ Dodge Chance
+ + Crit Chance

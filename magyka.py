@@ -32,13 +32,6 @@ Inn Screen
  - Random Quests
  - Premade Quests
  - Gambling
-Pages and Map
- - Keybindings
-  - Up
-  - Down
-  - Left
-  - Right
-  - Interact
 Export function on BaseClass
 """
 
@@ -97,6 +90,7 @@ class Magyka:
         self.battleEnemy = None
         self.itemLog = None
         self.hunt = False
+        self.town = ""
         
         self.saves = []
         
@@ -107,6 +101,8 @@ class Magyka:
                         self.saves.append(pickle.load(saveFile))
                 except FileNotFoundError:
                     pass
+        
+        self.init_player()
     
     def init_player(self):
         self.player = Player({"mainQuests": self.quests["main"]})
@@ -215,17 +211,41 @@ class Magyka:
         
         # No Argument Command Handling
         if command == "s":
-            self.init_player()
             self.player.name = "Vincent"
             self.player.saveId = 69420
+            magyka.player.extraStats.update({
+                "hpPerLevel": 3,
+                "mpPerLevel": 1,
+                "strengthPerLevel": 2,
+                "vitalityPerLevel": 1,
+                "intelligencePerLevel": 0
+            })
+            magyka.player.baseStats.update({
+                "hit": 95,
+                "dodge": 5
+            })
+            magyka.player.playerClass = "Developer"
+            magyka.player.update_stats()
             self.nextScreen = "camp"
             return True
         elif command == "qs":
-            self.init_player()
             self.player.name = "Dev"
             self.player.saveId = 69420
             self.player.gold = 999999999
             self.dev_command("give all")
+            magyka.player.extraStats.update({
+                "hpPerLevel": 3,
+                "mpPerLevel": 1,
+                "strengthPerLevel": 2,
+                "vitalityPerLevel": 1,
+                "intelligencePerLevel": 0
+            })
+            magyka.player.baseStats.update({
+                "hit": 95,
+                "dodge": 5
+            })
+            magyka.player.playerClass = "Developer"
+            magyka.player.update_stats()
             self.nextScreen = "camp"
             return True
         elif command == "q":
@@ -447,35 +467,128 @@ class Screen:
                 return
 
     def new_game(self):
-        self.nextScreen = "camp"
-        # STRING = NEWGAMETEXT
-        i = 0
-        delay = speed
-        while i < len(string):
-            if string[i:i+2] == "0m":
-                print(text.reset, end="")
-                i += 1
-            elif string[i:i+5] == "38;5;":
-                print("\x1b[" + string[i:i+10], end="")
-                i += 9
-            elif string[i] == "#":
-                control.press_enter()
-                delay = speed
-            elif string[i] == "<":
+        while 1:
+            self.nextScreen = "class_select"
+            text.clear()
+            Image("background").show_at_origin()
+            text.header("Character Creation")
+            text.move_cursor(3, 4)
+            print("What is your name, adventurer?")
+            
+            option = control.get_input("alphanumeric", back=False)
+            
+            if 1 < len(option) < 15:
+                text.slide_cursor(1, 3)
+                print(f'Welcome, {option.title()}!')
+                magyka.player.name = option.title()
+                return
+            elif self.code(option):
+                return
+    
+    def class_select(self):
+        while 1:
+            self.nextScreen = "camp"
+            text.clear()
+            Image("background").show_at_origin()
+            text.header("Class")
+            
+            classes = {
+                "i": "Infantryman",
+                "w": "Warrior",
+                "k": "Knight",
+                "s": "Spellsword",
+                "m": "Magye"
+            }
+            
+            text.move_cursor(2, 4)
+            text.options(list(classes.values()))
+            option = control.get_input("alphabetic", options="".join(classes.keys()), back=False)
+            
+            
+            if option in "".join(classes.keys()):
+                playerClass = classes[option]
                 text.clear()
-                delay = speed
-            else:
-                print(string[i], end="")
+                Image("background").show_at_origin()
+                text.print_at_description(open("text/" + playerClass + ".txt").readlines())
+                text.move_cursor(3, 4)
+                print(f'Are you sure you wish to choose {playerClass}? There is no going back.')
+                
+                text.options(["Yes", "No"])
+                option = control.get_input("alphabetic", options="yn")
+                
+                if option == "n":
+                    continue
+                elif option == "y":
+                    pass
+                elif self.code(option):
+                    continue
             
-            time.sleep(delay)
+            if playerClass == "Infantryman":
+                magyka.player.extraStats.update({
+                    "hpPerLevel": 3,
+                    "mpPerLevel": 1,
+                    "strengthPerLevel": 2,
+                    "vitalityPerLevel": 2,
+                    "intelligencePerLevel": 0
+                })
+                magyka.player.baseStats.update({
+                    "hit": 95,
+                    "dodge": 6,
+                    "crit": 5
+                })
+            elif playerClass == "Warrior":
+                magyka.player.extraStats.update({
+                    "hpPerLevel": 3,
+                    "mpPerLevel": 1,
+                    "strengthPerLevel": 2,
+                    "vitalityPerLevel": 1,
+                    "intelligencePerLevel": 0
+                })
+                magyka.player.baseStats.update({
+                    "hit": 95,
+                    "dodge": 5
+                })
+            elif playerClass == "Knight":
+                magyka.player.extraStats.update({
+                    "hpPerLevel": 4,
+                    "mpPerLevel": 1,
+                    "strengthPerLevel": 2,
+                    "vitalityPerLevel": 2,
+                    "intelligencePerLevel": 0
+                })
+                magyka.player.baseStats.update({
+                    "hit": 85,
+                    "dodge": 1,
+                    "crit": 2
+                })
+            elif playerClass == "Spellsword":
+                magyka.player.extraStats.update({
+                    "hpPerLevel": 2,
+                    "mpPerLevel": 2,
+                    "strengthPerLevel": 1,
+                    "vitalityPerLevel": 1,
+                    "intelligencePerLevel": 1
+                })
+                magyka.player.baseStats.update({
+                    "hit": 92
+                })
+            elif playerClass == "Magye":
+                magyka.player.extraStats.update({
+                    "hpPerLevel": 2,
+                    "mpPerLevel": 3,
+                    "strengthPerLevel": 0,
+                    "vitalityPerLevel": 0,
+                    "intelligencePerLevel": 3
+                })
+                magyka.player.baseStats.update({
+                    "dodge": 4,
+                    "crit": 3
+                })
             
-            if control.get_key() == "enter":
-                delay = 0
-            
-            sys.stdout.flush()
-            i += 1
-        
-        print("")
+            magyka.player.playerClass = playerClass
+            magyka.player.update_stats()
+            self.nextScreen = "camp"
+            return
     
     def continue_game(self):
         while 1:
@@ -501,7 +614,6 @@ class Screen:
             option = control.get_input("optionumeric", textField=False, options=delOption+"".join(tuple(map(str, range(0, len(magyka.saves))))))
             
             if option in tuple(map(str, range(0, len(magyka.saves)))):
-                magyka.init_player()
                 magyka.player = magyka.saves[int(option)]
                 self.nextScreen = "camp"
                 self.returnScreen = "camp"
@@ -544,6 +656,10 @@ class Screen:
     
     # - Camp
     def camp(self):
+        if Globals.system == "Windows":
+            win32api.SetConsoleCtrlHandler(exit_handler, True)
+        else:
+            signal.signal(signal.SIGHUP, exit_handler)
         while 1:
             self.returnScreen = "camp"
             text.clear()
@@ -744,7 +860,10 @@ class Screen:
             text.move_cursor(16, 1)
             
             sound.play_sound(["hit", "hit2"])
-            magyka.battleEnemy.attack(magyka.player)
+            if settings.godMode:
+                print(f'{magyka.player.name} does not take damage.')
+            else:
+                magyka.battleEnemy.attack(magyka.player)
             
             print_player()
             
@@ -890,8 +1009,8 @@ class Screen:
             
             text.clear_main_small()
             text.move_cursor(5, 4)
-            print(text.reset + "Use WASD to move.")
-            text.options(["Hunt"] + (["Enter"] if portal else []))
+            print(f'{text.reset}Use {settings.moveBind.upper()} to move.')
+            text.options(["Hunt"])
             text.slide_cursor(1, 3)
             
             print(f'Hunting: {"True" if magyka.hunt else "False"}')
@@ -914,18 +1033,18 @@ class Screen:
                     
                     print(tileText, end="")
             
-            option = control.get_input("alphabetic", options="wasdh"+("e" if portal else ""), silentOptions="wasd", showText=False)
+            option = control.get_input("alphabetic", options=settings.moveBind+"h"+(settings.interactBind if portal else ""), silentOptions="wasd", showText=False)
             
             moveX = 0
             moveY = 0
             
-            if option == "w" and mapCollision[magyka.player.y-1][magyka.player.x] != "0;0;0":
+            if option == settings.moveBind[0] and mapCollision[magyka.player.y-1][magyka.player.x] != "0;0;0":
                 moveY -= 1
-            elif option == "a" and mapCollision[magyka.player.y][magyka.player.x-1] != "0;0;0":
+            elif option == settings.moveBind[1] and mapCollision[magyka.player.y][magyka.player.x-1] != "0;0;0":
                 moveX -= 1
-            elif option == "s" and mapCollision[magyka.player.y+1][magyka.player.x] != "0;0;0":
+            elif option == settings.moveBind[2] and mapCollision[magyka.player.y+1][magyka.player.x] != "0;0;0":
                 moveY += 1
-            elif option == "d" and mapCollision[magyka.player.y][magyka.player.x+1] != "0;0;0":
+            elif option == settings.moveBind[3] and mapCollision[magyka.player.y][magyka.player.x+1] != "0;0;0":
                 moveX += 1
             
             if moveX or moveY:
@@ -935,7 +1054,7 @@ class Screen:
                 if magyka.hunt:
                     encounter = random.randint(1, 100 / settings.encounterChanceHuntTrue)
                 else:
-                    if encounters:
+                    if settings.encounters:
                         encounter = 0
                     else:
                         encounter = random.randint(1, 100 / settings.encounterChanceHuntFalse)
@@ -954,13 +1073,13 @@ class Screen:
                         self.nextScreen = "battle"
                         return
             
-            if option == "e":
+            if option == settings.interactBind:
                 if portal[2] == "map":
                     mapName = portal[3]
                     magyka.player.x = portal[4]
                     magyka.player.y = portal[5]
                 elif portal[2] == "town":
-                    magyka.player.location = portal[3]
+                    magyka.town = portal[3]
                     self.nextScreen = "town"
                     return
                 elif portal[2] == "location":
@@ -978,7 +1097,7 @@ class Screen:
             text.clear()
             Image("background").show_at_origin()
             Image("screen/Town").show_at_description()
-            text.header(magyka.player.location.title())
+            text.header(magyka.town.title())
             
             text.options(["Inn", "General Store", "Blacksmith", "Arcanist", "Flea Market"])
             option = control.get_input("alphabetic", options="igbaf")
@@ -1042,7 +1161,7 @@ class Screen:
             Image("screen/Store").show_at_description()
             text.header(self.storeType.capitalize())
             
-            storeData = magyka.stores[magyka.player.location][self.storeType]
+            storeData = magyka.stores[magyka.town][self.storeType]
             itemList = []
             
             for item in storeData["inventory"]:
@@ -1124,7 +1243,8 @@ class Screen:
                 if option * magyka.purchaseItem.value <= magyka.player.gold:
                     sound.play_sound("coin")
                     magyka.player.add_item(magyka.purchaseItem, option)
-                    magyka.player.gold -= option * magyka.purchaseItem.value
+                    if settings.purchaseCost:
+                        magyka.player.gold -= option * magyka.purchaseItem.value
                     
                     quantity = magyka.purchaseItem.type in Globals.stackableItems
                     text.slide_cursor(0, 3)
@@ -1229,8 +1349,9 @@ class Screen:
             
             if type(option) is int:
                 if option <= numCraftable:
-                    for item in magyka.craftRecipe["ingredients"]:
-                        magyka.player.remove_item(magyka.load_from_db("items", item[0]), item[1])
+                    if settings.craftCost:
+                        for item in magyka.craftRecipe["ingredients"]:
+                            magyka.player.remove_item(magyka.load_from_db("items", item[0]), item[1])
                     magyka.player.add_item(magyka.craftItem, magyka.craftRecipe["quantity"] * option)
                     
                     if magyka.craftItem.type in Globals.stackableItems:
@@ -1566,10 +1687,13 @@ class Screen:
             self.returnScreen = "stats"
             self.nextScreen = self.returnScreen
             text.clear()
+            Image("background").show_at_origin()
             text.header("Inspect passive")
-            print(f'\n Name: {magyka.inspectPassive.get_name(turns=True)}')
-            print(f' Description: {magyka.inspectPassive.description}\n')
-            
+            text.move_cursor(3, 4)
+            print(f'Name: {magyka.inspectPassive.get_name(turns=True)}')
+            text.slide_cursor(0, 3)
+            print(f'Description: {magyka.inspectPassive.description}')
+            text.slide_cursor(1, 0)
             for effect in magyka.inspectPassive.effect:
                 effect.show_stats()
             
@@ -1592,17 +1716,15 @@ class Screen:
 if __name__ == "__main__":
     if Globals.system == "Windows":
         import win32api
-        win32api.SetConsoleCtrlHandler(exit_handler, True)
         os.system("title Magyka")
     else:
         import signal
-        signal.signal(signal.SIGHUP, exit_handler)
 
     try:
         magyka = Magyka()
         screen = Screen()
     except Exception as err:
-        print("")
+        text.clear()
         traceback.print_exc()
         logger.log(traceback.format_exc())
         control.press_enter()

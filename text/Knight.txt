@@ -1,0 +1,11 @@
+The knight wears medium and
+heavy armor. He is a heavy
+duty tank who can take as
+many hits as are thrown at
+him.
+
+ +++ Health
+ ++ Strength
+ ++ Vitality
+ -- Dodge Chance
+ -- Crit Chance

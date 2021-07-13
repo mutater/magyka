@@ -255,7 +255,10 @@ class Item(BaseClass):
     def use(self, user, target):
         for effect in self.effect:
             text.slide_cursor(1, 3)
-            print(f'{user.name} {self.text} {self.get_name()} on {target.name}, ', end="")
+            if self.target == "self":
+                print(f'{user.name} {self.text} {self.get_name()}, ', end="")
+            else:
+                print(f'{user.name} {self.text} {self.get_name()} on {target.name}, ', end="")
             target.defend(effect, tags=self.tags)
 
 

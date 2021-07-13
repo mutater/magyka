@@ -1,4 +1,5 @@
 import script.Globals as Globals
+from script.Logger import logger
 from script.Mapper import mapper
 import os
 import sys
@@ -157,9 +158,10 @@ class Text:
             print(self.c(color, back=True))
         else:
             print(self.reset)
-        for i in range(os.get_terminal_size()[1]):
+        for i in range(os.get_terminal_size()[1]-1):
             self.move_cursor(i + 1, 0)
             print(" "*os.get_terminal_size()[0], end="")
+        sys.stdout.flush()
     
     def fill_rect(self, color, r, c, w, h):
         for i in range(h):
@@ -172,6 +174,10 @@ class Text:
     def print_at_loc(self, string, r, c):
         self.move_cursor(r, c)
         print(string, end="")
+    
+    def print_at_description(self, text, r=3, c=84):
+        for i in range(len(text)):
+            self.print_at_loc(text[i].strip(), r + i, c)
     
     # - Returning - #
     

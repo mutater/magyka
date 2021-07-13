@@ -1,0 +1,10 @@
+The warrior is an all around
+fighter, capable of wearing
+any armor and using any
+weapon.
+
+ ++ Health
+ ++ Strength
+ + Vitality
+ ++ Hit Chance
+ + Dodge Chance
