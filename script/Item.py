@@ -1,8 +1,9 @@
 import copy
 import script.Globals as Globals
-from script.Text import text
-from script.Control import control
 from script.BaseClass import BaseClass
+from script.Control import control
+from script.Logger import logger
+from script.Text import text
 
 
 class Item(BaseClass):
@@ -64,10 +65,13 @@ class Item(BaseClass):
         
         for enchantment in self.enchantments:
             for tag in enchantment.tags:
-                if type(enchantment.tags[tag]) is list:
-                    tags.update({tag: enchantment.tags[tag][enchantment.tier]})
+                if tag == "passive":
+                    tags.update({"passive": enchantment.tags[tag]})
                 else:
-                    tags.update({tag: enchantment.tags[tag]})
+                    if type(enchantment.tags[tag]) is list:
+                        tags.update({tag: enchantment.tags[tag][enchantment.tier]})
+                    else:
+                        tags.update({tag: enchantment.tags[tag]})
             values.append(enchantment.value)
             for effect in enchantment.effect:
                 if effect.type in Globals.statList:
@@ -75,7 +79,6 @@ class Item(BaseClass):
         
         # Sorting through tags to remove duplicate and deal with passive tags
         for tag in tags:
-            tagFound = False
             if tag in self.tags:
                 if type(self.tags[tag]) is int:
                     self.tags[tag] += tags[tag]
@@ -83,10 +86,11 @@ class Item(BaseClass):
                     self.tags[tag] = tags[tag]
             else:
                 if tag == "passive":
-                    if self.effect[0].passive:
-                        self.effect[0].passive.append(tags[tag])
-                    else:
-                        self.effect[0].passive = [tags[tag]]
+                    for passive in tags[tag]:
+                        if self.effect[0].passive:
+                            self.effect[0].passive += copy.deepcopy(tags[tag])
+                        else:
+                            self.effect[0].passive = copy.deepcopy(tags[tag])
                 else:
                     self.tags.update({tag: tags[tag]})
         
@@ -260,6 +264,23 @@ class Item(BaseClass):
             else:
                 print(f'{user.name} {self.text} {self.get_name()} on {target.name}, ', end="")
             target.defend(effect, tags=self.tags)
+    
+    def export(self):
+        for i in range(len(self.effect)):
+            self.effect[i] = self.effect[i].export()
+        for i in range(len(self.baseEffect)):
+            self.baseEffect[i] = self.baseEffect[i].export()
+        for i in range(len(self.enchantments)):
+            self.enchantments[i] = self.enchantments[i].export()
+        if self.tags.get("passive"):
+            for i in range(len(self.tags["passive"])):
+                self.tags["passive"][i] = self.tags["passive"][i].export()
+        if self.baseTags.get("passive"):
+            for i in range(len(self.baseTags["passive"])):
+                self.baseTags["passive"][i] = self.baseTags["passive"][i].export()
+        if self.modifier:
+            self.modifier = self.modifier.export()
+        return super().export()
 
 
 class Enchantment(BaseClass):
@@ -292,12 +313,25 @@ class Enchantment(BaseClass):
             self.tags[tag] = self.tags[tag][tier]
         if self.increase:
             for tag in self.tags:
-                self.tags[tag] = self.baseTags[tag][tier] + self.increase[tier] * level
+                if self.tags[tag] != "passive":
+                    self.tags[tag] = self.baseTags[tag][tier] + self.increase[tier] * level
             for effect in self.effect:
                 effect.value = effect.values[tier] + self.increase[tier] * level
     
     def return_name(self):
         return f'{self.name} {text.numeral(self.level)}'
+    
+    def export(self):
+        for i in range(len(self.effect)):
+            self.effect[i] = self.effect[i].export()
+        if self.tags.get("passive"):
+            for i in range(len(self.tags["passive"])):
+                self.tags["passive"][i] = self.tags["passive"][i].export()
+        if self.baseTags.get("passive"):
+            for i in range(len(self.baseTags["passive"])):
+                for j in range(len(self.baseTags["passive"][i])):
+                    self.baseTags["passive"][i][j] = self.baseTags["passive"][i][j].export()
+        return super().export()
 
 
 class Modifier(BaseClass):
@@ -315,3 +349,11 @@ class Modifier(BaseClass):
     
     def get_name(self):
         return text.c(text.rarityColors[self.rarity]) + self.name + text.reset
+
+    def export(self):
+        for i in range(len(self.effect)):
+            self.effect[i] = self.effect[i].export()
+        if self.tags.get("passive"):
+            for i in range(len(self.tags["passive"])):
+                self.tags["passive"][i] = self.tags["passive"][i].export()
+        return super().export()

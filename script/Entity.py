@@ -1,6 +1,7 @@
-import random
-import math
 import copy
+import json
+import math
+import random
 from script.BaseClass import BaseClass
 from script.Control import control
 from script.Effect import Effect, Passive
@@ -374,7 +375,7 @@ class Entity(BaseClass):
         if passives: self.show_passives()
     
 
-class Player(Entity):
+class Player(Entity, BaseClass):
     def __init__(self, attributes):
         self.defaults = {
             "hp": 7,
@@ -538,6 +539,20 @@ class Player(Entity):
         if item.slot == "tome":
             self.magic = item.effect
         self.update_stats()
+    
+    def export(self):
+        for item in self.inventory:
+            item[0] = item[0].export()
+        for passive in self.passives:
+            passive = passive.export()
+        for slot, item in self.equipment.items():
+            if item:
+                item = item.export()
+        if self.magic:
+            self.magic = self.magic.export()
+        attributes = super().export()
+        return attributes#json.dumps(attributes)
+        
 
 
 class Enemy(Entity):

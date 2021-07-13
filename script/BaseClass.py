@@ -6,3 +6,8 @@ class BaseClass:
                 setattr(self, name, value)
             else:
                 setattr(self, name, attributes[name])
+    
+    def export(self):
+        attributes = vars(self)
+        attributes.pop("defaults")
+        return attributes

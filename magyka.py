@@ -164,11 +164,11 @@ class Magyka:
             obj.update({"level": kwargs.get("level", 1), "tier": kwargs.get("tier", 0), "baseName": obj["name"]})
             if "passive" in obj["tags"]:
                 for i in range(len(obj["tags"]["passive"])):
-                    obj["tags"]["passive"][i] = self.load_from_db("passives", obj["tags"]["passive"][i])
+                    obj["tags"]["passive"][i] = [self.load_from_db("passives", obj["tags"]["passive"][i])]
         elif table == "modifiers":
-            for tag in obj["tags"]:
-                if tag == "passive":
-                    obj["tags"][tag] = {"passive": self.load_from_db("passives", obj["tags"][tag])}
+            if "passive" in obj["tags"]:
+                for i in range(len(obj["tags"]["passive"])):
+                    obj["tags"]["passive"][i] = [self.load_from_db("passives", obj["tags"]["passive"][i])]
             obj = Modifier(obj)
         elif table == "lootTables":
             pass
@@ -191,6 +191,10 @@ class Magyka:
                     level, tier = obj["enchantments"][i][1], obj["enchantments"][i][2]
                     obj["enchantments"][i] = Enchantment(self.load_from_db("enchantments", obj["enchantments"][i][0]))
                     obj["enchantments"][i].update(level, tier)
+                
+                if "passive" in obj["tags"]:
+                    for i in range(len(obj["tags"]["passive"])):
+                        obj["tags"]["passive"][i] = [self.load_from_db("passives", obj["tags"]["passive"][i])]
                 
                 if obj["type"] == "equipment":
                     obj.update({"modifier": self.load_from_db("modifiers", "Normal")})
@@ -276,14 +280,18 @@ class Magyka:
             try:
                 exec(commandSplit[1])
             except Exception as err:
-                print(err)
+                text.clear()
+                traceback.print_exc()
+                logger.log(traceback.format_exc())
                 control.press_enter()
         elif commandSplit[0] == "execp":
             try:
                 print("\n " + str(eval(commandSplit[1])))
                 control.press_enter()
             except Exception as err:
-                print("\n", err)
+                text.clear()
+                traceback.print_exc()
+                logger.log(traceback.format_exc())
                 control.press_enter()
         elif commandSplit[0] == "give":
             commandSplitComma = commandSplit[1].split(", ")

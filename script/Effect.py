@@ -1,4 +1,5 @@
 from script.BaseClass import BaseClass
+from script.Logger import logger
 from script.Text import text
 import script.Globals as Globals
 
@@ -8,7 +9,7 @@ class Effect(BaseClass):
         self.defaults = {
             "type": "",
             "value": 0,
-            "passive": None,
+            "passive": [],
             "opp": "+",
             "attack": None,
             "values": [],
@@ -92,6 +93,11 @@ class Effect(BaseClass):
             elif self.type in ("crit", "hit", "dodge"):
                 text.slide_cursor(0, 3)
                 print(f'{abs(self.value)}% {"Increased" if self.value > 0 else "Decreased"} {self.type.capitalize()} Chance')
+    
+    def export(self):
+        for i in range(len(self.passive)):
+            self.passive[i] = self.passive[i].export()
+        return super().export()
 
 
 class Passive(BaseClass):
@@ -132,3 +138,8 @@ class Passive(BaseClass):
             turnText = f'{self.turns} turn{"s" if self.turns > 1 else ""}'
         
         print(f' Applies {text.c(effectColor)}{self.name}{text.reset} for {turnText}')
+    
+    def export(self):
+        for i in range(len(self.effect)):
+            self.effect[i] = self.effect[i].export()
+        return super().export()
