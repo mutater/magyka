@@ -137,7 +137,8 @@ class Passive(BaseClass):
         else:
             turnText = f'{self.turns} turn{"s" if self.turns > 1 else ""}'
         
-        print(f' Applies {text.c(effectColor)}{self.name}{text.reset} for {turnText}')
+        text.slide_cursor(0, 3)
+        print(f'Applies {text.c(effectColor)}{self.name}{text.reset} for {turnText}')
     
     def export(self):
         for i in range(len(self.effect)):

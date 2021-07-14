@@ -1,1 +1,0 @@
-Good luck trying to save scum, I don't even know how the saving in this game works.

@@ -96,8 +96,18 @@ class Entity(BaseClass):
             self.__mp = 0
 
     def defend(self, effect, attackerStats={}, tags=[], passive=False):
-        attackText = ""
-        hpAmount = 0
+        if passive:
+            print("")
+            text.slide_cursor(0, 4)
+            print("and ", end="")
+            for i in range(len(effect)):
+                if i > 0:
+                    print(", ", end="")
+                    if i < len(effect):
+                        print("and ", end="")
+                self.add_passive(effect[i])
+            print(".")
+            return
         
         if "hit" not in attackerStats:
             attackerStats["hit"] = 95
@@ -168,7 +178,6 @@ class Entity(BaseClass):
                 print(f'but {self.name} blocks the attack.')
                 return
             elif self.guard == "counter":
-                print(f'but {self.name} counters, ', end="")
                 return
             elif not h:
                 print("but misses.")
@@ -192,12 +201,11 @@ class Entity(BaseClass):
 
                 if effect.type == "damageHp":
                     self.hp -= amount*h*d
-                    hpAmount = amount*h*d*-1
                     print(f'dealing {amount} {text.hp}{text.reset} {critical}damage', end="")
                 else:
                     self.mp -= amount*h*d
                     print(f'dealing {amount} {text.mp}{text.reset} {critical}damage', end="")
-            if effect.type == "passive":
+            elif effect.type == "passive":
                 self.add_passive(effect)
         elif effect.type in ("healHp", "healMp"):
             if effect.opp == "*":
@@ -216,13 +224,13 @@ class Entity(BaseClass):
                 if amount + self.hp > self.stats["max hp"]:
                     amount = self.stats["max hp"] - self.hp
                 self.hp += amount
-                hpAmount = amount
                 print(f'healing {amount} {text.hp}{text.reset}', end="")
             else:
                 if amount + self.mp > self.stats["max mp"]:
                     amount = self.stats["max mp"] - self.mp
                 self.mp += amount
                 print(f'healing {amount} {text.mp}{text.reset}', end="")
+            
         elif effect.type == "stat":
             if effect.opp == "*":
                 self.baseStats[effect.stat] = round(self.baseStats[effect.stat] * ((effect.value + 1) / 100))
@@ -242,13 +250,12 @@ class Entity(BaseClass):
             else:
                 increase = "decreasing"
             
-            print(f'{increase} {effect.stat.title()} by {str(effect.value)}{"%" if "*" in effect else ""}{text.reset}.')
-        if passive:
-            for i in range(len(passive)):
-                print(", ", end="")
-                if i == len(passive) - 1:
-                    print("and ", end="")
-                self.add_passive(passive[i])
+            print(f'{increase} {effect.stat.title()} by {str(effect.value)}{"%" if "*" in effect else ""}{text.reset}', end="")
+        else:
+            print(".")
+        
+        if effect.passive:
+            self.defend(effect.passive, passive=True)
         else:
             print(".")
         
@@ -260,8 +267,6 @@ class Entity(BaseClass):
             self.mp = 0
         if self.mp >= self.stats["max mp"]:
             self.mp = self.stats["max mp"]
-        
-        return hpAmount
 
     def add_passive(self, passive):
         passive.dodge = 0
@@ -289,36 +294,41 @@ class Entity(BaseClass):
         for passive in self.passives:
             for effect in passive.effect:
                 if effect.type in ("damageHp", "damageMp", "healHp", "healMp"):
-                    prefix = f' {passive.get_name()} persists, '
-                    suffix, tempDamage = self.defend(effect)
-                    attackText.append(prefix + suffix)
+                    text.slide_cursor(1, 3)
+                    print(f'{passive.get_name()} persists, ', end="")
+                    self.defend(effect)
             
             passive.turns -= 1
             if passive.turns <= 0:
                 self.passives.remove(passive)
-                attackText.append(f' {passive.get_name()} wears off.')
+                text.slide_cursor(1, 3)
+                print(f'{passive.get_name()} wears off.')
                 continue
-        return attackText, tempDamage
 
-    def attack(self, entity, type="attack"):
+    def attack(self, entity, type="attack", message=True):
         attackText = ""
         attack = None
         if type == "attack":
-            if hasattr(self, "attackText"):
-                attackText = self.attackText
+            if hasattr(self, "text"):
+                attackText = f'{self.name} {self.text} {entity.name}, '
             else:
                 if self.equipment.get("weapon"):
-                    attackText = self.equipment["weapon"].text
+                    attackText = f'{self.name} {self.equipment["weapon"].text} {entity.name}, '
                 else:
-                    attackText = "attacks"
+                    attackText = f'{self.name} attacks {entity.name}, '
             attack = self.get_attack()
         elif type == "magic":
             attackText = "magics"
             attack = self.get_magic()
+            if self.equipment["tome"].target == "self":
+                attackText = f'{self.name} casts {self.equipment["tome"].text}, '
+            else:
+                attackText = f'{self.name} casts {self.equipment["tome"].text} on {target.name}'
         
         for effect in attack:
-            text.slide_cursor(1, 3)
-            print(f'{self.name} {attackText} {entity.name}, ', end="")
+            if message:
+                text.slide_cursor(1, 3)
+                print(attackText, end="")
             damage = entity.defend(effect)
 
     def get_attack(self):

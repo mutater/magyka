@@ -158,7 +158,7 @@ class Text:
             print(self.c(color, back=True))
         else:
             print(self.reset)
-        for i in range(os.get_terminal_size()[1]-1):
+        for i in range(os.get_terminal_size()[1]):
             self.move_cursor(i + 1, 0)
             print(" "*os.get_terminal_size()[0], end="")
         sys.stdout.flush()

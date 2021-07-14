@@ -1,4 +1,5 @@
-from script.Globals import *
+import script.Globals as Globals
+from script.Settings import settings
 import os
 import playsound
 import random
@@ -14,12 +15,13 @@ class Sound:
                 self.sounds.update({file.split(".")[0]: "sound/" + file})
     
     def play_sound(self, sound):
-        if type(sound) is list:
-            sound = self.sounds[sound[random.randint(0, len(sound) - 1)]]
-        else:
-            sound = self.sounds[sound]
-        t = threading.Thread(target=playsound.playsound, args=(sound,))
-        t.start()
+        if settings.sound:
+            if type(sound) is list:
+                sound = self.sounds[sound[random.randint(0, len(sound) - 1)]]
+            else:
+                sound = self.sounds[sound]
+            t = threading.Thread(target=playsound.playsound, args=(sound,))
+            t.start()
 
 
 sound = Sound()

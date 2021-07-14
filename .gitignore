@@ -1,4 +1,6 @@
 *.pyc
 oldMagyka.py
-log/!*.keep
-saves/!README.txt
+log/*
+saves/*
+!log/.gitkeep
+!saves/.gitkeep
