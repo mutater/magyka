@@ -17,7 +17,8 @@ class Entity(BaseClass):
             "passives": [],
             "stats": {},
             "baseStats": {},
-            "statChanges": {}
+            "statChanges": {},
+            "tags": {}
         }
         
         self.defaults.update(defaults)
@@ -53,6 +54,7 @@ class Entity(BaseClass):
         oldMaxMp = self.stats["max mp"]
         effects = []
         self.statChanges = {statName: [[0, 0], [0, 0], -1] for statName in self.stats}
+        self.tags = {}
         
         if not self.equipment.get("weapon"):
             self.stats["attack"] = self.baseStats["attack"].copy()
@@ -96,7 +98,7 @@ class Entity(BaseClass):
         if self.__mp <= 0 and buffermp != 0 and self.stats["max mp"] - oldMaxMp != 0:
             self.__mp = 0
 
-    def defend(self, effect, attackerStats={}, tags=[], passive=False):
+    def defend(self, effect, attackerStats={}, tags={}, passive=False):
         if passive:
             print("")
             text.slide_cursor(0, 4)
@@ -110,30 +112,26 @@ class Entity(BaseClass):
             print(".")
             return
         
+        attackerStats = copy.deepcopy(attackerStats)
+        tags = copy.deepcopy(tags)
+        
         if "hit" not in attackerStats:
-            attackerStats["hit"] = 95
+            attackerStats["hit"] = 90
         if "crit" not in attackerStats:
             attackerStats["crit"] = 4
-        if "pierce" not in attackerStats:
-            attackerStats["pierce"] = 1
-        if "variance" not in attackerStats:
-            attackerStats["variance"] = 20
         
-        for tag in tags:
-            if tag in ("noMiss", "hit"):
-                attackerStats["hit"] = 100
-            elif tag in ("noDodge", "hit"):
-                attackerStats["dodge"] = 0
-            elif tag == "pierce":
-                try:
-                    attackerStats["pierce"] = 100/tags[tag]
-                except ZeroDivisionError:
-                    attackerStats["pierce"] = 0
-            elif tag == "variance":
-                try:
-                    attackerStats["variance"] = int(tag[1])
-                except:
-                    attackerStats["variance"] = 20
+        if tags.get("noMiss") or tags.get("hit"):
+            attackerStats["hit"] = 100
+        if tags.get("noDodge") or tags.get("hit"):
+            attackerStats["dodge"] = 0
+        if tags.get("pierce"):
+            attackerStats["pierce"] = tags["pierce"] / 100
+        else:
+            attackerStats["pierce"] = 0
+        if tags.get("variance"):
+            attackerStats["variance"] = tags["variance"]
+        else:
+            attackerStats["variance"] = 20
         
         if effect.type in ("damageHp", "damageMp", "passive"):
             if effect.type != "passive":
@@ -192,7 +190,7 @@ class Entity(BaseClass):
                     a = random.randint(effect.value[0], effect.value[1])
                 else:
                     a = effect.value
-                r = (self.stats["armor"] / 2 + self.stats["vitality"]) * attackerStats["pierce"]
+                r = (self.stats["armor"] - (self.stats["armor"] * attackerStats["pierce"]) / 2 + self.stats["vitality"] / 2)
                 v = random.randint(100 - attackerStats["variance"], 100 + attackerStats["variance"]) / 100
                 
                 amount = round((a - r) * v * crit)
@@ -211,11 +209,11 @@ class Entity(BaseClass):
         elif effect.type in ("healHp", "healMp"):
             if effect.opp == "*":
                 if effec.type == "healHp":
-                    amount = (effect.value / 100) * self.stats["max hp"]
+                    amount = (effect.value / 100) * self.stats["max hp"] + self.stats["vitality"] / 2
                 else:
-                    amount = (effect.value / 100) * self.stats["max mp"]
+                    amount = (effect.value / 100) * self.stats["max mp"] + self.stats["vitality"] / 2
             else:
-                amount = effect.value
+                amount = effect.value + self.stats["vitality"] / 2
             
             amount = round(amount)
             if amount < 1:
@@ -336,7 +334,8 @@ class Entity(BaseClass):
             damage = entity.defend(effect)
 
     def get_attack(self):
-        attackSkill = {"type": "damageHp", "value": [self.stats["attack"][0]+self.stats["strength"], self.stats["attack"][1]+self.stats["strength"]], "crit": self.stats["crit"], "hit": self.stats["hit"]}
+        attackSkill = {"type": "damageHp", "value": [self.stats["attack"][0]+self.stats["strength"]/2, self.stats["attack"][1]+self.stats["strength"]/2],\
+        "crit": self.stats["crit"], "hit": self.stats["hit"], "tags": {}}
         if self.equipment.get("weapon"):
             passives = []
             for effect in self.equipment["weapon"].effect:
@@ -345,6 +344,14 @@ class Entity(BaseClass):
                 if effect.passive:
                     passives += effect.passive
             attackSkill.update({"passive": passives})
+        if self.equipment:
+            for slot in self.equipment:
+                if slot == "weapon" or not self.equipment[slot]:
+                    continue
+                if self.equipment[slot].tags:
+                    for tag, value in self.equipment[slot].tags.items():
+                        if tag in ("variance", "pierce", "passive"):
+                            attackSkill[tag] = copy.deepcopy(value)
         return [Effect(attackSkill)]
     
     def get_magic(self):
@@ -376,7 +383,7 @@ class Entity(BaseClass):
     def show_stats(self, gpxp=True, passives=True):
         print("")
         text.slide_cursor(1, 3)
-        print(text.title(self.name, self.level))
+        print(text.title(self.name, self.level, self.playerClass if hasattr(self, "playerClass") else ""))
         text.slide_cursor(0, 3)
         print(text.hp, text.bar(self.hp, self.stats["max hp"], "red", length=40, number=True))
         text.slide_cursor(0, 3)
@@ -398,8 +405,8 @@ class Player(Entity, BaseClass):
             "level": 1,
             "extraStats": {},
             "location": "magyka",
-            "x": 135,
-            "y": 110,
+            "x": 128,
+            "y": 113,
             "saveId": random.randint(10000, 99999),
             "quests": [],
             "mainQuests": [],
@@ -539,10 +546,10 @@ class Player(Entity, BaseClass):
         if not item:
             return
         if item.slot == "accessory":
-            if not self.equipment.get("acc 2"):
-                slot = "acc 2"
-            else:
+            if not self.equipment.get("acc 1"):
                 slot = "acc 1"
+            else:
+                slot = "acc 2"
         else:
             slot = item.slot
         if self.equipment.get(slot):
@@ -577,7 +584,6 @@ class Enemy(Entity):
             "gold": 1,
             "xp": 1,
             "text": "attacks",
-            "tags": {},
             "magic": [],
             "levelDifference": 0
         }

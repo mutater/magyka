@@ -87,14 +87,14 @@ class Effect(BaseClass):
                 else:
                     symbol = ""
                 
-                text.slide_cursor(0, 3)
+                text.slide_cursor(0, 4)
                 if self.opp == "*":
-                    print(f'{abs(self.value)}% {"Increased" if self.value > 0 else "Decreased"} {self.type.capitalize()}{symbol}{text.reset}')
+                    print(f'{"+" if self.value > 0 else "-"}{abs(self.value)}% {self.type.capitalize()}{symbol}{text.reset}')
                 else:
-                    print(f' {"+" if self.value > 0 else ""}{self.value} {self.type.capitalize()}{symbol}{text.reset}')
+                    print(f'{"+" if self.value > 0 else ""}{self.value} {self.type.capitalize()}{symbol}{text.reset}')
             elif self.type in ("crit", "hit", "dodge"):
-                text.slide_cursor(0, 3)
-                print(f'{abs(self.value)}% {"Increased" if self.value > 0 else "Decreased"} {self.type.capitalize()} Chance')
+                text.slide_cursor(0, 4)
+                print(f'{"+" if self.value > 0 else "-"}{abs(self.value)}% {self.type.capitalize()} Chance')
         
         # Printing passives
         if passive:

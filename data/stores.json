@@ -6,6 +6,9 @@
         "Poison Tome",
         "Bandage Tome",
         "Candle Scroll",
+        "Cotton Hat",
+        "Cotton Robe",
+        "Cotton Trousers",
         "Wooden Ring"
       ]
     },
@@ -21,6 +24,9 @@
     },
     "general": {
       "inventory": [
+        "Leather Coif",
+        "Leather Tunic",
+        "Leather Leggings",
         "Wheat Biscuit",
         "Rough Bandage",
         "Vial of Lesser Restoration",

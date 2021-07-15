@@ -25,6 +25,8 @@ class Loot(BaseClass):
         items = []
         for i in range(len(self.drops)):
             if random.randint(1, 100) <= self.drops[i][2]:
+                if type(self.drops[i][0]) is list:
+                    self.drops[i][0] = self.drops[i][0][random.randint(0, len(self.drops[i][0]) - 1)]
                 if type(self.drops[i][1]) is list:
                     self.drops[i][1] = random.randint(self.drops[i][1][0], self.drops[i][1][1])
                 items.append([self.drops[i][0], self.drops[i][1]])

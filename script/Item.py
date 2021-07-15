@@ -71,9 +71,6 @@ class Item(BaseClass, Tags):
         
         if self.type == "equipment":
             self.update()
-
-    def getValues(self):
-        return [attr for attr in dir(self) if not callable(getattr(self, attr)) and not attr.startswith("__")]
     
     def update(self):
         self.effect, self.tags, self.value = copy.deepcopy(self.baseEffect), copy.deepcopy(self.baseTags), self.baseValue
@@ -111,7 +108,6 @@ class Item(BaseClass, Tags):
                     effects.append(effect)
         
         # Sorting through tags to remove duplicate and deal with passive tags
-        logger.log(tags)
         for tag in tags:
             if tag in self.tags:
                 if type(self.tags[tag]) is int:
@@ -269,14 +265,14 @@ class Item(BaseClass, Tags):
         
         if self.enchantments:
             text.slide_cursor(1, 3)
-            print(f'{text.lightblue}Enchanted{text.reset}')
+            print(f'{text.purple}Enchanted{text.reset}')
         
     def show_stats_detailed(self):
         text.slide_cursor(1, 3)
         print(self.modifier.get_name())
         if self.enchantments:
             text.slide_cursor(1, 3)
-            print(text.lightblue + "Enchantments:" + text.reset)
+            print(f'{text.purple}Enchantments:{text.reset}')
             for enchantment in self.enchantments:
                 text.slide_cursor(0, 5)
                 print(f'- {enchantment.return_name()}')
@@ -306,6 +302,11 @@ class Item(BaseClass, Tags):
                     if i == len(items) - 2:
                         print("and ", end="")
                     target.add_item(items[i][0], items[i][1])
+        else:
+            if self.enchantments:
+                for enchantment in self.enchantments:
+                    target.enchant(enchantment)
+            target.update()
                     
     def export(self):
         for i in range(len(self.effect)):
@@ -349,7 +350,6 @@ class Enchantment(BaseClass, Tags):
         
         self.baseTags = copy.deepcopy(self.tags)
         
-    
     def update(self, tier, level):
         if tier == 0:
             self.name = "Lesser " + self.baseName
@@ -363,9 +363,9 @@ class Enchantment(BaseClass, Tags):
         if self.increase:
             for tag in self.tags:
                 if self.tags[tag] != "passive":
-                    self.tags[tag] = self.baseTags[tag][tier] + self.increase[tier] * level
+                    self.tags[tag] = self.baseTags[tag][tier] + self.increase[tier] * level - 1
             for effect in self.effect:
-                effect.value = effect.values[tier] + self.increase[tier] * level
+                effect.value = effect.values[tier] + self.increase[tier] * level - 1
     
     def return_name(self):
         return f'{self.name} {text.numeral(self.level)}'
@@ -413,7 +413,7 @@ class Modifier(BaseClass, Tags):
         for effect in self.effect:
             effect.show_stats()
         super().show_tags()
-
+    
     def export(self):
         for i in range(len(self.effect)):
             self.effect[i] = self.effect[i].export()

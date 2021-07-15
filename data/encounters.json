@@ -1,14 +1,24 @@
 {
   "magyka": [
+    [75, "Carpenter Ant"],
     [100, "Moss Gnome"],
-    [75, "Wood Bat"],
+    [100, "Wood Bat"],
     [100, "Green Slime"],
+    [100, "Blue Slime"],
+    [100, "Crazed Man"],
+    [100, "Gray Slime"],
     [100, "Lesser Forest Spirit"],
-    [75, "Crazed Man"],
-    [100, "Gray Wolf"],
-    [75, "Crazed Magician"],
+    [100, "Crazed Hunter"],
+    [100, "Forest Wolf"],
+    [100, "Tree Snake"],
+    [100, "Crazed Magycian"],
+    [100, "Bobcat"],
+    [75, "Giant Frog"],
+    [75, "Wood Golem"],
+    [100, "Mud Golem"],
     [100, "Tree Man"],
-    [75, "Bandit"]
+    [100, "Bandit"],
+    [100, "Yellow Slime"]
   ],
   "slime garden": [
     [100, "Green Slime"],

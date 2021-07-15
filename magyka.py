@@ -14,7 +14,6 @@ import copy
 import json
 import math
 import os
-import pickle
 import random
 import re
 import sqlite3
@@ -31,7 +30,6 @@ Inn Screen
  - Random Quests
  - Premade Quests
  - Gambling
-Import  function on BaseClass
 """
 
 
@@ -100,8 +98,8 @@ class Magyka:
                 try:
                     with open("saves/" + file, "r") as saveFile:
                         self.saves.append(json.load(saveFile))
-                except FileNotFoundError:
-                    pass
+                except:
+                    logger.log(f'Error loading player save file:\n\n{traceback.format_exc()}')
         
         self.init_player()
     
@@ -166,11 +164,13 @@ class Magyka:
                     obj["effect"][i] = self.load("effects", obj["effect"][i])
             
             if obj.get("tags"):
-                logger.log(obj["name"], obj["tags"])
                 if "passive" in obj["tags"]:
                     for i in range(len(obj["tags"]["passive"])):
                         if type(obj["tags"]["passive"][i]) is str:
-                            obj["tags"]["passive"][i] = [self.load_from_db("passives", obj["tags"]["passive"][i])]
+                            if table == "enchantments":
+                                obj["tags"]["passive"][i] = [self.load_from_db("passives", obj["tags"]["passive"][i])]
+                            else:
+                                obj["tags"]["passive"][i] = self.load_from_db("passives", obj["tags"]["passive"][i])
                         else:
                             obj["tags"]["passive"][i] = self.load("passives", obj["tags"]["passive"][i])
             
@@ -204,8 +204,7 @@ class Magyka:
         
         # Return if no item found
         if not obj:
-            print(f'\n Error: "{table}.{name}" could not be found.')
-            control.press_enter()
+            logger.log(f'"{table}.{name}" could not be found.')
             return None
         
         # Load required JSON text
@@ -264,6 +263,26 @@ class Magyka:
             magyka.player.update_stats()
             self.nextScreen = "camp"
             return True
+        elif command == "ts":
+            self.player.name = "Vincent"
+            self.player.saveId = 69420
+            magyka.player.extraStats.update({
+                "hpPerLevel": 3,
+                "mpPerLevel": 1,
+                "strengthPerLevel": 2,
+                "vitalityPerLevel": 1,
+                "intelligencePerLevel": 0
+            })
+            magyka.player.baseStats.update({
+                "hit": 95,
+                "dodge": 5
+            })
+            magyka.player.playerClass = "Developer"
+            magyka.player.update_stats()
+            self.dev_command("give Rough Whetstone")
+            self.dev_command("equip Bandit Sword")
+            self.nextScreen = "camp"
+            return True
         elif command == "qs":
             self.player.name = "Dev"
             self.player.saveId = 69420
@@ -302,9 +321,9 @@ class Magyka:
             self.worldMapRegion = mapper.get_text(mapper.regionColors, "map/world map region.png", "map/world map region.txt")
         elif command == "kill":
             self.battleEnemy.hp = 0
-        elif command == "test":
-            with open("player.json", "r") as playerFile:
-                magyka.load_player(json.load(playerFile))
+        elif command == "level":
+            self.player.xp = self.player.mxp
+            self.player.level_up()
         
         # Single Argument Command Handling
         elif commandSplit[0] == "exec":
@@ -340,6 +359,13 @@ class Magyka:
                     session = sqlite3.connect("data/data.db")
                     session.row_factory = dict_factory
                     devItems = [item["name"] for item in session.cursor().execute("select * from items").fetchall()]
+                    for item in devItems:
+                        self.player.add_item(self.load_from_db("items", item))
+                    session.close()
+                elif commandSplitComma[0] == "armor":
+                    session = sqlite3.connect("data/data.db")
+                    session.row_factory = dict_factory
+                    devItems = [item["name"] for item in session.cursor().execute("select * from items where target=\"medium\"")]
                     for item in devItems:
                         self.player.add_item(self.load_from_db("items", item))
                     session.close()
@@ -439,7 +465,6 @@ class Magyka:
         
         for weight, enemy in enemies.items():
             if weight > weightNum:
-                logger.log(enemy.levelDifference)
                 self.battleEnemy = enemy
                 break
 
@@ -640,6 +665,10 @@ class Screen:
             magyka.player.playerClass = playerClass
             magyka.player.update_stats()
             self.nextScreen = "camp"
+            if Globals.system == "Windows":
+                win32api.SetConsoleCtrlHandler(exit_handler, True)
+            else:
+                signal.signal(signal.SIGHUP, exit_handler)
             return
     
     def continue_game(self):
@@ -669,6 +698,10 @@ class Screen:
                 magyka.load_player(magyka.saves[int(option)])
                 self.nextScreen = "camp"
                 self.returnScreen = "camp"
+                if Globals.system == "Windows":
+                    win32api.SetConsoleCtrlHandler(exit_handler, True)
+                else:
+                    signal.signal(signal.SIGHUP, exit_handler)
                 return
             elif option == "d":
                 self.nextScreen = "delete_save"
@@ -708,10 +741,6 @@ class Screen:
     
     # - Camp
     def camp(self):
-        if Globals.system == "Windows":
-            win32api.SetConsoleCtrlHandler(exit_handler, True)
-        else:
-            signal.signal(signal.SIGHUP, exit_handler)
         while 1:
             self.returnScreen = "camp"
             text.clear()
@@ -974,6 +1003,7 @@ class Screen:
         text.print_at_loc(f'Obtained: (x{lootModifier} Loot Modifier)', 3, 4)
         for i in range(len(items)):
             text.print_at_loc(f'- {items[i][0].get_name(info=True, quantity=items[i][1])}', 4 + i, 5)
+            magyka.player.add_item(items[i][0], items[i][1])
         
         print("")
         text.slide_cursor(0, 4)
@@ -1681,8 +1711,11 @@ class Screen:
                 if magyka.player.num_of_items(magyka.inspectItem.name) <= 0:
                     return
             elif option == "u" and magyka.inspectItem.type == "modifier":
+                self.nextScreen = "apply_modifier"
+                return
                 s_applyModifier(magyka.inspectItem)
-                if "infinite" not in magyka.inspectItem.tags: magyka.player.remove_item(magyka.inspectItem)
+                if "infinite" not in magyka.inspectItem.tags:
+                    magyka.player.remove_item(magyka.inspectItem)
                 if magyka.player.num_of_items(magyka.inspectItem.name) <= 0:
                     return
             elif option == "e" and magyka.inspectItem.type == "equipment":
@@ -1713,6 +1746,36 @@ class Screen:
                 magyka.inspectItem.show_stats_detailed()
                 
                 control.press_enter()
+            elif self.code(option):
+                return
+    
+    def apply_modifier(self):
+        while 1:
+            self.returnScreen = "inventory"
+            text.clear()
+            Image("background").show_at_origin()
+            Image("item/" + magyka.inspectItem.name).show_at_description()
+            text.header("Apply Modifier")
+            
+            slots = magyka.inspectItem.slot.split(", ")
+            
+            for i in range(len(slots)):
+                text.print_at_loc(f'{i}) {slots[i].capitalize()}', 3 + i, 4)
+                if magyka.player.equipment[slots[i]]:
+                    text.print_at_loc(f'{magyka.player.equipment[slots[i]].get_name()} {magyka.player.equipment[slots[i]].modifier.get_name()}', 3 + i, 14)
+                else:
+                    text.print_at_loc(f'{text.darkgray}Empty{text.reset}', 3 + i, 14)
+            
+            option = control.get_input("numeric", options="".join(tuple(map(str, range(0, len(slots))))))
+            
+            if option in tuple(map(str, range(0, len(slots)))) and magyka.player.equipment[slots[int(option)]]:
+                magyka.inspectItem.use(None, magyka.player.equipment[slots[int(option)]], True)
+                if "infinite" not in magyka.inspectItem.tags:
+                    magyka.player.remove_item(magyka.inspectItem)
+                if magyka.player.num_of_items(magyka.inspectItem.name) <= 0:
+                    self.nextScreen = "inventory"
+                    return
+                break
             elif self.code(option):
                 return
     
@@ -1753,9 +1816,10 @@ class Screen:
     
     def stats(self):
         while 1:
-            self.returnScreen = "character"
+            self.nextScreen = "character"
             text.clear()
             Image("background").show_at_origin()
+            Image("screen/Stats").show_at_description()
             text.header("Stats")
             
             stats = magyka.player.stats.copy()
@@ -1780,6 +1844,7 @@ class Screen:
                 print(f'{stat.capitalize().ljust(statNamePad)}: {str(magyka.player.stats[stat]).ljust(statValuePad)} ({changeString}{magyka.player.stats[stat] - magyka.player.baseStats[stat]})')
             
             control.press_enter()
+            return
     
     def inspect_passive(self):
         while 1:
