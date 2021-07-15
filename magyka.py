@@ -994,7 +994,11 @@ class Screen:
         
         xp = math.ceil(magyka.battleEnemy.xp * lootModifier)
         gold = math.ceil(random.randint(math.ceil(magyka.battleEnemy.gold*0.9), math.ceil(magyka.battleEnemy.gold*1.1)) * lootModifier)
-        items = magyka.load_from_db("lootTables", magyka.battleEnemy.name).use()
+        items = magyka.load_from_db("lootTables", magyka.battleEnemy.name)
+        if items:
+            items = items.use()
+        else:
+            items = []
         
         magyka.player.gold += gold
         magyka.player.xp += xp
