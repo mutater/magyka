@@ -1895,4 +1895,5 @@ if __name__ == "__main__":
         text.clear()
         traceback.print_exc()
         logger.log(traceback.format_exc())
+        magyka.save_game()
         control.press_enter()

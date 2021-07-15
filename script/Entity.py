@@ -187,7 +187,7 @@ class Entity(BaseClass):
 
             if effect.type in ("damageHp", "damageMp"):
                 if type(effect.value) is list:
-                    a = random.randint(effect.value[0], effect.value[1])
+                    a = random.randint(round(effect.value[0]), round(effect.value[1]))
                 else:
                     a = effect.value
                 r = (self.stats["armor"] - (self.stats["armor"] * attackerStats["pierce"]) / 2 + self.stats["vitality"] / 2)
@@ -334,7 +334,7 @@ class Entity(BaseClass):
             damage = entity.defend(effect)
 
     def get_attack(self):
-        attackSkill = {"type": "damageHp", "value": [self.stats["attack"][0]+math.floor(self.stats["strength"]/2), self.stats["attack"][1]+math.floor(self.stats["strength"]/2)],\
+        attackSkill = {"type": "damageHp", "value": [self.stats["attack"][0]+self.stats["strength"]/2, self.stats["attack"][1]+self.stats["strength"]/2],\
         "crit": self.stats["crit"], "hit": self.stats["hit"], "tags": {}}
         if self.equipment.get("weapon"):
             passives = []
