@@ -2,12 +2,13 @@ import copy
 import script.Globals as Globals
 from script.BaseClass import BaseClass
 from script.Control import control
+from script.Entity import Entity, Player, Enemy
 from script.Logger import logger
 from script.Text import text
 
 
 class Item(BaseClass):
-    def __init__(self, attributes):
+    def __init__(self, attributes, defaults={}):
         self.defaults = {
             "name": "Name",
             "description": "Description",
@@ -23,6 +24,9 @@ class Item(BaseClass):
             "tags": {},
             "modifier": None
         }
+        
+        if defaults:
+            self.defaults = defaults
         
         super().__init__(attributes, self.defaults)
         
@@ -193,7 +197,6 @@ class Item(BaseClass):
             text.slide_cursor(0, 3)
             print(self.modifier.get_name())
         text.slide_cursor(0, 3)
-        print(self.rarity.capitalize())
         
         effects = []
         passives = []
@@ -215,13 +218,30 @@ class Item(BaseClass):
             print(f'Costs {text.blue}{self.mana} ♦{text.reset}')
         print("")
         for effect in effects:
-            effect.show_stats(stats=False)
+            effect.show_stats(stats=False, passive=False)
         for passive in passives:
             passive.show_stats()
         for effect in effects:
-            effect.show_stats(damage=False)
+            effect.show_stats(damage=False, passive=False)
         if len(self.tags) > 0:
+            text.slide_cursor(0, 3)
+            i = 0
+            for tag in self.tags:
+                print(tag.capitalize(), end="")
+                if i < len(self.tags) - 1 and len(self.tags) > 2:
+                    print(", ", end="")
+                if i == len(self.tags) - 2:
+                    if len(self.tags) < 3:
+                        print(" ", end="")
+                    print("and ", end="")
+                i += 1
             print("")
+        
+        if self.enchantments:
+            text.slide_cursor(1, 3)
+            print(f'{text.lightblue}Enchanted{text.reset}')
+    
+    def show_tags(self):
         if "hit" in self.tags:
             text.slide_cursor(0, 3)
             print("Accurate: Never misses")
@@ -233,7 +253,7 @@ class Item(BaseClass):
         if "noDodge" in self.tags:
             text.slide_cursor(0, 3)
             print("Seeking: Undodgeable")
-        if "pierece" in self.tags:
+        if "pierce" in self.tags:
             text.slide_cursor(0, 3)
             print(f'Piercing: Ignores {self.tags["pierce"]}% of enemy armor')
         if "variance" in self.tags:
@@ -249,21 +269,42 @@ class Item(BaseClass):
             text.slide_cursor(0, 3)
             print(f'Lifesteal: Heales for {self.tags["lifesteal"]}% of damage dealt')
         
+    def show_stats_detailed(self):
+        text.slide_cursor(1, 3)
+        print(self.modifier.get_name())
         if self.enchantments:
             text.slide_cursor(1, 3)
             print(text.lightblue + "Enchantments:" + text.reset)
             for enchantment in self.enchantments:
                 text.slide_cursor(0, 5)
                 print(f'- {enchantment.return_name()}')
+                text.slide_cursor(0, 5)
+                enchantment.show_stats()
+        print("")
+        self.show_tags()
     
-    def use(self, user, target):
-        for effect in self.effect:
-            text.slide_cursor(1, 3)
-            if self.target == "self":
-                print(f'{user.name} {self.text} {self.get_name()}, ', end="")
-            else:
-                print(f'{user.name} {self.text} {self.get_name()} on {target.name}, ', end="")
-            target.defend(effect, tags=self.tags)
+    def use(self, user, target, item=False):
+        if not item:
+            for effect in self.effect:
+                text.slide_cursor(1, 3)
+                if self.target == "self":
+                    print(f'{user.name} {self.text} {self.get_name()}, ', end="")
+                else:
+                    print(f'{user.name} {self.text} {self.get_name()} on {target.name}, ', end="")
+                target.defend(effect, tags=self.tags)
+            if self.target == "self" and self.tags.get("loot"):
+                items = self.tags["loot"].use()
+                if not self.effect:
+                    text.slide_cursor(1, 3)
+                    print(f'{user.name} {self.text} {self.get_name()}, ', end="")
+                print(f'receiving:')
+                for i in range(len(items)):
+                    quantity = items[i][0].type != "equipment"
+                    print(f'{items[i][0].get_name(quantity=(items[i][1] if quantity else 0))}')
+                    if i == len(items) - 2:
+                        print("and ", end="")
+                    target.add_item(items[i][0], items[i][1])
+                    
     
     def export(self):
         for i in range(len(self.effect)):
@@ -283,10 +324,11 @@ class Item(BaseClass):
         return super().export()
 
 
-class Enchantment(BaseClass):
+class Enchantment(Item, BaseClass):
     def __init__(self, attributes):
         self.defaults = {
             "name": "Name",
+            "type": "Enchantment",
             "baseName": "Name",
             "maxLevel": 10,
             "effect": [],
@@ -298,8 +340,6 @@ class Enchantment(BaseClass):
         }
         
         super().__init__(attributes, self.defaults)
-        
-        self.baseTags = copy.deepcopy(self.tags)
     
     def update(self, tier, level):
         if tier == 0:
@@ -321,6 +361,11 @@ class Enchantment(BaseClass):
     def return_name(self):
         return f'{self.name} {text.numeral(self.level)}'
     
+    def show_stats(self):
+        for effect in self.effect:
+            effect.show_stats(damage=False)
+        super().show_tags()
+    
     def export(self):
         for i in range(len(self.effect)):
             self.effect[i] = self.effect[i].export()
@@ -334,10 +379,11 @@ class Enchantment(BaseClass):
         return super().export()
 
 
-class Modifier(BaseClass):
+class Modifier(Item, BaseClass):
     def __init__(self, attributes):
         self.defaults = {
             "name": "Name",
+            "type": "Modifier",
             "rarity": "garbage",
             "value": "+0",
             "effect": [],
@@ -349,6 +395,14 @@ class Modifier(BaseClass):
     
     def get_name(self):
         return text.c(text.rarityColors[self.rarity]) + self.name + text.reset
+    
+    def show_stats(self):
+        if self.name == "normal":
+            print("No effect")
+            return
+        for effect in self.effect:
+            effect.show_stats()
+        super().show_tags()
 
     def export(self):
         for i in range(len(self.effect)):

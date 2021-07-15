@@ -269,6 +269,9 @@ class Entity(BaseClass):
             self.mp = self.stats["max mp"]
 
     def add_passive(self, passive):
+        if not passive:
+            return
+        passive = copy.deepcopy(passive)
         passive.dodge = 0
         passive.hit = 100
         passiveFound = False

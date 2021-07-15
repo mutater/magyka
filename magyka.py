@@ -5,6 +5,7 @@ import script.Globals as Globals
 from script.Image import Image
 from script.Item import Item, Enchantment, Modifier
 from script.Logger import logger
+from script.Loot import Loot
 from script.Mapper import mapper
 from script.Settings import settings
 from script.Sound import sound
@@ -26,13 +27,11 @@ import traceback
 """
  Map Screen
  - Chance of random event occuring
-Inspect Screen
- - More Stats showing enchantment and modifier effects of items
 Inn Screen
  - Random Quests
  - Premade Quests
  - Gambling
-Export function on BaseClass
+Import  function on BaseClass
 """
 
 
@@ -97,7 +96,7 @@ class Magyka:
         self.saves = []
         
         for file in os.listdir("saves"):
-            if not file.endswith(".txt"):
+            if not file.endswith(".gitkeep"):
                 try:
                     with open("saves/" + file, "rb") as saveFile:
                         self.saves.append(pickle.load(saveFile))
@@ -173,7 +172,9 @@ class Magyka:
                     obj["tags"]["passive"][i] = [self.load_from_db("passives", obj["tags"]["passive"][i])]
             obj = Modifier(obj)
         elif table == "lootTables":
-            pass
+            for i in range(len(obj["drops"])):
+                obj["drops"][i][0] = self.load_from_db("items", obj["drops"][i][0])
+            obj = Loot(obj)
         elif table == "items":
             try:
                 if "effect" in obj and obj["effect"]:
@@ -198,14 +199,15 @@ class Magyka:
                     for i in range(len(obj["tags"]["passive"])):
                         obj["tags"]["passive"][i] = [self.load_from_db("passives", obj["tags"]["passive"][i])]
                 
+                if "loot" in obj["tags"]:
+                    obj["tags"]["loot"] = self.load_from_db("lootTables", obj["tags"]["loot"])
+                
                 if obj["type"] == "equipment":
                     obj.update({"modifier": self.load_from_db("modifiers", "Normal")})
                 
                 obj = Item(obj)
             except:
-                print(f'\n Error: "{obj["name"]} could not be read."\n')
-                traceback.print_exc()
-                control.press_enter()
+                logger.log(f'"{obj["name"]} could not be read."\n' + traceback.format_exc())
                 obj = None
         elif table == "enemies":
             obj = Enemy(obj)
@@ -295,6 +297,15 @@ class Magyka:
                 traceback.print_exc()
                 logger.log(traceback.format_exc())
                 control.press_enter()
+        elif commandSplit[0] == "clear":
+            if commandSplit[1] == "inventory":
+                self.player.inventory = []
+            elif commandSplit[1] == "equipment":
+                for slot in self.player.equipment:
+                    self.player.equipment[slot] = ""
+            elif commandSplit[1] == "passives":
+                self.player.passives = []
+                self.player.update_stats()
         elif commandSplit[0] == "give":
             commandSplitComma = commandSplit[1].split(", ")
             try:
@@ -324,6 +335,9 @@ class Magyka:
             except Exception:
                 traceback.print_exc()
                 control.press_enter()
+        elif commandSplit[0] == "passive":
+            passive = self.load_from_db("passives", commandSplit[1])
+            self.player.add_passive(passive)
         elif commandSplit[0] == "fight":
             self.battleEnemy = self.load_from_db("enemies", commandSplit[1])
             self.nextScreen = "battle"
@@ -924,16 +938,8 @@ class Screen:
         
         xp = math.ceil(magyka.battleEnemy.xp * lootModifier)
         gold = math.ceil(random.randint(math.ceil(magyka.battleEnemy.gold*0.9), math.ceil(magyka.battleEnemy.gold*1.1)) * lootModifier)
-        items = magyka.load_from_db("lootTables", magyka.battleEnemy.name)["drops"]
+        items = magyka.load_from_db("lootTables", magyka.battleEnemy.name).use()
         
-        for i in range(len(items)-1, -1, -1):
-            items[i][0] = magyka.load_from_db("items", items[i][0])
-            if random.randint(1, 100) <= items[i][2]:
-                if type(items[i][1]) is list:
-                    items[i][1] = random.randint(items[i][1][0], items[i][1][1])
-                magyka.player.add_item(items[i][0], items[i][1])
-            else:
-                items.pop(i)
         magyka.player.gold += gold
         magyka.player.xp += xp
         magyka.player.level_up()
@@ -1160,12 +1166,12 @@ class Screen:
         while 1:
             self.returnScreen = "town"
             text.clear()
-            
+            Image("background").show_at_origin()
             text.header("Inn")
             
             price = 5 + magyka.player.level * 2
-
-            print(f'\n Price to rest: {text.gp}{text.reset} {price}')
+            text.move_cursor(3, 4)
+            print(f'Price to rest: {text.gp}{text.reset} {price}')
             
             text.options(["Rest", text.darkgray + "Quest", text.darkgray + "Gamble"])
             option = control.get_input("alphabetic", options = "r")
@@ -1177,10 +1183,12 @@ class Screen:
                     magyka.player.hp = magyka.player.stats["max hp"]
                     magyka.player.mp = magyka.player.stats["max mp"]
                     magyka.player.add_passive(magyka.load_from_db("passives", "Well Rested"))
-                    print("\n You fell well rested. HP and MP restored to full.")
+                    text.slide_cursor(1, 3)
+                    print("You fell well rested. HP and MP restored to full.")
                     control.press_enter()
                 else:
-                    print(f'\n {text.lightred} You do not have enough gold to rest.')
+                    text.slide_cursor(1, 3)
+                    print(f'{text.lightred} You do not have enough gold to rest.')
                     control.press_enter()
             elif self.code(option):
                 return
@@ -1225,8 +1233,11 @@ class Screen:
             if len(itemList) == 0:
                 print(f' {text.darkgray}Empty{text.reset}')
             
+            text.slide_cursor(1, 3)
+            print(f'Use {settings.moveBind[1]}{settings.moveBind[3]} to switch pages.')
             text.options((["Next"] if next else [])+(["Previous"] if previous else [])+(["Reforge"] if self.storeType == "blacksmith" else [])+["Crafting"])
-            option = control.get_input("optionumeric", options=("n" if next else "")+("p" if previous else "")+("r" if self.storeType == "blacksmith" else "")+"c"+"".join(tuple(map(str, range(0, len(itemList))))), textField=False)
+            option = control.get_input("optionumeric", textField=False, options=(settings.moveBind[3] if next else "")+(settings.moveBind[1] if previous else "")\
+            +("r" if self.storeType == "blacksmith" else "")+"c"+"".join(tuple(map(str, range(0, len(itemList))))))
             
             if option in tuple(map(str, range(0, len(itemList) + (self.page-1) * 10 + 1))):
                 magyka.purchaseItem = itemList[int(option) + (self.page-1) * 10]
@@ -1239,9 +1250,9 @@ class Screen:
                 self.page = 1
                 self.nextScreen = "crafting"
                 return
-            elif option == "n":
+            elif option == settings.moveBind[3]:
                 self.page += 1
-            elif option == "p":
+            elif option == settings.moveBind[1]:
                 self.page -= 1
             elif self.code(option):
                 return
@@ -1508,8 +1519,8 @@ class Screen:
             text.move_cursor(1, 1)
             magyka.player.show_stats()
             
-            text.options(["Inventory", "Equipment", "Quests", "Stats"])
-            option = control.get_input("alphabetic", options="ieqs")
+            text.options(["Inventory", "Equipment", "Quests", "Passives", "Stats"])
+            option = control.get_input("alphabetic", options="ieqps")
             
             if option == "i":
                 self.page = 1
@@ -1520,6 +1531,10 @@ class Screen:
                 return
             elif option == "q":
                 self.nextScreen = "quests"
+                return
+            elif option == "p":
+                self.page = 1
+                self.nextScreen = "passives"
                 return
             elif option == "s":
                 self.nextScreen = "stats"
@@ -1554,8 +1569,9 @@ class Screen:
             next = len(magyka.player.inventory) > self.page * 10
             previous = self.page > 1
             
-            text.options((["Next"] if next else []) + (["Previous"] if previous else []))
-            option = control.get_input("optionumeric", textField=False, options=("n" if next else "")+("p" if previous else "")\
+            text.slide_cursor(1, 3)
+            print(f'Use {settings.moveBind[1]}{settings.moveBind[3]} to switch pages.')
+            option = control.get_input("optionumeric", textField=False, options=(settings.moveBind[3] if next else "")+(settings.moveBind[1] if previous else "")\
             +"".join(tuple(map(str, range(0, len(magyka.player.inventory))))))
             
             if option in tuple(map(str, range(0, len(magyka.player.inventory) + (self.page-1) * 10 + 1))):
@@ -1563,9 +1579,9 @@ class Screen:
                 magyka.inspectItemEquipped = False
                 self.nextScreen = "inspect"
                 return
-            elif option == "n":
+            elif option == settings.moveBind[3]:
                 self.page += 1
-            elif option == "p":
+            elif option == settings.moveBind[1]:
                 self.page -= 1
             elif self.code(option):
                 return
@@ -1632,10 +1648,8 @@ class Screen:
                 magyka.player.unequip(magyka.inspectItem.slot)
                 return
             elif option == "u" and magyka.inspectItem.type == "consumable" and magyka.inspectItem.target == "self":
-                print("NEED USEITEM FUNCTION")
-                #text, z, y = useItem(item, player)
-                #for line in text:
-                #    print(evalText(line))
+                magyka.inspectItem.use(magyka.player, magyka.player)
+                magyka.player.remove_item(magyka.inspectItem)
                 control.press_enter()
                 if magyka.player.num_of_items(magyka.inspectItem.name) <= 0:
                     return
@@ -1665,6 +1679,48 @@ class Screen:
                 else:
                     magyka.player.remove_item(magyka.inspectItem)
                     break
+            elif option == "m":
+                text.clear_main()
+                text.move_cursor(2, 1)
+                
+                magyka.inspectItem.show_stats_detailed()
+                
+                control.press_enter()
+            elif self.code(option):
+                return
+    
+    def passives(self):
+        while 1:
+            self.returnScreen = "character"
+            text.clear()
+            Image("background").show_at_origin()
+            Image("screen/Passives").show_at_description()
+            text.move_cursor(3, 1)
+            
+            for i in range((self.page - 1) * 10, min(self.page * 10, len(magyka.player.passives))):
+                text.slide_cursor(0, 3)
+                print(f'{str(i)[:-1]}({str(i)[-1]}) {magyka.player.passives[i].get_name(turns=True)}')
+            
+            if len(magyka.player.passives) == 0:
+                text.slide_cursor(0, 3)
+                print(f'{text.darkgray}No Passives{text.reset}')
+            
+            next = len(magyka.player.passives) > self.page * 10
+            previous = self.page > 1
+            
+            text.slide_cursor(1, 3)
+            print(f'Use {settings.moveBind[1]}{settings.moveBind[3]} to switch pages.')
+            option = control.get_input("optionumeric", textField=False, options=(settings.moveBind[3] if next else "")+(settings.moveBind[1] if previous else "")\
+            +"".join(tuple(map(str, range(0, len(magyka.player.passives))))))
+            
+            if option in tuple(map(str, range(0, len(magyka.player.passives) + (self.page-1) * 10 + 1))):
+                magyka.inspectPassive = magyka.player.passives[int(option) + (self.page - 1) * 10]
+                self.nextScreen = "inspect_passive"
+                return
+            elif option == settings.moveBind[3]:
+                self.page += 1
+            elif option == settings.moveBind[1]:
+                self.page -= 1
             elif self.code(option):
                 return
     
@@ -1696,39 +1752,11 @@ class Screen:
                 text.slide_cursor(0, 3)
                 print(f'{stat.capitalize().ljust(statNamePad)}: {str(magyka.player.stats[stat]).ljust(statValuePad)} ({changeString}{magyka.player.stats[stat] - magyka.player.baseStats[stat]})')
             
-            text.slide_cursor(1, 3)
-            print("- Passives -")
-            text.slide_cursor(1, 0)
-            
-            for i in range((self.page - 1) * 10, min(self.page * 10, len(magyka.player.passives))):
-                text.slide_cursor(0, 3)
-                print(f'{str(i)[:-1]}({str(i)[-1]}) {magyka.player.passives[i].get_name(turns=True)}')
-            
-            if len(magyka.player.passives) == 0:
-                text.slide_cursor(0, 3)
-                print(f'{text.darkgray}No Passives{text.reset}')
-            
-            next = len(magyka.player.passives) > self.page * 10
-            previous = self.page > 1
-            
-            text.options((["Next"] if next else []) + (["Previous"] if previous else []))
-            option = control.get_input("optionumeric", textField=False, options=("n" if next else "")+("p" if previous else "")\
-            +"".join(tuple(map(str, range(0, len(magyka.player.passives))))))
-            
-            if option in tuple(map(str, range(0, len(magyka.player.passives) + (self.page-1) * 10 + 1))):
-                magyka.inspectPassive = magyka.player.passives[int(option) + (self.page - 1) * 10]
-                self.nextScreen = "inspect_passive"
-                return
-            elif option == "n":
-                self.page += 1
-            elif option == "p":
-                self.page -= 1
-            elif self.code(option):
-                return
+            control.press_enter()
     
     def inspect_passive(self):
         while 1:
-            self.returnScreen = "stats"
+            self.returnScreen = "passives"
             self.nextScreen = self.returnScreen
             text.clear()
             Image("background").show_at_origin()

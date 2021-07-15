@@ -20,7 +20,7 @@ class Effect(BaseClass):
         
         super().__init__(attributes, self.defaults)
     
-    def show_stats(self, damage=True, stats=True):
+    def show_stats(self, damage=True, stats=True, passive=True):
         # Printing healing/ damage
         if damage:
             hpDamage, hpDamageText, hpMult = 0, "", False
@@ -93,6 +93,11 @@ class Effect(BaseClass):
             elif self.type in ("crit", "hit", "dodge"):
                 text.slide_cursor(0, 3)
                 print(f'{abs(self.value)}% {"Increased" if self.value > 0 else "Decreased"} {self.type.capitalize()} Chance')
+        
+        # Printing passives
+        if passive:
+            for passive in self.passive:
+                passive.show_stats()
     
     def export(self):
         for i in range(len(self.passive)):
