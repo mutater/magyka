@@ -1,4 +1,5 @@
 import copy
+import json
 import script.Globals as Globals
 from script.BaseClass import BaseClass
 from script.Control import control
@@ -7,9 +8,40 @@ from script.Logger import logger
 from script.Text import text
 
 
-class Item(BaseClass):
-    def __init__(self, attributes, defaults={}):
+class Tags:
+    def show_tags(self):
+        if "hit" in self.tags:
+            text.slide_cursor(0, 3)
+            print("Accurate: Never misses")
+            text.slide_cursor(0, 3)
+            print("Seeking: Undodgeable")
+        if "noMiss" in self.tags:
+            text.slide_cursor(0, 3)
+            print("Accurate: Never misses")
+        if "noDodge" in self.tags:
+            text.slide_cursor(0, 3)
+            print("Seeking: Undodgeable")
+        if "pierce" in self.tags:
+            text.slide_cursor(0, 3)
+            print(f'Piercing: Ignores {self.tags["pierce"]}% of enemy armor')
+        if "variance" in self.tags:
+            text.slide_cursor(0, 3)
+            if self.tags["variance"] == 0:
+                print("Unvarying: Damage does not vary")
+            else:
+                print(f'Varying: Damage varies by {self.tags["variance"]}%')
+        if "infinite" in self.tags:
+            text.slide_cursor(0, 3)
+            print("Infinite: Item is not consumed upon use")
+        if "lifesteal" in self.tags:
+            text.slide_cursor(0, 3)
+            print(f'Lifesteal: Heales for {self.tags["lifesteal"]}% of damage dealt')
+
+
+class Item(BaseClass, Tags):
+    def __init__(self, attributes):
         self.defaults = {
+            "table": "items",
             "name": "Name",
             "description": "Description",
             "value": 0,
@@ -24,9 +56,6 @@ class Item(BaseClass):
             "tags": {},
             "modifier": None
         }
-        
-        if defaults:
-            self.defaults = defaults
         
         super().__init__(attributes, self.defaults)
         
@@ -82,6 +111,7 @@ class Item(BaseClass):
                     effects.append(effect)
         
         # Sorting through tags to remove duplicate and deal with passive tags
+        logger.log(tags)
         for tag in tags:
             if tag in self.tags:
                 if type(self.tags[tag]) is int:
@@ -240,34 +270,6 @@ class Item(BaseClass):
         if self.enchantments:
             text.slide_cursor(1, 3)
             print(f'{text.lightblue}Enchanted{text.reset}')
-    
-    def show_tags(self):
-        if "hit" in self.tags:
-            text.slide_cursor(0, 3)
-            print("Accurate: Never misses")
-            text.slide_cursor(0, 3)
-            print("Seeking: Undodgeable")
-        if "noMiss" in self.tags:
-            text.slide_cursor(0, 3)
-            print("Accurate: Never misses")
-        if "noDodge" in self.tags:
-            text.slide_cursor(0, 3)
-            print("Seeking: Undodgeable")
-        if "pierce" in self.tags:
-            text.slide_cursor(0, 3)
-            print(f'Piercing: Ignores {self.tags["pierce"]}% of enemy armor')
-        if "variance" in self.tags:
-            text.slide_cursor(0, 3)
-            if self.tags["variance"] == 0:
-                print("Unvarying: Damage does not vary")
-            else:
-                print(f'Varying: Damage varies by {self.tags["variance"]}%')
-        if "infinite" in self.tags:
-            text.slide_cursor(0, 3)
-            print("Infinite: Item is not consumed upon use")
-        if "lifesteal" in self.tags:
-            text.slide_cursor(0, 3)
-            print(f'Lifesteal: Heales for {self.tags["lifesteal"]}% of damage dealt')
         
     def show_stats_detailed(self):
         text.slide_cursor(1, 3)
@@ -281,7 +283,7 @@ class Item(BaseClass):
                 text.slide_cursor(0, 5)
                 enchantment.show_stats()
         print("")
-        self.show_tags()
+        super().show_tags()
     
     def use(self, user, target, item=False):
         if not item:
@@ -305,7 +307,6 @@ class Item(BaseClass):
                         print("and ", end="")
                     target.add_item(items[i][0], items[i][1])
                     
-    
     def export(self):
         for i in range(len(self.effect)):
             self.effect[i] = self.effect[i].export()
@@ -319,14 +320,19 @@ class Item(BaseClass):
         if self.baseTags.get("passive"):
             for i in range(len(self.baseTags["passive"])):
                 self.baseTags["passive"][i] = self.baseTags["passive"][i].export()
+        if self.tags.get("loot"):
+            self.tags["loot"] = self.tags["loot"].export()
+        if self.baseTags.get("loot"):
+            self.baseTags["loot"] = self.baseTags["loot"].export()
         if self.modifier:
             self.modifier = self.modifier.export()
         return super().export()
 
 
-class Enchantment(Item, BaseClass):
+class Enchantment(BaseClass, Tags):
     def __init__(self, attributes):
         self.defaults = {
+            "table": "enchantments",
             "name": "Name",
             "type": "Enchantment",
             "baseName": "Name",
@@ -340,6 +346,9 @@ class Enchantment(Item, BaseClass):
         }
         
         super().__init__(attributes, self.defaults)
+        
+        self.baseTags = copy.deepcopy(self.tags)
+        
     
     def update(self, tier, level):
         if tier == 0:
@@ -379,9 +388,10 @@ class Enchantment(Item, BaseClass):
         return super().export()
 
 
-class Modifier(Item, BaseClass):
+class Modifier(BaseClass, Tags):
     def __init__(self, attributes):
         self.defaults = {
+            "table": "modifiers",
             "name": "Name",
             "type": "Modifier",
             "rarity": "garbage",

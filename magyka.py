@@ -106,9 +106,95 @@ class Magyka:
         self.init_player()
     
     def init_player(self):
-        self.player = Player({"mainQuests": self.quests["main"]})
+        self.player = Player({"mainQuests": copy.deepcopy(self.quests["main"])})
     
-    def load_from_db(self, table, name, **kwargs):
+    def load_player(self, attributes):
+        for i in range(len(attributes["inventory"])):
+            attributes["inventory"][i][0] = self.load("items", attributes["inventory"][i][0])
+        for i in range(len(attributes["passives"])):
+            attributes["passives"][i] = self.load("passives", attributes["passives"][i])
+        for slot, item in attributes["equipment"].items():
+            if item:
+                attributes["equipment"][slot] = self.load("items", attributes["equipment"][slot])
+        if attributes.get("magic"):
+            attributes["magic"] = self.load("effects", attributes["magic"])
+        
+        attributes.update({"mainQuests": copy.deepcopy(self.quests["main"])})
+        
+        self.player = Player(attributes)
+    
+    def load(self, table, obj):
+        try:
+            if table == "effects":
+                if "passive" in obj:
+                    for i in range(len(obj["passive"])):
+                        if type(obj["passive"][i]) is str:
+                            obj["passive"][i] = self.load_from_db("passives", obj["passive"][i])
+                        else:
+                            obj["passive"][i] = self.load("passives", obj["passive"][i])
+            elif table == "passives":
+                pass
+            elif table == "enchantments":
+                obj.update({"level": 1, "tier": 0, "baseName": obj["name"]})
+            elif table == "modifiers":
+                pass
+            elif table == "lootTables":
+                for i in range(len(obj["drops"])):
+                    obj["drops"][i][0] = self.load_from_db("items", obj["drops"][i][0])
+            elif table == "items":
+                for i in range(len(obj["enchantments"])):
+                    if type(obj["enchantments"][i]) is str:
+                        obj["enchantments"][i] = self.load("enchantments", obj["enchantments"][i])
+                    else:
+                        level, tier = obj["enchantments"][i][1], obj["enchantments"][i][2]
+                        obj["enchantments"][i] = self.load_from_db("enchantments", obj["enchantments"][i][0])
+                        obj["enchantments"][i].update(level, tier)
+                
+                if "loot" in obj["tags"]:
+                    if type(obj["tags"]["loot"]) is str:
+                        obj["tags"]["loot"] = self.load_from_db("lootTables", obj["tags"]["loot"])
+                    else:
+                        obj["tags"]["loot"] = self.load("lootTables", obj["tags"]["loot"])
+                
+                if obj["type"] == "equipment":
+                    obj.update({"modifier": self.load_from_db("modifiers", "Normal")})
+            elif table == "enemies":
+                pass
+            
+            if "effect" in obj:
+                for i in range(len(obj["effect"])):
+                    obj["effect"][i] = self.load("effects", obj["effect"][i])
+            
+            if obj.get("tags"):
+                logger.log(obj["name"], obj["tags"])
+                if "passive" in obj["tags"]:
+                    for i in range(len(obj["tags"]["passive"])):
+                        if type(obj["tags"]["passive"][i]) is str:
+                            obj["tags"]["passive"][i] = [self.load_from_db("passives", obj["tags"]["passive"][i])]
+                        else:
+                            obj["tags"]["passive"][i] = self.load("passives", obj["tags"]["passive"][i])
+            
+            if table == "effects":
+                obj = Effect(obj)
+            elif table == "passives":
+                obj = Passive(obj)
+            elif table == "enchantments":
+                obj = Enchantment(obj)
+            elif table == "modifiers":
+                obj = Modifier(obj)
+            elif table == "lootTables":
+                obj = Loot(obj)
+            elif table == "items":
+                obj = Item(obj)
+            elif table == "enemies":
+                obj = Enemy(obj)
+        except:
+            logger.log(f'{obj}\n\n{traceback.format_exc()}')
+            obj = None
+        
+        return obj
+    
+    def load_from_db(self, table, name):
         # Select item from DB
         session = sqlite3.connect("data/data.db")
         session.row_factory = dict_factory
@@ -154,65 +240,7 @@ class Magyka:
             except ValueError:
                 logger.log(f'"{jsonLoad}" could not be read from "{table}.{name}".\nPassed value was "{obj[jsonLoad]}".')
         
-        # Object formatting
-        if "effect" in obj:
-            for i in range(len(obj["effect"])):
-                obj["effect"][i] = Effect(obj["effect"][i])
-        
-        if table == "passives":
-            obj = Passive(obj)
-        elif table == "enchantments":
-            obj.update({"level": kwargs.get("level", 1), "tier": kwargs.get("tier", 0), "baseName": obj["name"]})
-            if "passive" in obj["tags"]:
-                for i in range(len(obj["tags"]["passive"])):
-                    obj["tags"]["passive"][i] = [self.load_from_db("passives", obj["tags"]["passive"][i])]
-        elif table == "modifiers":
-            if "passive" in obj["tags"]:
-                for i in range(len(obj["tags"]["passive"])):
-                    obj["tags"]["passive"][i] = [self.load_from_db("passives", obj["tags"]["passive"][i])]
-            obj = Modifier(obj)
-        elif table == "lootTables":
-            for i in range(len(obj["drops"])):
-                obj["drops"][i][0] = self.load_from_db("items", obj["drops"][i][0])
-            obj = Loot(obj)
-        elif table == "items":
-            try:
-                if "effect" in obj and obj["effect"]:
-                    for effect in obj["effect"]:
-                        if effect.type == "passive":
-                            passives = []
-                            for passive in effect.passive:
-                                passives.append(self.load_from_db("passives", passive))
-                            effect.passive = passives
-                        elif effect.passive:
-                            passives = []
-                            for passive in effect.passive:
-                                passives.append(self.load_from_db("passives", passive))
-                            effect.passive = passives
-                
-                for i in range(len(obj["enchantments"])):
-                    level, tier = obj["enchantments"][i][1], obj["enchantments"][i][2]
-                    obj["enchantments"][i] = Enchantment(self.load_from_db("enchantments", obj["enchantments"][i][0]))
-                    obj["enchantments"][i].update(level, tier)
-                
-                if "passive" in obj["tags"]:
-                    for i in range(len(obj["tags"]["passive"])):
-                        obj["tags"]["passive"][i] = [self.load_from_db("passives", obj["tags"]["passive"][i])]
-                
-                if "loot" in obj["tags"]:
-                    obj["tags"]["loot"] = self.load_from_db("lootTables", obj["tags"]["loot"])
-                
-                if obj["type"] == "equipment":
-                    obj.update({"modifier": self.load_from_db("modifiers", "Normal")})
-                
-                obj = Item(obj)
-            except:
-                logger.log(f'"{obj["name"]} could not be read."\n' + traceback.format_exc())
-                obj = None
-        elif table == "enemies":
-            obj = Enemy(obj)
-        
-        return obj
+        return self.load(table, obj)
     
     def dev_command(self, command):
         commandSplit = command.split(" ", 1)
@@ -275,9 +303,8 @@ class Magyka:
         elif command == "kill":
             self.battleEnemy.hp = 0
         elif command == "test":
-            self.load_encounter(1)
-            self.nextScreen = "battle"
-            return True
+            with open("player.json", "r") as playerFile:
+                magyka.load_player(json.load(playerFile))
         
         # Single Argument Command Handling
         elif commandSplit[0] == "exec":

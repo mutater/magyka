@@ -15,6 +15,7 @@ class Entity(BaseClass):
             "name": "Name",
             "equipment": {"": ""},
             "passives": [],
+            "stats": {},
             "baseStats": {},
             "statChanges": {}
         }
@@ -391,11 +392,10 @@ class Entity(BaseClass):
 class Player(Entity, BaseClass):
     def __init__(self, attributes):
         self.defaults = {
+            "table": "player",
             "hp": 7,
             "mp": 10,
             "level": 1,
-            "name": "Name",
-            "stats": {},
             "extraStats": {},
             "location": "magyka",
             "x": 135,
@@ -407,7 +407,6 @@ class Player(Entity, BaseClass):
             "mainQuest": 0,
             "completedQuests": [],
             "inventory": [],
-            "equipment": {},
             "magic": None,
             "xp": 0,
             "mxp": 10,
@@ -554,23 +553,22 @@ class Player(Entity, BaseClass):
         self.update_stats()
     
     def export(self):
-        for item in self.inventory:
-            item[0] = item[0].export()
-        for passive in self.passives:
-            passive = passive.export()
+        for i in range(len(self.inventory)):
+            self.inventory[i][0] = self.inventory[i][0].export()
+        for i in range(len(self.passives)):
+            self.passives[i] = self.passives[i].export()
         for slot, item in self.equipment.items():
             if item:
-                item = item.export()
+                self.equipment[slot] = self.equipment[slot].export()
         if self.magic:
             self.magic = self.magic.export()
-        attributes = super().export()
-        return attributes#json.dumps(attributes)
-        
+        return json.dumps(super().export(), indent=4)
 
 
 class Enemy(Entity):
     def __init__(self, attributes):
         self.defaults = {
+            "table": "enemies",
             "hp": 7,
             "mp": 5,
             "stats": {},

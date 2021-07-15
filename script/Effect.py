@@ -1,3 +1,4 @@
+import json
 from script.BaseClass import BaseClass
 from script.Logger import logger
 from script.Text import text
@@ -7,6 +8,7 @@ import script.Globals as Globals
 class Effect(BaseClass):
     def __init__(self, attributes):
         self.defaults = {
+            "table": "effects",
             "type": "",
             "value": 0,
             "passive": [],
@@ -108,6 +110,7 @@ class Effect(BaseClass):
 class Passive(BaseClass):
     def __init__(self, attributes):
         self.defaults = {
+            "table": "passives",
             "name": "Name",
             "description": "Description",
             "buff": 0,
