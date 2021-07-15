@@ -111,8 +111,8 @@ class Magyka:
             attributes["inventory"][i][0] = self.load("items", attributes["inventory"][i][0])
         for i in range(len(attributes["passives"])):
             attributes["passives"][i] = self.load("passives", attributes["passives"][i])
-        for slot, item in attributes["equipment"].items():
-            if item:
+        for slot in attributes["equipment"]:
+            if attributes["equipment"][slot]:
                 attributes["equipment"][slot] = self.load("items", attributes["equipment"][slot])
         if attributes.get("magic"):
             attributes["magic"] = self.load("effects", attributes["magic"])

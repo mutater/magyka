@@ -13,7 +13,15 @@ class Entity(BaseClass):
     def __init__(self, attributes, defaults):
         self.defaults = {
             "name": "Name",
-            "equipment": {"": ""},
+            "equipment": {
+                "weapon": "",
+                "tome": "",
+                "head": "",
+                "chest": "",
+                "legs": "",
+                "acc 1": "",
+                "acc 2": ""
+            },
             "passives": [],
             "stats": {},
             "baseStats": {},
@@ -423,9 +431,6 @@ class Player(Entity, BaseClass):
         
         super().__init__(attributes, self.defaults)
         
-        for slot in Globals.slotList:
-            self.equipment.update({slot: ""})
-        
         for quest in self.mainQuests:
             quest.update({"main": True})
         self.addQuest(self.mainQuests[0])
@@ -565,8 +570,8 @@ class Player(Entity, BaseClass):
             self.inventory[i][0] = self.inventory[i][0].export()
         for i in range(len(self.passives)):
             self.passives[i] = self.passives[i].export()
-        for slot, item in self.equipment.items():
-            if item:
+        for slot in self.equipment:
+            if self.equipment[slot]:
                 self.equipment[slot] = self.equipment[slot].export()
         if self.magic:
             self.magic = self.magic.export()
