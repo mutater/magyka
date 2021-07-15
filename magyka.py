@@ -98,8 +98,8 @@ class Magyka:
         for file in os.listdir("saves"):
             if not file.endswith(".gitkeep"):
                 try:
-                    with open("saves/" + file, "rb") as saveFile:
-                        self.saves.append(pickle.load(saveFile))
+                    with open("saves/" + file, "r") as saveFile:
+                        self.saves.append(json.load(saveFile))
                 except FileNotFoundError:
                     pass
         
@@ -377,8 +377,8 @@ class Magyka:
     
     def save_game(self):
         fileName = self.player.name + str(self.player.saveId)
-        with open("saves/" + fileName, "wb+") as saveFile:
-            pickle.dump(self.player, saveFile)
+        with open("saves/" + fileName + ".json", "w+") as saveFile:
+            saveFile.write(self.player.export())
     
     def react_flash(self, timeout):
         time.sleep(0.1)
@@ -651,7 +651,7 @@ class Screen:
             text.header("Continue")
             
             for i in range(len(magyka.saves)):
-                text.print_at_loc(f'({i}) {text.title(magyka.saves[i].name, magyka.saves[i].level)}', 3 + i, 4)
+                text.print_at_loc(f'({i}) {text.title(magyka.saves[i]["name"], magyka.saves[i]["level"], magyka.saves[i]["playerClass"])}', 3 + i, 4)
             
             if len(magyka.saves) == 0:
                 text.print_at_loc(f'{text.darkgray}Empty{text.reset}', 3, 4)
@@ -666,7 +666,7 @@ class Screen:
             option = control.get_input("optionumeric", textField=False, options=delOption+"".join(tuple(map(str, range(0, len(magyka.saves))))))
             
             if option in tuple(map(str, range(0, len(magyka.saves)))):
-                magyka.player = magyka.saves[int(option)]
+                magyka.load_player(magyka.saves[int(option)])
                 self.nextScreen = "camp"
                 self.returnScreen = "camp"
                 return
@@ -751,7 +751,7 @@ class Screen:
         
         # Player
         def print_player():
-            text.print_at_loc(text.title(magyka.player.name, magyka.player.level), 3, 4)
+            text.print_at_loc(text.title(magyka.player.name, magyka.player.level, magyka.player.playerClass), 3, 4)
             text.print_at_loc(text.bar(magyka.player.hp, magyka.player.stats["max hp"], "red", length=40, number=True), 4, 5)
             text.print_at_loc(text.bar(magyka.player.mp, magyka.player.stats["max mp"], "blue", length=40, number=True), 5, 5)
         

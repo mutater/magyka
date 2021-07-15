@@ -182,8 +182,8 @@ class Text:
     # - Returning - #
     
     @staticmethod
-    def title(name, level):
-        return f'{name} [Lvl {level}]'
+    def title(name, level, playerClass=""):
+        return f'{name} [Lvl {level}{" " + playerClass if playerClass else ""}]'
     
     def bar(self, value, maximum, color, length=32, number=False):
         if value < 0:

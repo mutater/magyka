@@ -410,7 +410,8 @@ class Player(Entity, BaseClass):
             "magic": None,
             "xp": 0,
             "mxp": 10,
-            "gold": 0
+            "gold": 0,
+            "playerClass": "class"
         }
         
         super().__init__(attributes, self.defaults)
