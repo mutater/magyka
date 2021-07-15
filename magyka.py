@@ -1552,7 +1552,7 @@ class Screen:
                 if option <= magyka.player.num_of_items(magyka.sellItem.name):
                     sound.play_sound("coin")
                     magyka.player.remove_item(magyka.sellItem, option)
-                    magyka.player.gold += round(magyka.sellItem.value * 0.7)
+                    magyka.player.gold += round(magyka.sellItem.value * 0.7) * option
                     
                     quantity = magyka.sellItem.type in Globals.stackableItems
                     text.slide_cursor(1, 3)
