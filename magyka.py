@@ -1402,17 +1402,19 @@ class Screen:
             next = len(recipes) > self.page * 10
             previous = self.page > 1
             
+            print("")
             text.slide_cursor(1, 3)
             print(f'Use {settings.moveBind[1]}{settings.moveBind[3]} to switch pages.')
-            option = control.get_input("optionumeric", options=("N" if next else "")+("p" if previous else "")+"".join(tuple(map(str, range(0, len(recipes))))))
+            option = control.get_input("optionumeric", options=(settings.moveBind[3] if next else "")+(settings.moveBind[1] if previous else "")\
+            +"".join(tuple(map(str, range(0, len(recipes))))))
             
             if option in tuple(map(str, range(0, len(recipes) + (self.page-1) * 10 + 1))):
                 magyka.craftRecipe = recipes[int(option) + (self.page-1) * 10]
                 self.nextScreen = "craft"
                 return
-            elif option == "n":
+            elif option == settings.moveBind[3]:
                 self.page += 1
-            elif option == "p":
+            elif option == settings.moveBind[1]:
                 self.page -= 1
             elif self.code(option):
                 return
