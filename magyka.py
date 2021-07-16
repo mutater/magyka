@@ -416,10 +416,9 @@ class Magyka:
         enemies = copy.deepcopy(self.encounters[self.player.location])
         weight = 0
         minLevel = level
-        maxLevel = level + 4
-        if self.player.level - 2 > minLevel:
-            minLevel = self.player.level - 2
-            maxLevel = self.player.level + 2
+        maxLevel = level + 5
+        if self.player.level >= maxLevel - 1:
+            minLevel = maxLevel - 1
         if self.player.level == 1 and level == 1:
             minLevel = 1
             maxLevel = 2
@@ -430,7 +429,7 @@ class Magyka:
         
         for i in range(len(enemies)-1, -1, -1):
             enemy = enemies[i][1] = self.load_from_db("enemies", enemies[i][1])
-            if level < enemy.level[0]:
+            if level < enemy.level[0] or enemy.level[0] > maxLevel:
                 enemies.pop(i)
                 continue
             
@@ -780,9 +779,9 @@ class Screen:
         
         # Player
         def print_player():
-            text.print_at_loc(text.title(magyka.player.name, magyka.player.level, magyka.player.playerClass), 3, 4)
-            text.print_at_loc(text.bar(magyka.player.hp, magyka.player.stats["max hp"], "red", length=40, number=True), 4, 5)
-            text.print_at_loc(text.bar(magyka.player.mp, magyka.player.stats["max mp"], "blue", length=40, number=True), 5, 5)
+            text.print_at_loc(text.title(magyka.player.name, magyka.player.level, magyka.player.playerClass) + " ", 3, 4)
+            text.print_at_loc(text.bar(magyka.player.hp, magyka.player.stats["max hp"], "red", length=40, number=True) + " ", 4, 5)
+            text.print_at_loc(text.bar(magyka.player.mp, magyka.player.stats["max mp"], "blue", length=40, number=True) + " ", 5, 5)
         
         # Enemy
         def print_enemy():
@@ -1107,7 +1106,9 @@ class Screen:
                 right = len(mapTiles[0])
             
             text.clear_main_small()
-            text.move_cursor(3, 4)
+            text.move_cursor(1, 1)
+            magyka.player.show_stats(small=True)
+            text.slide_cursor(1, 3)
             print(f'{text.reset}Use {settings.moveBind.upper()} to move.')
             text.options(["Hunt"] + ((["Enter"] if settings.interactBind == "e" else ["Approach"]) if portal else []))
             text.slide_cursor(1, 3)
@@ -1197,6 +1198,8 @@ class Screen:
             Image("background").show_at_origin()
             Image("screen/Town").show_at_description()
             text.header(magyka.town.title())
+            text.move_cursor(1, 3)
+            magyka.player.show_stats()
             
             text.options(["Inn", "General Store", "Blacksmith", "Arcanist", "Flea Market"])
             option = control.get_input("alphabetic", options="igbaf")
@@ -1243,9 +1246,9 @@ class Screen:
                     magyka.player.gold -= price
                     magyka.player.hp = magyka.player.stats["max hp"]
                     magyka.player.mp = magyka.player.stats["max mp"]
-                    magyka.player.add_passive(magyka.load_from_db("passives", "Well Rested"))
                     text.slide_cursor(1, 3)
-                    print("You fell well rested. HP and MP restored to full.")
+                    print("You fell well rested. HP and MP restored to full, ")
+                    magyka.player.add_passive(magyka.load_from_db("passives", "Well Rested"))
                     control.press_enter()
                 else:
                     text.slide_cursor(1, 3)
@@ -1399,7 +1402,8 @@ class Screen:
             next = len(recipes) > self.page * 10
             previous = self.page > 1
             
-            text.options((["Next"] if next else [])+(["Previous"] if previous else []))
+            text.slide_cursor(1, 3)
+            print(f'Use {settings.moveBind[1]}{settings.moveBind[3]} to switch pages.')
             option = control.get_input("optionumeric", options=("N" if next else "")+("p" if previous else "")+"".join(tuple(map(str, range(0, len(recipes))))))
             
             if option in tuple(map(str, range(0, len(recipes) + (self.page-1) * 10 + 1))):
@@ -1493,7 +1497,7 @@ class Screen:
             for i in range((self.page - 1) * 10, min(self.page * 10, len(magyka.player.inventory))):
                 text.slide_cursor(0, 3)
                 quantity = magyka.player.inventory[i][0].type != "equipment"
-                print(f' {str(i)[:-1]}({str(i)[-1]}) {magyka.player.inventory[i][0].get_name(info=True, value=True, quantity=(0 if quantity else magyka.player.inventory[i][1]))}')
+                print(f' {str(i)[:-1]}({str(i)[-1]}) {magyka.player.inventory[i][0].get_name(info=True, value=True, quantity=(magyka.player.inventory[i][1] if quantity else 0))}')
             
             if len(magyka.player.inventory) == 0:
                 text.slide_cursor(0, 3)

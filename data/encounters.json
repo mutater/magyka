@@ -3,11 +3,11 @@
     [75, "Carpenter Ant"],
     [100, "Moss Gnome"],
     [100, "Wood Bat"],
-    [100, "Green Slime"],
-    [100, "Blue Slime"],
+    [110, "Green Slime"],
+    [110, "Blue Slime"],
     [100, "Crazed Man"],
-    [100, "Gray Slime"],
-    [100, "Lesser Forest Spirit"],
+    [110, "Gray Slime"],
+    [125, "Lesser Forest Spirit"],
     [100, "Crazed Hunter"],
     [100, "Forest Wolf"],
     [100, "Tree Snake"],
@@ -18,7 +18,7 @@
     [100, "Mud Golem"],
     [100, "Tree Man"],
     [100, "Bandit"],
-    [100, "Yellow Slime"]
+    [110, "Yellow Slime"]
   ],
   "slime garden": [
     [100, "Green Slime"],

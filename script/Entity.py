@@ -388,17 +388,21 @@ class Entity(BaseClass):
             text.slide_cursor(0, 3)
             print(", ".join([f'{passive.get_name(turns=True)}' for passive in self.passives]))
     
-    def show_stats(self, gpxp=True, passives=True):
+    def show_stats(self, gpxp=True, passives=True, small=False):
+        if small:
+            barLength = 16
+        else:
+            barLength = 40
         print("")
         text.slide_cursor(1, 3)
         print(text.title(self.name, self.level, self.playerClass if hasattr(self, "playerClass") else ""))
         text.slide_cursor(0, 3)
-        print(text.hp, text.bar(self.hp, self.stats["max hp"], "red", length=40, number=True))
+        print(text.hp, text.bar(self.hp, self.stats["max hp"], "red", length=barLength, number=True))
         text.slide_cursor(0, 3)
-        print(text.mp, text.bar(self.mp, self.stats["max mp"], "blue", length=40, number=True))
+        print(text.mp, text.bar(self.mp, self.stats["max mp"], "blue", length=barLength, number=True))
         if gpxp:
             text.slide_cursor(0, 3)
-            print(text.xp, text.bar(self.xp, self.mxp, "green", length=40, number=True))
+            print(text.xp, text.bar(self.xp, self.mxp, "green", length=barLength, number=True))
             text.slide_cursor(0, 3)
             print(text.gp, text.reset + str(self.gold))
         if passives: self.show_passives()
