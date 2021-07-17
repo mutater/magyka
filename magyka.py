@@ -22,16 +22,6 @@ import sys
 import time
 import traceback
 
-# TODO
-"""
- Map Screen
- - Chance of random event occuring
-Inn Screen
- - Random Quests
- - Premade Quests
- - Gambling
-"""
-
 
 def dict_factory(cursor, row):
     # Converts sqlite return value into a dictionary with column names as keys
@@ -79,6 +69,7 @@ class Magyka:
         
         self.nextScreen = ""
         self.inspectItem = None
+        self.inspectSlot = ""
         self.purchaseItem = None
         self.craftItem = None
         self.craftRecipe = None
@@ -94,12 +85,22 @@ class Magyka:
         self.saves = []
         
         for file in os.listdir("saves"):
-            if not file.endswith(".gitkeep"):
+            if not file.endswith(".gitkeep") and not file.endswith("backup.json"):
                 try:
                     with open("saves/" + file, "r") as saveFile:
                         self.saves.append(json.load(saveFile))
                 except:
+                    self.saves.append(file.split(".")[0])
                     logger.log(f'Error loading player save file:\n\n{traceback.format_exc()}')
+        
+        for i in range(len(self.saves)-1, -1, -1):
+            if type(self.saves[i]) is str:
+                try:
+                    with open("saves/" + self.saves[i] + " backup.json", "r") as saveFile:
+                        self.saves[i] = json.load(saveFile)
+                except:
+                    self.saves.pop(i)
+                    logger.log(f'Error loading player backup save file:\n\n{traceback.format_exc()}')
         
         self.init_player()
     
@@ -138,7 +139,11 @@ class Magyka:
                 pass
             elif table == "lootTables":
                 for i in range(len(obj["drops"])):
-                    obj["drops"][i][0] = self.load_from_db("items", obj["drops"][i][0])
+                    if type(obj["drops"]) is list:
+                        for j in range(len(obj["drops"][i][0])):
+                            obj["drops"][i][0][j] = self.load_from_db("items", obj["drops"][i][0][j])
+                    else:
+                        obj["drops"][i][0] = self.load_from_db("items", obj["drops"][i][0])
             elif table == "items":
                 for i in range(len(obj["enchantments"])):
                     if type(obj["enchantments"][i]) is str:
@@ -406,6 +411,13 @@ class Magyka:
         with open("saves/" + fileName + ".json", "w+") as saveFile:
             saveFile.write(self.player.export())
     
+    def save_game_backup(self):
+        fileName = self.player.name + str(self.player.saveId) + " backup"
+        export = self.player.export()
+        with open("saves/" + fileName + ".json", "w+") as saveFile:
+            saveFile.write(export)
+        self.load_player(json.loads(export))
+    
     def react_flash(self, timeout):
         time.sleep(0.1)
         text.clear()
@@ -429,7 +441,7 @@ class Magyka:
         
         for i in range(len(enemies)-1, -1, -1):
             enemy = enemies[i][1] = self.load_from_db("enemies", enemies[i][1])
-            if level < enemy.level[0] or enemy.level[0] > maxLevel:
+            if level < enemy.level[0] or enemy.level[0] > maxLevel or enemy.level[1] < level:
                 enemies.pop(i)
                 continue
             
@@ -476,10 +488,15 @@ class Screen:
         self.oldScreen = ""
         self.storeType = ""
         self.page = 1
+        self.saveBackup = False
         
         magyka.inspectItemEquipped = False
         
         while 1:
+            if self.nextScreen == "camp" and magyka.player.playerClass != "Developer":
+                self.saveBackup = True
+            if self.saveBackup:
+                magyka.save_game_backup()
             if magyka.nextScreen:
                 self.nextScreen = magyka.nextScreen
                 magyka.nextScreen = ""
@@ -777,13 +794,11 @@ class Screen:
         text.clear()
         Image("background").show_at_origin()
         
-        # Player
         def print_player():
             text.print_at_loc(text.title(magyka.player.name, magyka.player.level, magyka.player.playerClass) + " ", 3, 4)
             text.print_at_loc(text.bar(magyka.player.hp, magyka.player.stats["max hp"], "red", length=40, number=True) + " ", 4, 5)
             text.print_at_loc(text.bar(magyka.player.mp, magyka.player.stats["max mp"], "blue", length=40, number=True) + " ", 5, 5)
         
-        # Enemy
         def print_enemy():
             text.clear_description()
             text.print_at_loc(text.title(magyka.battleEnemy.name, magyka.battleEnemy.level), 3, 84)
@@ -989,7 +1004,7 @@ class Screen:
         if levelDifference == 0:
             lootModifier = 1
         else:
-            lootModifier = max(round(1.25 ** levelDifference, 2), 0.6)
+            lootModifier = max(round(1.15 ** levelDifference, 2), 0.25)
         
         xp = math.ceil(magyka.battleEnemy.xp * lootModifier)
         gold = math.ceil(random.randint(math.ceil(magyka.battleEnemy.gold*0.9), math.ceil(magyka.battleEnemy.gold*1.1)) * lootModifier)
@@ -1409,6 +1424,7 @@ class Screen:
             +"".join(tuple(map(str, range(0, len(recipes))))))
             
             if option in tuple(map(str, range(0, len(recipes) + (self.page-1) * 10 + 1))):
+                logger.log(recipes, int(option) + (self.page-1) * 10)
                 magyka.craftRecipe = recipes[int(option) + (self.page-1) * 10]
                 self.nextScreen = "craft"
                 return
@@ -1674,6 +1690,7 @@ class Screen:
             if option in tuple(map(str, range(0, len(Globals.slotList)))) and magyka.player.equipment[Globals.slotList[int(option)]] != "":
                 magyka.inspectItem = magyka.player.equipment[Globals.slotList[int(option)]]
                 magyka.inspectItemEquipped = True
+                magyka.inspectSlot = Globals.slotList[int(option)]
                 self.nextScreen = "inspect"
                 return
             elif self.code(option):
@@ -1712,7 +1729,7 @@ class Screen:
             
             if option == "u" and magyka.inspectItem.type == "equipment":
                 sound.play_sound("equip")
-                magyka.player.unequip(magyka.inspectItem.slot)
+                magyka.player.unequip(magyka.inspectSlot)
                 return
             elif option == "u" and magyka.inspectItem.type == "consumable" and magyka.inspectItem.target == "self":
                 magyka.inspectItem.use(magyka.player, magyka.player)
@@ -1901,5 +1918,4 @@ if __name__ == "__main__":
         text.clear()
         traceback.print_exc()
         logger.log(traceback.format_exc())
-        magyka.save_game()
         control.press_enter()

@@ -5,6 +5,7 @@ import random
 from script.BaseClass import BaseClass
 from script.Control import control
 from script.Effect import Effect, Passive
+from script.Logger import logger
 from script.Text import text
 import script.Globals as Globals
 
@@ -128,15 +129,11 @@ class Entity(BaseClass):
         if "crit" not in attackerStats:
             attackerStats["crit"] = 4
         
-        if tags.get("noMiss") or tags.get("hit"):
-            attackerStats["hit"] = 100
-        if tags.get("noDodge") or tags.get("hit"):
-            attackerStats["dodge"] = 0
-        if tags.get("pierce"):
+        if "pierce" in tags:
             attackerStats["pierce"] = tags["pierce"] / 100
         else:
             attackerStats["pierce"] = 0
-        if tags.get("variance"):
+        if "variance" in tags:
             attackerStats["variance"] = tags["variance"]
         else:
             attackerStats["variance"] = 20
@@ -155,42 +152,13 @@ class Entity(BaseClass):
                     critical = 'critical '
                 else:
                     crit = 1
-
-            if attackerStats.get("hit"):
-                h = attackerStats["hit"]
-            else:
-                h = effect.hit
             
-            if attackerStats.get("dodge"):
-                d = 100 - attackerStats["dodge"]
-            else:
-                d = 100 * effect.dodge
-
-            if random.randint(1, 100) <= h:
-                h = 1
-            else:
-                h = 0
-
-            if random.randint(1, 100) <= d:
-                d = 1
-            else:
-                d = 0
-
-            if self.guard == "deflect":
-                deflect = True
-            else:
-                deflect = False
+            deflect = self.guard == "deflect"
 
             if self.guard == "block":
                 print(f'but {self.name} blocks the attack.')
                 return
             elif self.guard == "counter":
-                return
-            elif not h:
-                print("but misses.")
-                return
-            elif not d:
-                print(f'but {self.name} dodges.')
                 return
 
             if effect.type in ("damageHp", "damageMp"):
@@ -199,7 +167,10 @@ class Entity(BaseClass):
                 else:
                     a = effect.value
                 r = (self.stats["armor"] - (self.stats["armor"] * attackerStats["pierce"]) / 2 + self.stats["vitality"] / 2)
-                v = random.randint(100 - attackerStats["variance"], 100 + attackerStats["variance"]) / 100
+                if attackerStats["variance"] != 0:
+                    v = random.randint(100 - attackerStats["variance"], 100 + attackerStats["variance"]) / 100
+                else:
+                    v = 1
                 
                 amount = round((a - r) * v * crit)
                 if deflect:
@@ -207,25 +178,25 @@ class Entity(BaseClass):
                 amount = 1 if amount < 1 else amount
 
                 if effect.type == "damageHp":
-                    self.hp -= amount*h*d
+                    self.hp -= amount
                     print(f'dealing {amount} {text.hp}{text.reset} {critical}damage', end="")
                 else:
-                    self.mp -= amount*h*d
+                    self.mp -= amount
                     print(f'dealing {amount} {text.mp}{text.reset} {critical}damage', end="")
             elif effect.type == "passive":
                 self.add_passive(effect)
         elif effect.type in ("healHp", "healMp"):
+            if type(effect.value) is list:
+                amount = random.randint(effect.value[0], effect.value[1])
+            
             if effect.opp == "*":
                 if effec.type == "healHp":
-                    amount = (effect.value / 100) * self.stats["max hp"] + self.stats["vitality"] / 2
+                    amount = (amount / 100) * self.stats["max hp"]
                 else:
-                    amount = (effect.value / 100) * self.stats["max mp"] + self.stats["vitality"] / 2
-            else:
-                amount = effect.value + self.stats["vitality"] / 2
+                    amount = (amount / 100) * self.stats["max mp"]
             
-            amount = round(amount)
-            if amount < 1:
-                amount = 1
+            amount += self.stats["vitality"] / 2
+            amount = max(round(amount), 1)
 
             if effect.type == "healHp":
                 if amount + self.hp > self.stats["max hp"]:
@@ -237,7 +208,6 @@ class Entity(BaseClass):
                     amount = self.stats["max mp"] - self.mp
                 self.mp += amount
                 print(f'healing {amount} {text.mp}{text.reset}', end="")
-            
         elif effect.type == "stat":
             if effect.opp == "*":
                 self.baseStats[effect.stat] = round(self.baseStats[effect.stat] * ((effect.value + 1) / 100))
@@ -258,13 +228,9 @@ class Entity(BaseClass):
                 increase = "decreasing"
             
             print(f'{increase} {effect.stat.title()} by {str(effect.value)}{"%" if "*" in effect else ""}{text.reset}', end="")
-        else:
-            print(".")
         
         if effect.passive:
             self.defend(effect.passive, passive=True)
-        else:
-            print(".")
         
         if self.hp < 0:
             self.hp = 0
@@ -333,13 +299,27 @@ class Entity(BaseClass):
             if self.equipment["tome"].target == "self":
                 attackText = f'{self.name} casts {self.equipment["tome"].text}, '
             else:
-                attackText = f'{self.name} casts {self.equipment["tome"].text} on {target.name}'
+                attackText = f'{self.name} casts {self.equipment["tome"].text} on {entity.name}, '
         
-        for effect in attack:
-            if message:
-                text.slide_cursor(1, 3)
-                print(attackText, end="")
-            damage = entity.defend(effect)
+        if message:
+            text.slide_cursor(1, 3)
+            print(attackText, end="")
+        
+        if random.randint(1, 100) > self.stats["hit"]:
+            print("but misses.")
+            return
+        elif random.randint(1, 100) <= entity.stats["dodge"]:
+            print(f'but {entity.name} dodges.')
+            return
+        
+        for i in range(len(attack)):
+            entity.defend(attack[i])
+            if len(attack) > 2:
+                print(", ", end="")
+            if i < len(attack) - 1:
+                print(" and")
+                text.slide_cursor(0, 4)
+        print(".")
 
     def get_attack(self):
         attackSkill = {"type": "damageHp", "value": [self.stats["attack"][0]+self.stats["strength"]/2, self.stats["attack"][1]+self.stats["strength"]/2],\
@@ -579,7 +559,7 @@ class Player(Entity, BaseClass):
                 self.equipment[slot] = self.equipment[slot].export()
         if self.magic:
             self.magic = self.magic.export()
-        return json.dumps(super().export(), indent=4)
+        return json.dumps(super().export())
 
 
 class Enemy(Entity):

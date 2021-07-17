@@ -1,5 +1,6 @@
 import copy
 import json
+import random
 import script.Globals as Globals
 from script.BaseClass import BaseClass
 from script.Control import control
@@ -283,19 +284,33 @@ class Item(BaseClass, Tags):
     
     def use(self, user, target, item=False):
         if not item:
-            for effect in self.effect:
-                text.slide_cursor(1, 3)
-                if self.target == "self":
-                    print(f'{user.name} {self.text} {self.get_name()}, ', end="")
-                else:
-                    print(f'{user.name} {self.text} {self.get_name()} on {target.name}, ', end="")
-                target.defend(effect, tags=self.tags)
-            if self.target == "self" and self.tags.get("loot"):
+            print("")
+            text.slide_cursor(0, 3)
+            if self.target == "self":
+                print(f'{user.name} {self.text} {self.get_name()}, ', end="")
+            else:
+                print(f'{user.name} {self.text} {self.get_name()} on {target.name}, ', end="")
+                
+                if random.randint(1, 100) > user.stats["hit"] and not (self.tags.get("noMiss") or self.tags.get("hit")):
+                    print("but misses.")
+                    return
+                elif random.randint(1, 100) <= target.stats["dodge"] and not (self.tags.get("noDodge") or self.tags.get("hit")):
+                    print(f'but {target.name} dodges.')
+                    return
+            
+            for i in range(len(self.effect)):
+                target.defend(self.effect[i], tags=self.tags)
+                if len(self.effect) > 2:
+                    print(", ", end="")
+                if i < len(self.effect) - 1:
+                    print(" and")
+                    text.slide_cursor(0, 4)
+            print(".")
+            if self.tags.get("loot"):
                 items = self.tags["loot"].use()
                 if not self.effect:
                     text.slide_cursor(1, 3)
-                    print(f'{user.name} {self.text} {self.get_name()}, ', end="")
-                print(f'receiving:')
+                    print(f'{user.name} {self.text} {self.get_name()}, receiving:', end="")
                 for i in range(len(items)):
                     quantity = items[i][0].type != "equipment"
                     print(f'{items[i][0].get_name(quantity=(items[i][1] if quantity else 0))}')
