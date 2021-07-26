@@ -63,7 +63,6 @@ class Entity(BaseClass):
         oldMaxMp = self.stats["max mp"]
         effects = []
         self.statChanges = {statName: [[0, 0], [0, 0], -1] for statName in self.stats}
-        self.tags = {}
         
         if not self.equipment.get("weapon"):
             self.stats["attack"] = self.baseStats["attack"].copy()
@@ -313,7 +312,7 @@ class Entity(BaseClass):
             return
         
         for i in range(len(attack)):
-            entity.defend(attack[i])
+            entity.defend(attack[i], tags=self.tags)
             if len(attack) > 2:
                 print(", ", end="")
             if i < len(attack) - 1:

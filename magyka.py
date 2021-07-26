@@ -268,26 +268,6 @@ class Magyka:
             magyka.player.update_stats()
             self.nextScreen = "camp"
             return True
-        elif command == "ts":
-            self.player.name = "Vincent"
-            self.player.saveId = 69420
-            magyka.player.extraStats.update({
-                "hpPerLevel": 3,
-                "mpPerLevel": 1,
-                "strengthPerLevel": 2,
-                "vitalityPerLevel": 1,
-                "intelligencePerLevel": 0
-            })
-            magyka.player.baseStats.update({
-                "hit": 95,
-                "dodge": 5
-            })
-            magyka.player.playerClass = "Developer"
-            magyka.player.update_stats()
-            self.dev_command("give Rough Whetstone")
-            self.dev_command("equip Bandit Sword")
-            self.nextScreen = "camp"
-            return True
         elif command == "qs":
             self.player.name = "Dev"
             self.player.saveId = 69420
@@ -308,27 +288,26 @@ class Magyka:
             magyka.player.update_stats()
             self.nextScreen = "camp"
             return True
-        elif command == "q":
-            sys.exit()
         elif command == "restart":
             text.clear()
             os.execv(sys.executable, ['python'] + sys.argv)
-        elif command == "color":
-            text.color = not text.color
         elif command == "heal":
             self.player.hp = self.player.stats["max hp"]
             self.player.mp = self.player.stats["max mp"]
         elif command == "buy":
             self.player.add_item(self.purchaseItem)
-        elif command == "map":
-            self.worldMap = mapper.get_text(mapper.mapColors, "map/world map.png", "map/world map.txt")
-            self.worldMapLevel = mapper.get_text(mapper.levelColors, "map/world map level.png", "map/world map level.txt")
-            self.worldMapRegion = mapper.get_text(mapper.regionColors, "map/world map region.png", "map/world map region.txt")
         elif command == "kill":
             self.battleEnemy.hp = 0
+            self.nextScreen = "victory"
+            return True
         elif command == "level":
             self.player.xp = self.player.mxp
             self.player.level_up()
+        elif command == "god":
+            settings.godMode = not settings.godMode
+            text.slide_cursor(1, 3)
+            print(f'Godmode set to {settings.godMode}')
+            control.press_enter()
         
         # Single Argument Command Handling
         elif commandSplit[0] == "exec":
@@ -341,7 +320,8 @@ class Magyka:
                 control.press_enter()
         elif commandSplit[0] == "execp":
             try:
-                print("\n " + str(eval(commandSplit[1])))
+                text.slide_cursor(1, 3)
+                print(str(eval(commandSplit[1])))
                 control.press_enter()
             except Exception as err:
                 text.clear()
@@ -383,6 +363,12 @@ class Magyka:
             try:
                 item = self.load_from_db("items", commandSplit[1])
                 self.player.equip(item)
+                text.slide_cursor(1, 3)
+                if item:
+                    print(f'Equipped {item.get_name()}')
+                else:
+                    print(f'Failed to equip "{commandSplit[1]}"')
+                control.press_enter()
             except Exception:
                 traceback.print_exc()
                 control.press_enter()
@@ -734,7 +720,7 @@ class Screen:
             text.header("Delete")
             
             for i in range(len(magyka.saves)):
-                text.print_at_loc(f'({i}) {text.title(magyka.saves[i].name, magyka.saves[i].level)}', 3 + i, 4)
+                text.print_at_loc(f'({i}) {text.title(magyka.saves[i]["name"], magyka.saves[i]["level"])}', 3 + i, 4)
             
             if len(magyka.saves) == 0:
                 text.print_at_loc(f'{text.darkgray}Empty{text.reset}', 3, 4)
@@ -743,7 +729,8 @@ class Screen:
             
             if option in tuple(map(str, range(0, len(magyka.saves)))):
                 save = magyka.saves[int(option)]
-                os.remove("saves/" + save.name + str(save.saveId))
+                os.remove("saves/" + save["name"] + str(save["saveId"]) + ".json")
+                os.remove("saves/" + save["name"] + str(save["saveId"]) + " backup.json")
                 magyka.saves.pop(int(option))
                 return
             elif self.code(option):
@@ -1405,11 +1392,8 @@ class Screen:
             
             for i in range(-10 + 10*self.page, 10*self.page if 10*self.page < len(recipes) else len(recipes)):
                 item = magyka.load_from_db("items", recipes[i]["result"])
-                if item.type in Globals.stackableItems:
-                    quantity = True
-                else:
-                    quantity = False
-                text.print_at_loc(f'{str(i)[:-1]}({str(i)[-1]}) {item.get_name(info=True, quantity=recipe["quantity"] if quantity else 0)}', 3 + i, 4)
+                quantity = recipe["quantity"] if item.type in Globals.stackableItems else 0
+                text.print_at_loc(f'{str(i)[:-1]}({str(i)[-1]}) {item.get_name(info=True, quantity=quantity)}', 3 + int(str(i)[-1]), 4)
             
             if len(recipes) == 0:
                 text.print_at_loc(f' {text.darkgray}No Items Craftable{text.reset}', 3, 4)
@@ -1684,6 +1668,7 @@ class Screen:
                     text.print_at_loc(f'{magyka.player.equipment[Globals.slotList[i]].get_name()}', 3 + i, 14)
                 else:
                     text.print_at_loc(f'{text.darkgray}Empty{text.reset}', 3 + i, 14)
+            print("")
             
             option = control.get_input("numeric", options="".join(tuple(map(str, range(0, len(Globals.slotList))))))
             
