@@ -171,6 +171,10 @@ class Text:
             else:
                 print(self.reset + " "*w, end="")
     
+    def slide_print(self, string, r=0, c=0, end="\n"):
+        self.slide_cursor(r, c)
+        print(string, end=end)
+    
     def print_at_loc(self, string, r, c):
         self.move_cursor(r, c)
         print(string, end="")

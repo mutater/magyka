@@ -1,115 +1,170 @@
-import json
-from script.BaseClass import BaseClass
 from script.Logger import logger
 from script.Text import text
 import script.Globals as Globals
 
 
-class Effect(BaseClass):
+class Effect:
+    """
+    A runtime object created to hold the data for an effect used on an entity.
+    
+    Attributes
+    ----------
+    attributes : list
+        table : str
+            Constant, "effects"
+        type : str
+            The stat, hp, mp, etc. that the Effect affects
+        value : int
+            Strength of the Effect
+        opp : str
+            How the value of the effect is applied, "+", "*", and "="
+        passive : list of Passive(s)
+            Passives given when the Effect is applied
+        crit : int
+            The percent chance to deal double damage
+        hit : int
+            The percent chance to hit the target    
+    
+    Methods
+    -------
+    show_damage()
+        Prints the heal and damage capabilities of the Effect.
+    show_passive()
+        Prints the passives applied by the Effect.
+    show_stats()
+        Prints the stats of the Effect.
+    """
+    
     def __init__(self, attributes):
-        self.defaults = {
+        """
+        Loads the effect's attributes.
+
+        Parameters
+        ----------
+        attributes : list
+            Variables that are meant to be saved
+        """
+
+        self.attributes = {
             "table": "effects",
             "type": "",
             "value": 0,
-            "passive": [],
             "opp": "+",
-            "attack": None,
-            "values": [],
+            "passive": [],
             "crit": 4,
-            "hit": 95,
-            "dodge": 1
+            "hit": 95
         }
-        
-        super().__init__(attributes, self.defaults)
+        self.attributes.update(attributes)
     
-    def show_stats(self, damage=True, stats=True, passive=True):
-        # Printing healing/ damage
-        if damage:
-            hpDamage, hpDamageText, hpMult = 0, "", False
-            mpDamage, mpDamageText, mpMult = 0, "", False
-            
-            if self.type in ("damageHp", "damageMp", "attack"):
-                attack = True
-            else:
-                attack = False
-            if self.type in ("healHp", "healMp"):
-                heal = True
-            else:
-                heal = False
-            
-            for stat in ("healHp", "healMp", "damageHp", "damageMp"):
-                if self.type == stat:
-                    if "Hp" in stat:
-                        hpDamage = self.value
-                        hpMult = self.opp == "*"
-                    else:
-                        mpDamage = self.value
-                        mpMult = self.opp == "*"
-            
-            if self.type == "attack" and type(self.value) is list:
-                hpDamage = self.value
-                hpMult = False
-            
-            if hpDamage:
-                if type(hpDamage) is list:
-                    hpDamageText = f'{hpDamage[0]} - {hpDamage[1]}{"%" if hpMult else ""} {text.hp}{text.reset}'
-                else:
-                    hpDamageText = f'{hpDamage}{"%" if hpMult else ""} {text.hp}{text.reset}'
-            if mpDamage:
-                if type(mpDamage) is list:
-                    mpDamageText = f'{mpDamage[0]} - {mpDamage[1]}{"%" if mpMult else ""} {text.mp}{text.reset}'
-                else:
-                    mpDamageText = f'{mpDamage}{"%" if mpMult else ""} {text.mp}{text.reset}'
-            
-            if attack:
-                text.slide_cursor(0, 3)
-                print(f'Damages {hpDamageText if hpDamageText else mpDamageText}')
-            if heal:
-                text.slide_cursor(0, 3)
-                print(f'Heals {hpDamageText if hpDamageText else mpDamageText}')
+    def show_damage(self):
+        """
+        Prints the heal and damage capabilities of the Effect.
         
-        # Printing stats
-        if stats:
-            color, character = "", ""
-            statList = ("max hp", "max mp", "armor", "strength", "intelligence", "vitality")
-            
-            if self.type == "attack" and type(self.value) is not list:
-                text.slide_cursor(0, 3)
-                if self.opp == "*":
-                    print(f'{abs(self.value)}% {"Increased" if self.value > 0 else "Decreased"} Attack')
-                else:
-                    print(f'{"+" if self.value > 0 else "-"}{self.value} Attack')
-            if self.type in statList:
-                if self.type == "max hp":
-                    symbol = " " + text.hp
-                elif self.type == "max mp":
-                    symbol = " " + text.mp
-                else:
-                    symbol = ""
-                
-                text.slide_cursor(0, 4)
-                if self.opp == "*":
-                    print(f'{"+" if self.value > 0 else "-"}{abs(self.value)}% {self.type.capitalize()}{symbol}{text.reset}')
-                else:
-                    print(f'{"+" if self.value > 0 else ""}{self.value} {self.type.capitalize()}{symbol}{text.reset}')
-            elif self.type in ("crit", "hit", "dodge"):
-                text.slide_cursor(0, 4)
-                print(f'{"+" if self.value > 0 else "-"}{abs(self.value)}% {self.type.capitalize()} Chance')
+        Returns
+        -------
+        None
+        """
         
-        # Printing passives
-        if passive:
-            for passive in self.passive:
-                passive.show_stats()
-    
-    def export(self):
-        for i in range(len(self.passive)):
-            self.passive[i] = self.passive[i].export()
-        return super().export()
+        if self.attributes["type"] not in ("hp", "mp", "attack"):
+            return
+        
+        if type(self.attributes["value"]) is list:
+            effectText = f'{self.attributes["value"][0]} - {self.attributes["value"][1]}'
+        else:
+            effectText = f'{self.attributes["value"]}'
+
+        if self.attributes["opp"] == "*":
+            effectText += "%"
+        
+        if self.attributes["type"] == "hp":
+            effectText += text.hp + text.reset
+        if self.attributes["type"] == "mp":
+            effectText += text.mp + text.reset
+        
+        if self.attributes["type"] in ("-hp", "-mp", "attack"):
+            effectText = "Damages " + effectText
+        if self.attributes["type"] in ("+hp", "-hp"):
+            effectText = "Heals " + effectText
+        
+        text.slide_print(effectText, 0, 3)
+
+    def show_stats(self):
+        """
+        Prints the stats of the Effect.
+        
+        Returns
+        -------
+        None
+        """
+        
+        if self.attributes["type"] in Globals.statList:
+            effectText = ""
+
+            effectText += "+" if self.attributes["value"] > 0 else "-"
+            effectText += self.attributes["type"].capitalize()
+
+            if self.attributes["type"] == "max hp":
+                effectText += " " + text.hp + text.reset
+            elif self.attributes["type"] == "max mp":
+                effectText += " " + text.mp + text.reset
+
+            if self.attributes["opp"] == "*":
+                effectText += str(abs(self.attributes["value"])) + "%"
+            else:
+                effectText += str(self.attributes["value"])
+
+            if self.attributes["type"] in ("crit", "hit", "dodge"):
+                effectText += " Chance"
+
+            text.slide_print(effectText, 0, 4)
+
+    def show_passive(self):
+        """
+        Prints the passives applied by the effect.
+
+        Returns
+        -------
+        None
+        """
+
+        for passive in self.attributes["passive"]:
+            passive.show_stats()
 
 
-class Passive(BaseClass):
+class Passive:
+    """
+    A runtime object created to hold the passive applied to an enemy or held by an effect.
+
+    Attributes
+    ----------
+    attributes : list
+        table : str
+            Constant, "passives"
+        name : str
+            The display name
+        description : str
+            The description shown to the player
+        buff : int
+            Bool 1 or 0, 1 being a positive buff, 0 being a negative debuff
+        turns : int
+            The amount of turns the passive is applied
+        effect : Effect
+            The effect the passive applies per turn
+        tags : dict
+            Any extra information regarding the passive
+    """
+
     def __init__(self, attributes):
-        self.defaults = {
+        """
+        Load the passive's attributes.
+
+        Parameters
+        ----------
+        attributes : list
+            Variables that are meant to be saved
+        """
+
+        self.attributes = {
             "table": "passives",
             "name": "Name",
             "description": "Description",
@@ -118,37 +173,42 @@ class Passive(BaseClass):
             "effect": [],
             "tags": {}
         }
-        
-        super().__init__(attributes, self.defaults)
+        self.attributes.update(attributes)
     
     def get_name(self, turns=False):
-        if self.buff:
-            effectColor = "light green"
-        else:
-            effectColor = "light red"
+        """
+        Returns the name of the passive.
+
+        Parameters
+        ----------
+        turns : Bool
+            Show the passive turns remaining after the name
+
+        Returns
+        -------
+        str
+        """
+
+        effectColor = "light green" if self.attributes["buff"] else "light red"
+        turnText = f' ({self.attributes["turns"]})' if turns else ""
         
-        if turns:
-            turnText = f' ({self.turns})'
-        else:
-            turnText = ""
-        
-        return text.c(effectColor) + self.name + text.reset + turnText
+        return text.c(effectColor) + self.attributes["name"] + text.reset + turnText
     
     def show_stats(self):
-        if self.buff:
-            effectColor = "light green"
-        else:
-            effectColor = "light red"
+        """
+        Prints the stats of the passive.
+
+        Returns
+        -------
+        None
+        """
+
+        effectColor = "light green" if self.attributes["buff"] else "light red"
         
-        if type(self.turns) is list:
-            turnText = f'{self.turns[0]} - {self.turns[1]} turns'
+        if type(self.attributes["turns"]) is list:
+            turnText = f'{self.attributes["turns"][0]} - {self.attributes["turns"][1]} turns'
         else:
-            turnText = f'{self.turns} turn{"s" if self.turns > 1 else ""}'
+            turnText = f'{self.attributes["turns"]} turn{"s" if self.attributes["turns"] > 1 else ""}'
         
         text.slide_cursor(0, 3)
-        print(f'Applies {text.c(effectColor)}{self.name}{text.reset} for {turnText}')
-    
-    def export(self):
-        for i in range(len(self.effect)):
-            self.effect[i] = self.effect[i].export()
-        return super().export()
+        print(f'Applies {text.c(effectColor)}{self.attributes["name"]}{text.reset} for {turnText}')

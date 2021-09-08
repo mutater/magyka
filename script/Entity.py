@@ -2,17 +2,58 @@ import copy
 import json
 import math
 import random
-from script.BaseClass import BaseClass
-from script.Control import control
-from script.Effect import Effect, Passive
+from script.Effect import Effect
 from script.Logger import logger
 from script.Text import text
 import script.Globals as Globals
 
 
-class Entity(BaseClass):
-    def __init__(self, attributes, defaults):
-        self.defaults = {
+class Entity:
+    """
+    The base class for other entities.
+
+    Attributes
+    ----------
+    attributes : List
+        name : str
+            The display name
+        equipment : dict
+            Items equipped by the entity
+        passives : list
+            Passives afflicting the entity
+        stats : dict
+            Stats (hp, attack, etc.) of the entity
+        hp : int
+            Current health points of the entity
+        mp : int
+            Current magic points of the entity
+        gold : int
+            Current amount of gold held by the entity
+        xp : int
+            Current amount of xp held by the entity
+        baseStats : dict
+            Base stats of the entity without regards to equipment, passives, or others
+        defaultStats : dict
+            The base stats of an entity
+        tags : dict
+            Any extra information regarding the entity
+    statChanges : dict
+        The difference between stats and baseStats
+    guard : str
+        The guard state of the entity ("deflect", "block", or "counter")
+    """
+
+    def __init__(self, attributes):
+        """
+        Load the entity's attributes and set up baseStats and statChanges.
+
+        Parameters
+        ----------
+        attributes : list
+            Variables that are meant to be saved
+        """
+
+        self.attributes = {
             "name": "Name",
             "equipment": {
                 "weapon": "",
@@ -25,16 +66,17 @@ class Entity(BaseClass):
             },
             "passives": [],
             "stats": {},
+            "hp": 7,
+            "mp": 10,
+            "gold": 0,
+            "xp": 0,
             "baseStats": {},
             "statChanges": {},
             "tags": {}
         }
+        self.attributes.update(attributes)
         
-        self.defaults.update(defaults)
-        
-        super().__init__(attributes, self.defaults)
-        
-        self.defaultStats = {
+        self.attributes.update({"defaultStats": {
             "attack": [1, 1],
             "armor": 0,
             "strength": 0,
@@ -45,60 +87,81 @@ class Entity(BaseClass):
             "dodge": 3,
             "max hp": 7,
             "max mp": 10
-        }
+        }})
         
-        for stat in self.defaultStats:
-            if stat not in self.stats:
-                self.stats[stat] = self.defaultStats[stat]
+        for stat in self.attributes["defaultStats"]:
+            if stat not in self.attributes["stats"]:
+                self.attributes["stats"][stat] = self.attributes["defaultStats"][stat]
         
-        self.baseStats = self.stats.copy()
-        self.statChanges = dict((stat, [[0, 0], [0, 0], 0]) for stat in self.stats)
-
+        baseStats = self.attributes["stats"].copy()
+        self.attributes.update({"baseStats": baseStats})
+        self.statChanges = dict((stat, {"+": 0, "*": 1, "=": 0}) for stat in self.attributes["stats"])
         self.guard = ""
 
     def update_stats(self):
-        bufferhp = self.hp - self.stats["max hp"]
-        buffermp = self.mp - self.stats["max mp"]
-        oldMaxHp = self.stats["max hp"]
-        oldMaxMp = self.stats["max mp"]
+        """
+        Updates the entity's stats based on their equipment, passives, etc.
+
+        Returns
+        -------
+        None
+        """
+
+        # Variables used to calculate new hp and mp values after max hp and max mp changes
+        bufferhp = self.hp - self.attributes["stats"]["max hp"]
+        buffermp = self.mp - self.attributes["stats"]["max mp"]
+        oldMaxHp = self.attributes["stats"]["max hp"]
+        oldMaxMp = self.attributes["stats"]["max mp"]
+
         effects = []
-        self.statChanges = {statName: [[0, 0], [0, 0], -1] for statName in self.stats}
-        
-        if not self.equipment.get("weapon"):
-            self.stats["attack"] = self.baseStats["attack"].copy()
-        
-        for slot in self.equipment:
-            if self.equipment[slot] == "":
+        self.statChanges = dict((stat, {"+": 0, "*": 100, "=": -1}) for stat in self.attributes["stats"])
+
+        # Replace attack if no weapon equipped
+        if not self.attributes["equipment"].get("weapon"):
+            self.attributes["stats"]["attack"] = self.attributes["baseStats"]["attack"].copy()
+
+        # Get the effects of the equipment
+        for slot in self.attributes["equipment"]:
+            if self.attributes["equipment"][slot] == "":
                 continue
             
-            effects += self.equipment[slot].effect
+            effects += self.attributes["equipment"][slot]["effect"]
             if slot == "weapon":
-                for effect in self.equipment["weapon"].effect:
-                    if effect.type == "attack":
-                        self.stats["attack"] = copy.deepcopy(effect.value)
-        
-        for passive in self.passives:
-            effects += passive.effect
-        
+                for effect in self.attributes["equipment"]["weapon"]["effect"]:
+                    if effect["type"] == "attack":
+                        self.attributes["stats"]["attack"] = copy.deepcopy(effect["value"])
+
+        # Get the effects of the passives
+        for passive in self.attributes["passives"]:
+            effects += passive["effect"]
+
+        # Get the stat changes of the effects
         for effect in effects:
-            if effect.type not in self.stats or effect.type == "attack":
+            if effect["type"] not in self.attributes["stats"] or effect["type"] == "attack":
                 continue
-            if effect.opp == "=":
-                self.statChanges[effect.type][2] = effect.value if effect.value < self.statChanges[effect.type][2] else self.statChanges[effect.type][2]
-            elif effect.opp == "*":
-                self.statChanges[effect.type][1][1] += effect.value
+
+            if effect["opp"] == "=":
+                if effect["value"] < self.statChanges[effect["type"]]["="]:
+                    self.statChanges[effect["type"]]["="] = effect["value"]
+                else:
+                    self.statChanges[effect["type"]]["="] = self.statChanges[effect["type"]]["="]
+            elif effect["opp"] == "*":
+                self.statChanges[effect["type"]]["*"] += effect["value"]
             else:
-                self.statChanges[effect.type][1][0] += effect.value
-        
-        for statName in self.stats:
-            if statName != "attack":
-                self.stats[statName] = 0
-                self.stats[statName] = self.baseStats[statName] + self.statChanges[statName][0][0] + self.statChanges[statName][1][0]
-                self.stats[statName] += round(self.baseStats[statName] * (self.statChanges[statName][0][1] + self.statChanges[statName][1][1]) / 100)
-                if self.statChanges[statName][0][1] + self.statChanges[statName][1][1] > 0 and self.stats[statName] == 0:
-                    self.stats[statName] = 1
-                if self.statChanges[statName][2] >= 0:
-                    self.stats[statName] = self.statChanges[statName][2]
+                self.statChanges[effect["type"]]["+"] += effect["value"]
+
+        # Apply statChanges to stats
+        for statName in self.attributes["stats"]:
+            if statName == "attack":
+                continue
+
+            self.attributes["stats"][statName] = 0
+            self.attributes["stats"][statName] = self.attributes["baseStats"][statName] + self.statChanges[statName]["+"]
+            self.attributes["stats"][statName] += round(self.attributes["baseStats"][statName] * self.statChanges[statName]["*"] / 100)
+            if self.statChanges[statName][0][1] + self.statChanges[statName][1][1] > 0 and self.attributes["stats"][statName] == 0:
+                self.attributes["stats"][statName] = 1
+            if self.statChanges[statName]["="] >= 0:
+                self.attributes["stats"][statName] = self.statChanges[statName][2]
         
         self.__hp, self.__mp = self.stats["max hp"] + bufferhp, self.stats["max mp"] + buffermp
         if self.__hp <= 0 and bufferhp != 0 and self.stats["max hp"] - oldMaxHp != 0:
@@ -189,7 +252,7 @@ class Entity(BaseClass):
                 amount = random.randint(effect.value[0], effect.value[1])
             
             if effect.opp == "*":
-                if effec.type == "healHp":
+                if effect.type == "healHp":
                     amount = (amount / 100) * self.stats["max hp"]
                 else:
                     amount = (amount / 100) * self.stats["max mp"]
@@ -387,12 +450,10 @@ class Entity(BaseClass):
         if passives: self.show_passives()
     
 
-class Player(Entity, BaseClass):
+class Player(Entity):
     def __init__(self, attributes):
         self.defaults = {
             "table": "player",
-            "hp": 7,
-            "mp": 10,
             "level": 1,
             "extraStats": {},
             "location": "magyka",
@@ -406,9 +467,7 @@ class Player(Entity, BaseClass):
             "completedQuests": [],
             "inventory": [],
             "magic": None,
-            "xp": 0,
             "mxp": 10,
-            "gold": 0,
             "playerClass": "class"
         }
         
@@ -565,12 +624,8 @@ class Enemy(Entity):
     def __init__(self, attributes):
         self.defaults = {
             "table": "enemies",
-            "hp": 7,
-            "mp": 5,
             "stats": {},
             "level": [1,1],
-            "gold": 1,
-            "xp": 1,
             "text": "attacks",
             "magic": [],
             "levelDifference": 0
