@@ -10,7 +10,8 @@ runTime = now.strftime("%Y-%m-%d_%H-%M-%S")
 ansiEnabled = (system == "Windows" and release in ("8", "8.1", "10")) or system == "Linux"
 
 stackableItems = ["consumable", "item", "modifier"]
-slotList = ["weapon", "tome", "head", "chest", "legs", "acc 1", "acc 2"]
+slotList = ["weapon", "head", "chest", "legs", "acc 1", "acc 2"]
 statList = ["attack", "armor", "strength", "intelligence", "vitality", "crit", "hit", "dodge", "max hp", "max mp"]
+rarityList = ["garbage", "common", "uncommon", "rare", "epic", "legendary", "mythical"]
 
 textSpeed = 0.03

@@ -1,13 +1,12 @@
 import os
 import re
+import script.Globals as Globals
 import sys
 import time
 from script.Sound import sound
 from script.Text import text
-import script.Globals as Globals
 
 if Globals.system == "Windows":
-    import win32gui
     import msvcrt
 else:
     import tty
@@ -16,9 +15,15 @@ else:
 
 
 class Control:
+    """
+    Manages keypress input by the player.
+    """
+
     def __init__(self):
-        # Setup input for Linux
-        if Globals.system != "Windows":
+        """
+        Initializes the class.
+        """
+        if not Globals.system == "Windows":
             self.orig_settings = termios.tcgetattr(sys.stdin)
             tty.setcbreak(sys.stdin)
         
@@ -26,7 +31,14 @@ class Control:
 
     @staticmethod
     def get_key():
-        # Get key as soon as one is available
+        """
+        Gets the most recent keypress, if available, and returns it.
+
+        Returns:
+            String name of key pressed.
+        """
+
+        # Get the key
         key = ""
         if Globals.system == "Windows":
             if msvcrt.kbhit():
@@ -42,7 +54,7 @@ class Control:
             if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
                 key = sys.stdin.read(1)[0]
         
-        # Returning key names instead of their given values for some cases
+        # Return the key
         if key == "\n" or key == "\r":
             return "enter"
         elif key == "\x1b":
@@ -68,33 +80,56 @@ class Control:
                 return "down"
         else:
             return key
-    
+
+    def reset_input_settings(self):
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.orig_settings)
+
     def wait_for_key(self, key):
-        # Blocks code until specified key is pressed
+        """
+        Blocks the code until a specified keypress.
+
+        Parameters:
+            key:
+                String name of the key.
+        """
+
         while 1:
             time.sleep(0.05)
             if self.get_key() == key:
                 break
     
-    def time_keypress(self, timeout):
+    def time_keypress(self, timeout, key="space"):
+        """
+        Blocks the code until a specified keypress or timeout of length specified and returns the time taken.
+
+        Parameters:
+            timeout:
+                Integer length of time in milliseconds before timeout.
+            key:
+                String name of key.
+
+        Returns:
+            Integer response time in milliseconds.
+        """
+
         reactionTime = 0
         while 1:
             time.sleep(0.01)
             reactionTime += 0.01
-            if self.get_key() == "space":
+
+            if self.get_key() == key:
                 return round(reactionTime, 2) * 1000
             if round(reactionTime, 2) * 1000 >= timeout:
                 return timeout + 1
     
-    def press_enter(self, prompt=True, nl=True):
+    def press_enter(self):
         text.set_cursor_visible(False)
         text.move_cursor(28, 4)
-        if prompt:
-            print(f'{text.option}[Press Enter]{text.reset}')
+        print(f'{text.option}[Press Enter]{text.reset}')
         self.wait_for_key("enter")
     
-    def get_input(self, mode, textField=True, back=True, options="", prompt="", silentOptions="", showText=True):
-        if options != "":
+    def get_input(self, mode, textField=True, back=True, showText=True, options="", prompt="", silentOptions=""):
+        if not options == "":
             textField = False
         if mode == "none":
             textField = False
@@ -118,7 +153,7 @@ class Control:
             elif mode == "alphanumeric" or mode == "optionumeric":
                 helpText = "- Press a letter or number"
             
-            if back and mode != "none":
+            if back and not mode == "none":
                 helpText += ", or press ESC to go back."
             elif back and mode == "none":
                 helpText += "Press ESC to go back."
@@ -126,20 +161,26 @@ class Control:
                 helpText += "."
             
             if showText:
-                pass #print("\n " + helpText)
+                print("")
+                text.slide_cursor(0, 3)
+                print(helpText)
         
         a = prompt
         loc = len(prompt)
-        if textField: print(a, end="")
+        if textField:
+            print(a, end="")
         sys.stdout.flush()
         terminalSize = os.get_terminal_size()
         while 1:
             time.sleep(0.05)
             key = self.get_key()
-            if terminalSize != os.get_terminal_size():
+            if not terminalSize == os.get_terminal_size():
                 return "D"
             # Looking for single character keys
-            if len(key) == 1 and ((mode in ("command", "all")) or (re.match("[0-9]", key) and mode in ("numeric", "optionumeric", "alphanumeric")) or (re.match("[A-Za-z\_\s\/]", key) and mode in ("alphabetic", "optionumeric", "alphanumeric"))):
+            if len(key) == 1 and ((
+                    mode in ("command", "all")
+                    or (re.match("[0-9]", key) and mode in ("numeric", "optionumeric", "alphanumeric"))
+                    or (re.match("[A-Za-z]", key) and mode in ("alphabetic", "optionumeric", "alphanumeric")))):
                 if textField:
                     a = a[:loc] + key + a[loc:]
                     loc += 1
@@ -204,7 +245,7 @@ class Control:
                 print("")
                 break
             # Opening console
-            if key in ("`", "~") and mode != "command":
+            if key in ("`", "~") and not mode == "command":
                 a = ""
                 return "/D"
             # Closing console
@@ -226,7 +267,6 @@ class Control:
                 loc = len(a)
                 print(a, end="")
                 sys.stdout.flush()
-                
         
         text.set_cursor_visible(False)
         
@@ -237,9 +277,6 @@ class Control:
         else:
             self.lastCommand = a
             return a
-    
-    @staticmethod
-    def reset_input_settings():
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, orig_settings)
+
 
 control = Control()

@@ -1,53 +1,42 @@
-from script.Logger import logger
 from script.Text import text
 import script.Globals as Globals
 
 
 class Effect:
     """
-    A runtime object created to hold the data for an effect used on an entity.
-    
-    Attributes
-    ----------
-    attributes : list
-        table : str
-            Constant, "effects"
-        type : str
-            The stat, hp, mp, etc. that the Effect affects
-        value : int
-            Strength of the Effect
-        opp : str
-            How the value of the effect is applied, "+", "*", and "="
-        passive : list of Passive(s)
-            Passives given when the Effect is applied
-        crit : int
-            The percent chance to deal double damage
-        hit : int
-            The percent chance to hit the target    
-    
-    Methods
-    -------
-    show_damage()
-        Prints the heal and damage capabilities of the Effect.
-    show_passive()
-        Prints the passives applied by the Effect.
-    show_stats()
-        Prints the stats of the Effect.
+    The damage, healing, or stat changes of an item, equipment, or attack.
     """
     
     def __init__(self, attributes):
         """
         Loads the effect's attributes.
 
-        Parameters
-        ----------
-        attributes : list
-            Variables that are meant to be saved
+        Args:
+            attributes:
+                Dictionary of class attributes.
+
+                table:
+                    String constant ("effects").
+                type:
+                    String stat (hp, mp, etc.) that the Effect affects.
+                stat:
+                    String name of stat affected if type is "Stat".
+                value:
+                    Integer strength of the Effect.
+                opp:
+                    String value of how the Effect is applied ("+", "*", "=").
+                passive:
+                    List of Passives given when the Effect is applied.
+                crit:
+                    Integer percent chance to deal increased damage.
+                hit:
+                    Integer percent chance to hit the target.
         """
 
         self.attributes = {
             "table": "effects",
             "type": "",
+            "stat": "",
             "value": 0,
             "opp": "+",
             "passive": [],
@@ -57,14 +46,6 @@ class Effect:
         self.attributes.update(attributes)
     
     def show_damage(self):
-        """
-        Prints the heal and damage capabilities of the Effect.
-        
-        Returns
-        -------
-        None
-        """
-        
         if self.attributes["type"] not in ("hp", "mp", "attack"):
             return
         
@@ -89,14 +70,6 @@ class Effect:
         text.slide_print(effectText, 0, 3)
 
     def show_stats(self):
-        """
-        Prints the stats of the Effect.
-        
-        Returns
-        -------
-        None
-        """
-        
         if self.attributes["type"] in Globals.statList:
             effectText = ""
 
@@ -119,49 +92,37 @@ class Effect:
             text.slide_print(effectText, 0, 4)
 
     def show_passive(self):
-        """
-        Prints the passives applied by the effect.
-
-        Returns
-        -------
-        None
-        """
-
         for passive in self.attributes["passive"]:
             passive.show_stats()
 
 
 class Passive:
     """
-    A runtime object created to hold the passive applied to an enemy or held by an effect.
-
-    Attributes
-    ----------
-    attributes : list
-        table : str
-            Constant, "passives"
-        name : str
-            The display name
-        description : str
-            The description shown to the player
-        buff : int
-            Bool 1 or 0, 1 being a positive buff, 0 being a negative debuff
-        turns : int
-            The amount of turns the passive is applied
-        effect : Effect
-            The effect the passive applies per turn
-        tags : dict
-            Any extra information regarding the passive
+    A passive applied to an Entity or Effect.
     """
 
     def __init__(self, attributes):
         """
-        Load the passive's attributes.
+        Initializes the class and loads its attributes.
 
-        Parameters
-        ----------
-        attributes : list
-            Variables that are meant to be saved
+        Parameters:
+            attributes:
+                Dictionary of class attributes.
+
+                table:
+                    String constant ("passives").
+                name:
+                    String display name.
+                description
+                    String display description.
+                buff:
+                    Integer 1 or 0, 1 being a buff, 0 being a debuff.
+                turns:
+                    Integer number of turns the passive is applied.
+                effect:
+                    Effect the passive applies.
+                tags:
+                    Dict of any extra information.
         """
 
         self.attributes = {
@@ -179,14 +140,12 @@ class Passive:
         """
         Returns the name of the passive.
 
-        Parameters
-        ----------
-        turns : Bool
-            Show the passive turns remaining after the name
+        Parameters:
+            turns:
+                Boolean; if True, append turn count to display name.
 
-        Returns
-        -------
-        str
+        Returns:
+            String colored display name.
         """
 
         effectColor = "light green" if self.attributes["buff"] else "light red"
@@ -195,14 +154,6 @@ class Passive:
         return text.c(effectColor) + self.attributes["name"] + text.reset + turnText
     
     def show_stats(self):
-        """
-        Prints the stats of the passive.
-
-        Returns
-        -------
-        None
-        """
-
         effectColor = "light green" if self.attributes["buff"] else "light red"
         
         if type(self.attributes["turns"]) is list:
