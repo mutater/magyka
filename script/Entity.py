@@ -535,6 +535,16 @@ class Entity:
         if passives:
             self.show_passives()
 
+    def export(self):
+        for i in range(len(self.attributes["inventory"])):
+            self.attributes["inventory"][i][0] = self.attributes["inventory"][i][0].export()
+        for i in range(len(self.attributes["passives"])):
+            self.attributes["passives"][i] = self.attributes["passives"][i].export()
+        for slot in self.attributes["equipment"]:
+            if self.attributes["equipment"][slot]:
+                self.attributes["equipment"][slot] = self.attributes["equipment"][slot].export()
+        return self.attributes
+
 
 class Player(Entity):
     """

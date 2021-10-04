@@ -95,6 +95,11 @@ class Effect:
         for passive in self.attributes["passive"]:
             passive.show_stats()
 
+    def export(self):
+        for i in range(len(self.attributes["passive"])):
+            self.attributes["passive"][i] = self.attributes["passive"][i].export()
+        return self.attributes
+
 
 class Passive:
     """
@@ -163,3 +168,8 @@ class Passive:
         
         text.slide_cursor(0, 3)
         print(f'Applies {text.c(effectColor)}{self.attributes["name"]}{text.reset} for {turnText}')
+
+    def export(self):
+        for i in range(len(self.attributes["effect"])):
+            self.attributes["effect"][i] = self.attributes["effect"][i].export()
+        return self.attributes
