@@ -60,13 +60,26 @@ class Text:
         for color in self.colors:
             setattr(self, color.replace(" ", ""), self.c(color))
         
-        self.reset = "\x1b[0m" if Globals.ansiEnabled else ""
-        self.underline = "\x1b[4m" if Globals.ansiEnabled else ""
+        self.reset = "\x1b[0m"
+        self.underline = "\x1b[4m"
         
         os.system("cls" if Globals.system == "Windows" else "clear")
         self.set_cursor_visible(False)
+
+        self.width, self.height = os.get_terminal_size()
+        self.twoThirdsWidth = 0
+        self.descriptionWidth = 0
+        self.descriptionCenterCol = 0
         
-        animations = []
+        self.update_values()
+
+    def update_values(self):
+        self.width, self.height = os.get_terminal_size()
+        self.descriptionWidth = self.width - self.twoThirdsWidth - 3
+        self.descriptionCenterCol = self.twoThirdsWidth + 2 + self.descriptionWidth // 2
+
+        self.twoThirdsWidth = round(self.width * 2 / 3)
+        self.twoThirdsWidth += 0 if self.twoThirdsWidth % 2 else 1
 
     def c(self, color, back=False):
         """
@@ -82,13 +95,11 @@ class Text:
             String containing ANSI color.
         """
 
-        if Globals.ansiEnabled and self.color:
-            ansi = "\x1b[48;5;" if back else "\x1b[38;5;"
-            return f'{ansi}{self.colors[color]}m'
-        else:
-            return ""
+        ansi = "\x1b[48;5;" if back else "\x1b[38;5;"
+        return f'{ansi}{self.colors[color]}m'
     
-    def cc(self, color, back=False):
+    @staticmethod
+    def cc(color, back=False):
         """
         Returns an ANSI color code from an ANSI color code provided.
 
@@ -102,13 +113,11 @@ class Text:
             String containing ANSI color.
         """
 
-        if Globals.ansiEnabled and self.color:
-            ansi = "\x1b[48;5;" if back else "\x1b[38;5;"
-            return f'{ansi}{color}m'
-        else:
-            return ""
+        ansi = "\x1b[48;5;" if back else "\x1b[38;5;"
+        return f'{ansi}{color}m'
     
-    def rgb(self, color, back=False):
+    @staticmethod
+    def rgb(color, back=False):
         """
         Returns an ANSI color code from an RGB color provided.
 
@@ -122,19 +131,15 @@ class Text:
             String containing ANSI color.
         """
 
-        if Globals.ansiEnabled and self.color:
-            if color == "255;0;255":
-                color = "12;12;12"
-            ansi = "\x1b[48;2;" if back else "\x1b[38;2;"
-            return f'{ansi}{color}m'
-        else:
-            return ""
+        if color == "255;0;255":
+            color = "12;12;12"
+        ansi = "\x1b[48;2;" if back else "\x1b[38;2;"
+        return f'{ansi}{color}m'
     
     @staticmethod
     def set_cursor_visible(visible):
-        if Globals.ansiEnabled:
-            print("\x1b[?25h" if visible else "\x1b[?25l", end="")
-            sys.stdout.flush()
+        print("\x1b[?25h" if visible else "\x1b[?25l", end="")
+        sys.stdout.flush()
 
     @staticmethod
     def resize_console(rows, cols):
@@ -148,17 +153,16 @@ class Text:
                 Integer width of console in characters.
         """
 
-        if Globals.ansiEnabled:
-            print(f'\x1b[8;{cols};{rows}t')
+        print(f'\x1b[8;{cols};{rows}t')
     
     def clear(self):
         """
         Clears the screen.
         """
 
-        if Globals.ansiEnabled:
-            self.fill_screen("")
-            self.move_cursor(1, 1)
+        self.update_values()
+        self.fill_screen("")
+        self.move_cursor(1, 1)
 
     @staticmethod
     def move_cursor(row, col):
@@ -172,10 +176,7 @@ class Text:
                 Integer x location he cursor is moved to, in characters.
         """
 
-        if Globals.ansiEnabled:
-            print(f'\x1b[{row};{col}H', end="")
-        else:
-            print("\n You shouldn't be seeing this. (text.move_cursor)")
+        print(f'\x1b[{row};{col}H', end="")
 
     @staticmethod
     def slide_cursor(row=0, col=0):
@@ -189,29 +190,22 @@ class Text:
                 Integer x distance the cursor is moved, in characters.
         """
 
-        if Globals.ansiEnabled:
-            if row:
-                print(f'\x1b[{row}B', end="")
-            if col:
-                print(f'\x1b[{col}C', end="")
+        if row:
+            print(f'\x1b[{row}B', end="")
+        if col:
+            print(f'\x1b[{col}C', end="")
 
-    def header(self, string, row=3, col=85, w=32):
+    def header(self, string):
         """
         Prints a header in the form "-= STRING =-" at a specific location.
 
         Args:
             string:
                 String in the header.
-            row:
-                Integer y location of the leftmost character of the header. Default is 3.
-            col:
-                Integer x location of the leftmost character of the header. Default is 85.
-            w:
-                Integer that centers the header in the spaces around it. Default is 32.
         """
 
-        self.move_cursor(row, col)
-        print(("-= " + string + " =-").center(w))
+        self.move_cursor(3, self.twoThirdsWidth + 2)
+        print(("-= " + string + " =-").center(self.descriptionWidth))
     
     def clear_header(self, row=3, col=85):
         """
@@ -279,7 +273,7 @@ class Text:
         
         for i in range(len(names)):
             character = names[i][11 if ";" in names[i] else 0]
-            options += character.lower()
+            options += character.lower() if ";" not in names[i] else ""
 
             self.slide_cursor(0, space)
             print(f'{self.option + self.c("dark gray", True)}[{character}]{self.reset} {names[i]}')
@@ -309,13 +303,38 @@ class Text:
             self.move_cursor(i + 1, 0)
             print(" "*os.get_terminal_size()[0], end="")
         sys.stdout.flush()
-    
-    def print_at_description(self, text, r=3, c=84):
+
+    def background(self):
+        width, height = os.get_terminal_size()
+        color = "42;42;42"
+
+        for i in [1, height]:
+            self.move_cursor(i, 1)
+            print(
+                self.rgb(color, True),
+                " "*width,
+                self.reset,
+                sep="",
+                end=""
+            )
+
+        for i in [1, self.twoThirdsWidth, width - 1]:
+            for j in range(1, height):
+                self.move_cursor(j, i)
+                print(
+                    self.rgb(color, True),
+                    "  ",
+                    self.reset,
+                    sep="",
+                    end=""
+                )
+
+    def print_at_description(self, txt, r=3, c=84):
         """
         Prints text in the description.
 
         Args:
-            text:
+            txt:
                 String to be printed.
             r:
                 Integer y location of the top left corner of text. Default is 3.
@@ -323,7 +342,7 @@ class Text:
                 Integer x location of the top left corner of text. Default is 84.
         """
 
-        for i in range(len(text)):
+        for i in range(len(txt)):
             self.move_cursor(r + i, c)
             print(text[i].strip())
 

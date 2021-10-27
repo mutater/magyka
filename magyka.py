@@ -1,6 +1,6 @@
 from script.Control import control
 from script.Effect import Effect, Passive
-from script.Entity import Entity, Player, Enemy
+from script.Entity import Entity
 import script.Globals as Globals
 from script.Image import Image
 from script.Item import Item, Enchantment, Modifier
@@ -10,6 +10,7 @@ from script.Mapper import mapper
 from script.Settings import settings
 from script.Sound import sound
 from script.Text import text
+from script.World import World
 import copy
 import json
 import math
@@ -19,6 +20,20 @@ import sqlite3
 import sys
 import time
 import traceback
+
+"""
+TODO
+dynamically sized interface
+replace old code instances
+map class
+ - text on map
+enemy skills
+equippable skills
+equipped weapon skill
+dynamic hp bars based on enemy kill count and knowledge
+achievement system
+tutorial mode
+"""
 
 
 def dict_factory(cursor, row):
@@ -31,15 +46,15 @@ def dict_factory(cursor, row):
 
 
 def exit_handler(*args):
-    magyka.save_game()
+    world.save()
     text.set_cursor_visible(True)
     if Globals.system != "Windows":
         control.reset_input_settings()
 
 
-class Magyka:
+class Manager:
     """
-    Holds all data and handles interactions needing multiple classes.
+    Holds runtime data and handles interactions needing multiple classes.
     """
 
     def __init__(self):
@@ -49,28 +64,9 @@ class Magyka:
 
         text.clear()
 
-        with open("data/portals.json") as portalFile:
-            self.mapPortals = json.load(portalFile)
-
-        with open("data/encounters.json", "r") as encounterFile:
-            self.encounters = json.load(encounterFile)
-
-        with open("data/stores.json", "r") as storeFile:
-            self.stores = json.load(storeFile)
-
-        with open("data/quests.json", "r") as questFile:
-            self.quests = json.load(questFile)
-
-        with open("data/settings.json", "r+") as settingsFile:
-            self.settings = json.load(settingsFile)
-
         self.session = sqlite3.connect("data/data.db")
         self.session.row_factory = dict_factory
         self.cur = self.session.cursor()
-        self.recipes = self.cur.execute('select * from recipes').fetchall()
-
-        for i in range(len(self.recipes)):
-            self.recipes[i]["ingredients"] = json.loads(self.recipes[i]["ingredients"])
 
         self.nextScreen = ""
         self.inspectItem = None
@@ -80,51 +76,64 @@ class Magyka:
         self.craftRecipe = None
         self.sellItem = None
         self.inspectPassive = None
-        self.battleEnemy = None
         self.itemLog = None
         self.hunt = False
-        self.town = ""
         self.encounterSteps = 10
         self.encounterStepCounter = 0
 
-        self.player = None
+        self.world = World({})
         self.saves = []
 
         for file in os.listdir("saves"):
             if file.endswith(".json"):
                 try:
                     with open("saves/" + file, "r") as saveFile:
-                        self.saves.append(json.load(saveFile))
-                except ValueError:
+                        self.saves.append(json.loads(saveFile.read()))
+                except:
                     self.saves.append(file.split(".")[0])
-                    logger.log(f'Error loading player save file:\n\n{traceback.format_exc()}')
+                    logger.log(f'Error loading world file:\n\n{traceback.format_exc()}')
 
         for i in range(len(self.saves)-1, -1, -1):
             if type(self.saves[i]) is str:
                 try:
                     with open("saves/" + self.saves[i] + " backup.json", "r") as saveFile:
-                        self.saves[i] = json.load(saveFile)
-                except ValueError:
+                        self.saves[i] = json.loads(saveFile.read())
+                except:
                     self.saves.pop(i)
-                    logger.log(f'Error loading player backup save file:\n\n{traceback.format_exc()}')
+                    logger.log(f'Error loading backup world file:\n\n{traceback.format_exc()}')
 
-        self.init_player()
+    def init_world(self):
+        with open("data/portals.json") as portalFile:
+            mapPortals = json.load(portalFile)
 
-    def init_player(self):
-        self.player = Player({"mainQuests": copy.deepcopy(self.quests["main"])})
+        with open("data/encounters.json", "r") as encounterFile:
+            encounters = json.load(encounterFile)
 
-    def load_player(self, attributes):
-        for i in range(len(attributes["inventory"])):
-            attributes["inventory"][i][0] = self.load("items", attributes["inventory"][i][0])
-        for i in range(len(attributes["passives"])):
-            attributes["passives"][i] = self.load("passives", attributes["passives"][i])
-        for slot in attributes["equipment"]:
-            if attributes["equipment"][slot]:
-                attributes["equipment"][slot] = self.load("items", attributes["equipment"][slot])
+        with open("data/stores.json", "r") as storeFile:
+            stores = json.load(storeFile)
 
-        attributes.update({"mainQuests": copy.deepcopy(self.quests["main"])})
+        with open("data/quests.json", "r") as questFile:
+            quests = json.load(questFile)
 
-        self.player = Player(attributes)
+        recipes = self.cur.execute('select * from recipes').fetchall()
+
+        for i in range(len(recipes)):
+            recipes[i]["ingredients"] = json.loads(recipes[i]["ingredients"])
+        
+        self.world.__init__({
+            "maps": {},
+            "encounters": encounters,
+            "stores": stores,
+            "quests": quests,
+            "recipes": recipes
+        })
+
+    def load_world(self):
+        if self.world["player"]:
+            self.world["player"] = self.load("enemies", self.world["player"])
+        if self.world["enemy"]:
+            self.world["enemy"] = self.load("enemies", self.world["enemy"])
+        self.world = World(self.world)
 
     def load(self, table, obj):
         """
@@ -181,7 +190,13 @@ class Magyka:
                 if obj["type"] == "equipment":
                     obj.update({"modifier": self.load_from_db("modifiers", "Normal")})
             elif table == "enemies":
-                pass
+                for i in range(len(obj["inventory"])):
+                    obj["inventory"][i][0] = self.load("items", obj["inventory"][i][0])
+                for i in range(len(obj["passives"])):
+                    obj["passives"][i] = self.load("passives", obj["passives"][i])
+                for slot in obj["equipment"]:
+                    if obj["equipment"][slot]:
+                        obj["equipment"][slot] = self.load("items", obj["equipment"][slot])
 
             if "effect" in obj:
                 for i in range(len(obj["effect"])):
@@ -211,7 +226,7 @@ class Magyka:
             elif table == "items":
                 obj = Item(obj)
             elif table == "enemies":
-                obj = Enemy(obj)
+                obj = Entity(obj)
         except:
             logger.log(f'{obj}\n\n{traceback.format_exc()}')
             obj = None
@@ -270,33 +285,33 @@ class Magyka:
 
         # Zero argument Command Handling
         if command == "s":
-            self.player.attributes["name"] = "Vincent"
-            self.player.attributes["saveId"] = 69420
+            self.world.attributes["player"].attributes["name"] = "Vincent"
+            self.world.attributes["player"].attributes["saveId"] = 69420
 
-            magyka.player.attributes["extraStats"].update({
+            self.world.attributes["player"].attributes["extraStats"].update({
                 "hpPerLevel": 3,
                 "mpPerLevel": 1,
                 "strengthPerLevel": 2,
                 "vitalityPerLevel": 1,
                 "intelligencePerLevel": 0
             })
-            magyka.player.attributes["baseStats"].update({
+            self.world.attributes["player"].attributes["baseStats"].update({
                 "hit": 95,
                 "dodge": 5
             })
 
-            magyka.player.attributes["class"] = "Developer"
-            magyka.player.update_stats()
+            self.world.attributes["player"].attributes["class"] = "Developer"
+            self.world.attributes["player"].update_stats()
 
             self.nextScreen = "camp"
             return True
         elif command == "qs":
-            self.player.attributes["name"] = "Dev"
-            self.player.attributes["saveId"] = 69420
-            self.player.attributes["gold"] = 999999999
+            self.world.attributes["player"].attributes["name"] = "Dev"
+            self.world.attributes["player"].attributes["saveId"] = 69420
+            self.world.attributes["player"].attributes["gold"] = 999999999
             self.dev_command("give all")
 
-            magyka.player.attributes["extraStats"].update({
+            self.world.attributes["player"].attributes["extraStats"].update({
                 "hpPerLevel": 3,
                 "mpPerLevel": 1,
                 "strengthPerLevel": 2,
@@ -304,13 +319,13 @@ class Magyka:
                 "intelligencePerLevel": 0
             })
 
-            magyka.player.attributes["baseStats"].update({
+            self.world.attributes["player"].attributes["baseStats"].update({
                 "hit": 95,
                 "dodge": 5
             })
 
-            magyka.player.attributes["class"] = "Developer"
-            magyka.player.update_stats()
+            self.world.attributes["player"].attributes["class"] = "Developer"
+            self.world.attributes["player"].update_stats()
 
             self.nextScreen = "camp"
             return True
@@ -318,17 +333,17 @@ class Magyka:
             text.clear()
             os.execv(sys.executable, ['python'] + sys.argv)
         elif command == "heal":
-            self.player.attributes["hp"] = self.player.attributes["stats"]["max hp"]
-            self.player.attributes["mp"] = self.player.attributes["stats"]["max mp"]
+            self.world.attributes["player"].attributes["hp"] = self.world.attributes["player"].attributes["stats"]["max hp"]
+            self.world.attributes["player"].attributes["mp"] = self.world.attributes["player"].attributes["stats"]["max mp"]
         elif command == "buy":
-            self.player.add_item(self.purchaseItem)
+            self.world.attributes["player"].add_item(self.purchaseItem)
         elif command == "kill":
             self.battleEnemy.attributes["hp"] = 0
             self.nextScreen = "victory"
             return True
         elif command == "level":
-            self.player.attributes["xp"] = self.player.attributes["mxp"]
-            self.player.level_up()
+            self.world.attributes["player"].attributes["xp"] = self.world.attributes["player"].attributes["mxp"]
+            self.world.attributes["player"].level_up()
         elif command == "god":
             settings.godMode = not settings.godMode
             text.slide_cursor(1, 3)
@@ -356,31 +371,31 @@ class Magyka:
                 control.press_enter()
         elif commandSplit[0] == "clear":
             if commandSplit[1] == "inventory":
-                self.player.attributes["inventory"] = []
+                self.world.attributes["player"].attributes["inventory"] = []
             elif commandSplit[1] == "equipment":
-                for slot in self.player.attributes["equipment"]:
-                    self.player.attributes["equipment"][slot] = ""
-                self.player.update_stats()
+                for slot in self.world.attributes["player"].attributes["equipment"]:
+                    self.world.attributes["player"].attributes["equipment"][slot] = ""
+                self.world.attributes["player"].update_stats()
             elif commandSplit[1] == "passives":
-                self.player.attributes["passives"] = []
-                self.player.update_stats()
+                self.world.attributes["player"].attributes["passives"] = []
+                self.world.attributes["player"].update_stats()
         elif commandSplit[0] == "give":
             commandSplitComma = commandSplit[1].split(", ")
             try:
                 if commandSplitComma[0] == "all":
-                    devItems = [item["name"] for item in magyka.session.cursor().execute("select * from items").fetchall()]
+                    devItems = [item["name"] for item in manager.session.cursor().execute("select * from items").fetchall()]
                     for item in devItems:
-                        self.player.add_item(self.load_from_db("items", item))
+                        self.world.attributes["player"].add_item(self.load_from_db("items", item))
                 else:
                     quantity = 1 if len(commandSplitComma) == 1 else commandSplitComma[1]
-                    self.player.add_item(self.load_from_db("items", commandSplitComma[0]), quantity)
+                    self.world.attributes["player"].add_item(self.load_from_db("items", commandSplitComma[0]), quantity)
             except:
                 traceback.print_exc()
                 control.press_enter()
         elif commandSplit[0] == "equip":
             try:
                 item = self.load_from_db("items", commandSplit[1])
-                self.player.equip(item)
+                self.world.attributes["player"].equip(item)
                 text.slide_cursor(1, 3)
 
                 if item:
@@ -404,7 +419,7 @@ class Magyka:
                 control.press_enter()
         elif commandSplit[0] == "passive":
             passive = self.load_from_db("passives", commandSplit[1])
-            self.player.add_passive(passive)
+            self.world.attributes["player"].add_passive(passive)
         elif commandSplit[0] == "fight":
             self.battleEnemy = self.load_from_db("enemies", commandSplit[1])
             self.nextScreen = "battle"
@@ -414,26 +429,6 @@ class Magyka:
             control.press_enter()
 
         return False
-
-    def save_game(self):
-        """
-        Saves the Player data to a save file.
-        """
-
-        fileName = self.player.attributes["name"] + str(self.player.attributes["saveId"])
-        with open("saves/" + fileName + ".json", "w+") as saveFile:
-            saveFile.write(self.player.export())
-
-    def save_game_backup(self):
-        """
-        Saves the Player data to a backup save file.
-        """
-
-        fileName = self.player.attributes["name"] + str(self.player.attributes["saveId"]) + " backup"
-        export = self.player.export()
-        with open("saves/" + fileName + ".json", "w+") as saveFile:
-            saveFile.write(export)
-        self.load_player(json.loads(export))
 
     @staticmethod
     def react_flash(timeout):
@@ -462,17 +457,17 @@ class Magyka:
                 Integer level of the enemy.
         """
 
-        enemies = copy.deepcopy(self.encounters[self.player.location])
+        enemies = copy.deepcopy(self.encounters[self.world.attributes["player"].location])
         weight = 0
         minLevel = level
         maxLevel = level + 5
 
-        if self.player.attributes["level"] >= maxLevel - 1:
+        if self.world.attributes["player"].attributes["level"] >= maxLevel - 1:
             minLevel = maxLevel - 1
-        if self.player.attributes["level"] == 1 and level == 1:
+        if self.world.attributes["player"].attributes["level"] == 1 and level == 1:
             minLevel = 1
             maxLevel = 2
-        elif self.player.attributes["level"] == 2 and level <= 2:
+        elif self.world.attributes["player"].attributes["level"] == 2 and level <= 2:
             minLevel = 1
             maxLevel = 2
         level = random.randint(minLevel, maxLevel)
@@ -540,16 +535,16 @@ class Screen:
         self.page = 1
         self.saveBackup = False
 
-        magyka.inspectItemEquipped = False
+        manager.inspectItemEquipped = False
 
         while 1:
-            if self.nextScreen == "camp" and magyka.player.attributes["class"] != "Developer":
+            if self.nextScreen == "camp" and world.attributes["player"].attributes["class"] != "Developer":
                 self.saveBackup = True
             if self.saveBackup:
-                magyka.save_game_backup()
-            if magyka.nextScreen:
-                self.nextScreen = magyka.nextScreen
-                magyka.nextScreen = ""
+                world.save(backup=True)
+            if manager.nextScreen:
+                self.nextScreen = manager.nextScreen
+                manager.nextScreen = ""
 
             try:
                 if self.oldScreen != self.lastScreen:
@@ -579,7 +574,11 @@ class Screen:
             return True
         elif option == "/D":
             command = control.get_input("command")
-            return magyka.dev_command(command)
+            return manager.dev_command(command)
+        elif option == "/C":
+            text.clear()
+            text.set_cursor_visible(False)
+            return False
 
         return False
 
@@ -602,157 +601,202 @@ class Screen:
                     "006", "012"
                 ][i]) + title[i] + text.reset)
 
-            options = text.options(["New Game", "Continue", "Help", "Options"])
-
-            logger.log(options)
-
-            option = control.get_input("alphabetic", options=options, back=False)
+            options = text.options(
+                ["New Game"] +
+                (["Continue"] if len(manager.saves) > 0 else [text.darkgray + "Continue"]) +
+                ["Load Game"]
+            )
+            option = control.get_input(options=options, back=False)
 
             if option == "n":
                 self.nextScreen = "new_game"
                 return
             elif option == "c":
-                self.nextScreen = "continue_game"
+                manager.world = manager.saves[0]
+                manager.load_world()
+                self.nextScreen = "camp"
                 return
-            elif option == "h":
-                self.nextScreen = "help"
-                return
-            elif option == "o":
-                self.nextScreen = "options"
+            elif option == "l":
+                self.nextScreen = "load_game"
                 return
             elif self.code(option):
                 return
 
     def new_game(self):
-        while 1:
-            self.nextScreen = "class_select"
-            text.clear()
-            Image("background").show_at_origin()
-            text.header("Character Creation")
-            text.move_cursor(3, 4)
-            print("What is your name, adventurer?")
-
-            option = control.get_input("alphanumeric", back=False)
-
-            if 1 < len(option) < 15:
-                text.slide_cursor(1, 3)
-                print(f'Welcome, {option.title()}!')
-                magyka.player.name = option.title()
-                return
-            elif self.code(option):
-                return
-
-    def class_select(self):
-        while 1:
-            self.nextScreen = "camp"
-            text.clear()
-            Image("background").show_at_origin()
-            text.header("Class")
-
-            classes = {
-                "i": "Infantryman",
-                "w": "Warrior",
-                "k": "Knight",
-                "s": "Spellsword",
-                "m": "Magye"
-            }
-
-            text.move_cursor(2, 4)
-            options = text.options(list(classes.values()))
-            option = control.get_input("alphabetic", options=options, back=False)
-
-            playerClass = classes[option]
-
-            text.clear()
-            Image("background").show_at_origin()
-            text.print_at_description(open("text/" + playerClass + ".txt").readlines())
-            text.move_cursor(3, 4)
-            print(f'Are you sure you wish to choose {playerClass}? There is no going back.')
-
-            options = text.options(["Yes", "No"])
-            option = control.get_input("alphabetic", options=options)
-
-            if option == "n":
-                continue
-            elif option == "y":
-                pass
-            elif self.code(option):
-                continue
-
-            if playerClass == "Infantryman":
-                magyka.player.attributes["extraStats"].update({
-                    "hpPerLevel": 3,
-                    "mpPerLevel": 1,
-                    "strengthPerLevel": 2,
-                    "vitalityPerLevel": 2,
-                    "intelligencePerLevel": 0
-                })
-                magyka.player.attributes["baseStats"].update({
-                    "hit": 95,
-                    "dodge": 6,
-                    "crit": 5
-                })
-            elif playerClass == "Warrior":
-                magyka.player.attributes["extraStats"].update({
-                    "hpPerLevel": 3,
-                    "mpPerLevel": 1,
-                    "strengthPerLevel": 2,
-                    "vitalityPerLevel": 1,
-                    "intelligencePerLevel": 0
-                })
-                magyka.player.attributes["baseStats"].update({
-                    "hit": 95,
-                    "dodge": 5
-                })
-            elif playerClass == "Knight":
-                magyka.player.attributes["extraStats"].update({
-                    "hpPerLevel": 4,
-                    "mpPerLevel": 1,
-                    "strengthPerLevel": 2,
-                    "vitalityPerLevel": 2,
-                    "intelligencePerLevel": 0
-                })
-                magyka.player.attributes["baseStats"].update({
-                    "hit": 85,
-                    "dodge": 1,
-                    "crit": 2
-                })
-            elif playerClass == "Spellsword":
-                magyka.player.attributes["extraStats"].update({
-                    "hpPerLevel": 2,
-                    "mpPerLevel": 2,
-                    "strengthPerLevel": 1,
-                    "vitalityPerLevel": 1,
-                    "intelligencePerLevel": 1
-                })
-                magyka.player.attributes["baseStats"].update({
-                    "hit": 92
-                })
-            elif playerClass == "Magye":
-                magyka.player.attributes["extraStats"].update({
-                    "hpPerLevel": 2,
-                    "mpPerLevel": 3,
-                    "strengthPerLevel": 0,
-                    "vitalityPerLevel": 0,
-                    "intelligencePerLevel": 3
-                })
-                magyka.player.attributes["baseStats"].update({
-                    "dodge": 4,
-                    "crit": 3
-                })
-
-            magyka.player.attributes["class"] = playerClass
-            magyka.player.update_stats()
-
-            self.nextScreen = "camp"
-            if Globals.system == "Windows":
-                win32api.SetConsoleCtrlHandler(exit_handler, True)
-            else:
-                signal.signal(signal.SIGHUP, exit_handler)
-
+        select = 1
+        if select == 0:
             return
+        elif select == 1:
+            while 1:
+                text.clear()
+                text.background()
+                text.header("World Creation")
+                text.move_cursor(3, 4)
+                print("World Name")
 
-    def continue_game(self):
+                option = control.get_input("alphanumeric")
+
+                if 1 < len(option) < 15:
+                    world.attributes["name"] = option.title()
+                    select += 1
+                    break
+                elif self.code(option):
+                    select -= 1
+                    break
+        elif select == 2:
+            while 1:
+                text.clear()
+                text.background()
+                text.header("World Creation")
+                text.move_cursor(3, 4)
+                print("Difficulty (these don't do anything yet just choose one lmao)")
+
+                options = text.options(["Coward", "Average", "Gamer", "Masochist"])
+                option = control.get_input(options=options)
+
+                if option in options:
+                    select += 1
+                    break
+                elif self.code(option):
+                    select -= 1
+                    break
+        elif select == 3:
+            while 1:
+                text.clear()
+                text.background()
+                text.header("Character Creation")
+                text.move_cursor(3, 4)
+                print("Player Name")
+
+                option = control.get_input("alphanumeric")
+
+                if 1 < len(option) < 15:
+                    text.slide_cursor(1, 3)
+                    print(f'Welcome, {option.title()}!')
+                    world.attributes["player"].attributes["name"] = option.title()
+                    select += 1
+                    break
+                elif self.code(option):
+                    select -= 1
+                    break
+        elif select == 4:
+            while 1:
+                self.nextScreen = "camp"
+                text.clear()
+                text.background()
+                text.header("Class")
+
+                classes = {
+                    "i": "Infantryman",
+                    "w": "Warrior",
+                    "k": "Knight",
+                    "s": "Spellsword",
+                    "m": "Magye"
+                }
+
+                text.move_cursor(2, 4)
+                options = text.options(list(classes.values()))
+                option = control.get_input(options=options)
+
+                playerClass = ""
+
+                if option in options:
+                    playerClass = classes[option]
+                elif self.code(option):
+                    select -= 1
+                    break
+
+                text.clear()
+                Image("background").show_at_origin()
+                text.print_at_description(open("text/" + playerClass + ".txt").readlines())
+                text.move_cursor(3, 4)
+                print(f'Are you sure you wish to choose {playerClass}? There is no going back.')
+
+                options = text.options(["Yes", "No"])
+                option = control.get_input(options=options)
+
+                if option == "n":
+                    continue
+                elif option == "y":
+                    pass
+                elif self.code(option):
+                    select -= 1
+                    break
+
+                if playerClass == "Infantryman":
+                    world.attributes["player"].attributes["extraStats"].update({
+                        "hpPerLevel": 3,
+                        "mpPerLevel": 1,
+                        "strengthPerLevel": 2,
+                        "vitalityPerLevel": 2,
+                        "intelligencePerLevel": 0
+                    })
+                    world.attributes["player"].attributes["baseStats"].update({
+                        "hit": 95,
+                        "dodge": 6,
+                        "crit": 5
+                    })
+                elif playerClass == "Warrior":
+                    world.attributes["player"].attributes["extraStats"].update({
+                        "hpPerLevel": 3,
+                        "mpPerLevel": 1,
+                        "strengthPerLevel": 2,
+                        "vitalityPerLevel": 1,
+                        "intelligencePerLevel": 0
+                    })
+                    world.attributes["player"].attributes["baseStats"].update({
+                        "hit": 95,
+                        "dodge": 5
+                    })
+                elif playerClass == "Knight":
+                    world.attributes["player"].attributes["extraStats"].update({
+                        "hpPerLevel": 4,
+                        "mpPerLevel": 1,
+                        "strengthPerLevel": 2,
+                        "vitalityPerLevel": 2,
+                        "intelligencePerLevel": 0
+                    })
+                    world.attributes["player"].attributes["baseStats"].update({
+                        "hit": 85,
+                        "dodge": 1,
+                        "crit": 2
+                    })
+                elif playerClass == "Spellsword":
+                    world.attributes["player"].attributes["extraStats"].update({
+                        "hpPerLevel": 2,
+                        "mpPerLevel": 2,
+                        "strengthPerLevel": 1,
+                        "vitalityPerLevel": 1,
+                        "intelligencePerLevel": 1
+                    })
+                    world.attributes["player"].attributes["baseStats"].update({
+                        "hit": 92
+                    })
+                elif playerClass == "Magye":
+                    world.attributes["player"].attributes["extraStats"].update({
+                        "hpPerLevel": 2,
+                        "mpPerLevel": 3,
+                        "strengthPerLevel": 0,
+                        "vitalityPerLevel": 0,
+                        "intelligencePerLevel": 3
+                    })
+                    world.attributes["player"].attributes["baseStats"].update({
+                        "dodge": 4,
+                        "crit": 3
+                    })
+
+                world.attributes["player"].attributes["class"] = playerClass
+                world.attributes["player"].update_stats()
+
+                self.nextScreen = "camp"
+                if Globals.system == "Windows":
+                    win32api.SetConsoleCtrlHandler(exit_handler, True)
+                else:
+                    signal.signal(signal.SIGHUP, exit_handler)
+
+                return
+
+    def load_game(self):
         while 1:
             self.returnScreen = "title_screen"
             text.clear()
@@ -760,10 +804,10 @@ class Screen:
             Image("screen/continue").show_at_description()
             text.header("Continue")
 
-            for i in range(len(magyka.saves)):
-                text.print_at_loc(f'({i}) {text.title(magyka.saves[i]["name"], magyka.saves[i]["level"], magyka.saves[i]["playerClass"])}', 3 + i, 4)
+            for i in range(len(manager.saves)):
+                text.print_at_loc(f'({i}) {text.title(manager.saves[i]["name"], manager.saves[i]["level"], manager.saves[i]["playerClass"])}', 3 + i, 4)
 
-            if len(magyka.saves) == 0:
+            if len(manager.saves) == 0:
                 text.print_at_loc(f'{text.darkgray}Empty{text.reset}', 3, 4)
                 delOption = ""
             else:
@@ -773,10 +817,10 @@ class Screen:
                 print("")
                 text.options(["Delete"])
 
-            option = control.get_input("optionumeric", textField=False, options=delOption+"".join(tuple(map(str, range(0, len(magyka.saves))))))
+            option = control.get_input("optionumeric", options=delOption+"".join(tuple(map(str, range(0, len(manager.saves))))))
 
-            if option in tuple(map(str, range(0, len(magyka.saves)))):
-                magyka.load_player(magyka.saves[int(option)])
+            if option in tuple(map(str, range(0, len(manager.saves)))):
+                manager.load_player(manager.saves[int(option)])
                 self.nextScreen = "camp"
                 self.returnScreen = "camp"
                 if Globals.system == "Windows":
@@ -792,25 +836,25 @@ class Screen:
 
     def delete_save(self):
         while 1:
-            self.returnScreen = "continue_game"
+            self.returnScreen = "load_game"
             text.clear()
             Image("background").show_at_origin()
             Image("screen/continue").show_at_description()
             text.header("Delete")
 
-            for i in range(len(magyka.saves)):
-                text.print_at_loc(f'({i}) {text.title(magyka.saves[i]["name"], magyka.saves[i]["level"])}', 3 + i, 4)
+            for i in range(len(manager.saves)):
+                text.print_at_loc(f'({i}) {text.title(manager.saves[i]["name"], manager.saves[i]["level"])}', 3 + i, 4)
 
-            if len(magyka.saves) == 0:
+            if len(manager.saves) == 0:
                 text.print_at_loc(f'{text.darkgray}Empty{text.reset}', 3, 4)
 
-            option = control.get_input("numeric", textField=False, options="".join(tuple(map(str, range(0, len(magyka.saves))))))
+            option = control.get_input("numeric", options="".join(tuple(map(str, range(0, len(manager.saves))))))
 
-            if option in tuple(map(str, range(0, len(magyka.saves)))):
-                save = magyka.saves[int(option)]
+            if option in tuple(map(str, range(0, len(manager.saves)))):
+                save = manager.saves[int(option)]
                 os.remove("saves/" + save["name"] + str(save["saveId"]) + ".json")
                 os.remove("saves/" + save["name"] + str(save["saveId"]) + " backup.json")
-                magyka.saves.pop(int(option))
+                manager.saves.pop(int(option))
                 return
             elif self.code(option):
                 return
@@ -826,11 +870,11 @@ class Screen:
         while 1:
             self.returnScreen = "camp"
             text.clear()
-            Image("background").show_at_origin()
+            text.background()
             Image("screen/camp").show_at_description()
             text.header("Camp")
             text.move_cursor(1, 1)
-            magyka.player.show_stats()
+            world.attributes["player"].show_stats()
 
             text.options(["Map", "Character", "Rest", "Options"])
             option = control.get_input("alphabetic", options="mcroq", silentOptions="r", back=False)
@@ -852,28 +896,28 @@ class Screen:
 
     def battle(self):
         magyka.itemLog = []
-        if type(magyka.battleEnemy.level) is list:
-            magyka.battleEnemy.level = magyka.battleEnemy.level[0]
-        magyka.battleEnemy.hp = magyka.battleEnemy.stats["max hp"]
-        magyka.battleEnemy.mp = magyka.battleEnemy.stats["max mp"]
+        if type(world.attributes["enemy"].level) is list:
+            world.attributes["enemy"].level = world.attributes["enemy"].level[0]
+        world.attributes["enemy"].hp = world.attributes["enemy"].stats["max hp"]
+        world.attributes["enemy"].mp = world.attributes["enemy"].stats["max mp"]
 
         text.clear()
-        Image("background").show_at_origin()
+        text.background()
 
         def print_player():
-            text.print_at_loc(text.title(magyka.player.name, magyka.player.level, magyka.player.playerClass) + " ", 3, 4)
-            text.print_at_loc(text.bar(magyka.player.hp, magyka.player.stats["max hp"], "red", length=40, number=True) + " ", 4, 5)
-            text.print_at_loc(text.bar(magyka.player.mp, magyka.player.stats["max mp"], "blue", length=40, number=True) + " ", 5, 5)
+            text.print_at_loc(text.title(world.attributes["player"].name, world.attributes["player"].level, world.attributes["player"].playerClass) + " ", 3, 4)
+            text.print_at_loc(text.bar(world.attributes["player"].hp, world.attributes["player"].stats["max hp"], "red", length=40, number=True) + " ", 4, 5)
+            text.print_at_loc(text.bar(world.attributes["player"].mp, world.attributes["player"].stats["max mp"], "blue", length=40, number=True) + " ", 5, 5)
 
         def print_enemy():
             text.clear_description()
-            text.print_at_loc(text.title(magyka.battleEnemy.name, magyka.battleEnemy.level), 3, 84)
-            Image("enemy/" + magyka.battleEnemy.name).show_at_description()
+            text.print_at_loc(text.title(world.attributes["enemy"].name, world.attributes["enemy"].level), 3, 84)
+            Image("enemy/" + world.attributes["enemy"].name).show_at_description()
 
-            text.print_at_loc(text.bar(magyka.battleEnemy.hp, magyka.battleEnemy.stats["max hp"], "red") + " ", 24, 85)
-            text.print_at_loc(f' {magyka.battleEnemy.hp}/{magyka.battleEnemy.stats["max hp"]}' + " ", 25, 85)
-            text.print_at_loc(text.bar(magyka.battleEnemy.mp, magyka.battleEnemy.stats["max mp"], "blue") + " ", 27, 85)
-            text.print_at_loc(f' {magyka.battleEnemy.mp}/{magyka.battleEnemy.stats["max mp"]}' + " ", 28, 85)
+            text.print_at_loc(text.bar(world.attributes["enemy"].hp, world.attributes["enemy"].stats["max hp"], "red") + " ", 24, 85)
+            text.print_at_loc(f' {world.attributes["enemy"].hp}/{world.attributes["enemy"].stats["max hp"]}' + " ", 25, 85)
+            text.print_at_loc(text.bar(world.attributes["enemy"].mp, world.attributes["enemy"].stats["max mp"], "blue") + " ", 27, 85)
+            text.print_at_loc(f' {world.attributes["enemy"].mp}/{world.attributes["enemy"].stats["max mp"]}' + " ", 28, 85)
 
         print_player()
         print_enemy()
@@ -881,10 +925,10 @@ class Screen:
         while 1:
             while 1:
                 usedItem = False
-                magyka.player.guard = ""
+                world.attributes["player"].guard = ""
                 over = False
 
-                magic = magyka.player.equipment.get("tome") and magyka.player.mp >= magyka.player.equipment["tome"].mana
+                magic = world.attributes["player"].equipment.get("tome") and world.attributes["player"].mp >= world.attributes["player"].equipment["tome"].mana
 
                 text.clear_main()
                 print_player()
@@ -900,40 +944,40 @@ class Screen:
 
                 if option == "a":
                     sound.play_sound(["attack", "slash"])
-                    magyka.player.attack(magyka.battleEnemy)
+                    world.attributes["player"].attack(world.attributes["enemy"])
                     break
                 elif option == "m":
-                    magyka.player.mp -= magyka.player.equipment["tome"].mana
-                    if magyka.player.equipment["tome"].target == "self":
-                        magyka.player.attack(magyka.player, type="magic")
+                    world.attributes["player"].mp -= world.attributes["player"].equipment["tome"].mana
+                    if world.attributes["player"].equipment["tome"].target == "self":
+                        world.attributes["player"].attack(world.attributes["player"], type="magic")
                     else:
-                        magyka.player.attack(magyka.battleEnemy, type="magic")
+                        world.attributes["player"].attack(world.attributes["enemy"], type="magic")
                     break
                 elif option == "g":
                     guardState = random.randint(1, 5)
                     if settings.alwaysCounter:
                         guardState = 5
                     if guardState <= 3:
-                        magyka.player.guard = "deflect"
+                        world.attributes["player"].guard = "deflect"
                     elif guardState == 4:
-                        magyka.player.guard = "block"
+                        world.attributes["player"].guard = "block"
                     else:
-                        magyka.player.guard = "counter"
+                        world.attributes["player"].guard = "counter"
                     text.slide_cursor(1, 3)
-                    print(f'{magyka.player.name} lowers into a defensive stance.')
+                    print(f'{world.attributes["player"].name} lowers into a defensive stance.')
                     break
                 elif option == "i":
                     self.page = 1
                     usedItem = False
                     while 1:
                         text.clear()
-                        Image("background").show_at_origin()
+                        text.background()
                         Image("screen/Inventory").show_at_description()
                         text.header("Inventory")
                         print("")
 
                         itemList = []
-                        for item in magyka.player.inventory:
+                        for item in world.attributes["player"].inventory:
                             if item[0].type == "consumable":
                                 itemList.append(item)
 
@@ -956,14 +1000,14 @@ class Screen:
                         previous = self.page > 1
 
                         text.options((["Next"] if next else []) + (["Previous"] if previous else []))
-                        option = control.get_input("optionumeric", textField=False, options=("n" if next else "")+("p" if previous else "")\
+                        option = control.get_input("optionumeric", options=("n" if next else "")+("p" if previous else "")\
                         +"".join(tuple(map(str, range(0, len(itemList))))))
 
                         if option in tuple(map(str, range(0, len(itemList) + (self.page-1) * 10 + 1))):
                             item = itemList[int(option) + (self.page - 1) * 10][0]
                             while 1:
                                 text.clear()
-                                Image("background").show_at_origin()
+                                text.background()
                                 Image("item/" + item.name).show_at_description()
                                 text.header("Use Item")
 
@@ -977,18 +1021,18 @@ class Screen:
                                     usedItem = True
 
                                     text.clear()
-                                    Image("background").show_at_origin()
+                                    text.background()
                                     print_enemy()
                                     print_player()
                                     print("")
 
                                     if item.target == "self":
-                                        item.use(magyka.player, magyka.player)
+                                        item.use(world.attributes["player"], world.attributes["player"])
                                     else:
-                                        item.use(magyka.player, magyka.battleEnemy)
+                                        item.use(world.attributes["player"], world.attributes["enemy"])
 
                                     if not item.tags.get("infinite"):
-                                        magyka.player.remove_item(item)
+                                        world.attributes["player"].remove_item(item)
 
                                     itemFound = False
                                     for i in magyka.itemLog:
@@ -1017,15 +1061,15 @@ class Screen:
                 elif self.code(option):
                     return
 
-            magyka.player.update()
+            world.attributes["player"].update()
             print_player()
             print_enemy()
             control.press_enter()
 
-            if magyka.battleEnemy.hp <= 0:
+            if world.attributes["enemy"].hp <= 0:
                 self.nextScreen = "victory"
                 return
-            elif magyka.player.hp <= 0:
+            elif world.attributes["player"].hp <= 0:
                 self.nextScreen = "defeat"
                 return
 
@@ -1033,61 +1077,61 @@ class Screen:
             print_player()
             print("")
 
-            if magyka.player.guard == "counter":
+            if world.attributes["player"].guard == "counter":
                 text.slide_cursor(1, 3)
-                print(f'{magyka.battleEnemy.name} {magyka.battleEnemy.text} {magyka.player.name}, but {magyka.player.name} counters, ', end="")
+                print(f'{world.attributes["enemy"].name} {world.attributes["enemy"].text} {world.attributes["player"].name}, but {world.attributes["player"].name} counters, ', end="")
                 sound.play_sound(["attack", "slash"])
-                magyka.player.attack(magyka.battleEnemy, message=False)
+                world.attributes["player"].attack(world.attributes["enemy"], message=False)
             else:
                 sound.play_sound(["hit", "hit2"])
                 if settings.godMode:
-                    print(f'{magyka.player.name} does not take damage.')
+                    print(f'{world.attributes["player"].name} does not take damage.')
                 else:
-                    magyka.battleEnemy.attack(magyka.player)
+                    world.attributes["enemy"].attack(world.attributes["player"])
 
-            magyka.battleEnemy.update()
+            world.attributes["enemy"].update()
             print_player()
             print_enemy()
             control.press_enter()
 
-            if magyka.battleEnemy.hp <= 0:
+            if world.attributes["enemy"].hp <= 0:
                 self.nextScreen = "victory"
                 return
-            elif magyka.player.hp <= 0:
+            elif world.attributes["player"].hp <= 0:
                 self.nextScreen = "defeat"
                 return
 
     def victory(self):
         text.clear()
-        Image("background").show_at_origin()
-        Image("enemy/"+magyka.battleEnemy.name).show_at_description()
+        text.background()
+        Image("enemy/"+world.attributes["enemy"].name).show_at_description()
         text.header("Victory")
         sound.play_sound("victory")
         # UPDATE PLAYER QUESTS
 
-        levelDifference = magyka.battleEnemy.level - magyka.player.level
+        levelDifference = world.attributes["enemy"].level - world.attributes["player"].level
 
         if levelDifference == 0:
             lootModifier = 1
         else:
             lootModifier = max(round(1.15 ** levelDifference, 2), 0.25)
 
-        xp = math.ceil(magyka.battleEnemy.xp * lootModifier)
-        gold = math.ceil(random.randint(math.ceil(magyka.battleEnemy.gold*0.9), math.ceil(magyka.battleEnemy.gold*1.1)) * lootModifier)
-        items = magyka.load_from_db("lootTables", magyka.battleEnemy.name)
+        xp = math.ceil(world.attributes["enemy"].xp * lootModifier)
+        gold = math.ceil(random.randint(math.ceil(world.attributes["enemy"].gold*0.9), math.ceil(world.attributes["enemy"].gold*1.1)) * lootModifier)
+        items = magyka.load_from_db("lootTables", world.attributes["enemy"].name)
         if items:
             items = items.use()
         else:
             items = []
 
-        magyka.player.gold += gold
-        magyka.player.xp += xp
-        magyka.player.level_up()
+        world.attributes["player"].gold += gold
+        world.attributes["player"].xp += xp
+        world.attributes["player"].level_up()
 
         text.print_at_loc(f'Obtained: (x{lootModifier} Loot Modifier)', 3, 4)
         for i in range(len(items)):
             text.print_at_loc(f'- {items[i][0].get_name(info=True, quantity=items[i][1])}', 4 + i, 5)
-            magyka.player.add_item(items[i][0], items[i][1])
+            world.attributes["player"].add_item(items[i][0], items[i][1])
 
         print("")
         text.slide_cursor(0, 4)
@@ -1114,31 +1158,31 @@ class Screen:
     def defeat(self):
         text.clear()
         text.header("Defeat")
-        Image("background").show_at_origin()
-        Image("enemy/"+magyka.battleEnemy.name).show_at_description()
+        text.background()
+        Image("enemy/"+world.attributes["enemy"].name).show_at_description()
         sound.play_sound("defeat")
         text.move_cursor(3, 4)
         print("Defeated by:")
         print("")
-        magyka.battleEnemy.show_stats(gpxp=False)
+        world.attributes["enemy"].show_stats(gpxp=False)
 
         print("")
-        if magyka.itemLog:
+        if manager.itemLog:
             text.slide_cursor(0, 3)
             print("Items used:")
-            for item in magyka.itemLog:
+            for item in manager.itemLog:
                 text.slide_cursor(0, 4)
                 print(f'- {item[0].get_name().ljust(28)} x{item[1]}')
         else:
             text.slide_cursor(0, 3)
             print(f'Items used: {text.darkgray}None{text.reset}')
 
-        magyka.itemLog = []
+        manager.itemLog = []
         text.slide_cursor(1, 3)
         print(f'You died, ', end="")
-        magyka.player.add_passive(magyka.load_from_db("passives", "Charon's Curse"))
-        magyka.player.hp = 1
-        magyka.player.mp = 0
+        world.attributes["player"].add_passive(manager.load_from_db("passives", "Charon's Curse"))
+        world.attributes["player"].hp = 1
+        world.attributes["player"].mp = 0
 
         time.sleep(1)
         control.press_enter()
@@ -1167,15 +1211,15 @@ class Screen:
             mapLeft = 43
 
             portal = False
-            if magyka.mapPortals.get(mapName):
-                for p in magyka.mapPortals[mapName]:
-                    if p[0] == magyka.player.x and p[1] == magyka.player.y:
+            if world.mapPortals.get(mapName):
+                for p in world.mapPortals[mapName]:
+                    if p[0] == world.attributes["player"].x and p[1] == world.attributes["player"].y:
                         portal = p
 
-            top = magyka.player.y - mapHeight // 2
-            bottom = magyka.player.y + mapHeight // 2
-            left = magyka.player.x - mapWidth // 2
-            right = magyka.player.x + mapWidth // 2
+            top = world.attributes["player"].y - mapHeight // 2
+            bottom = world.attributes["player"].y + mapHeight // 2
+            left = world.attributes["player"].x - mapWidth // 2
+            right = world.attributes["player"].x + mapWidth // 2
 
             if top < 0:
                 top = 0
@@ -1188,7 +1232,7 @@ class Screen:
 
             text.clear_main_small()
             text.move_cursor(1, 1)
-            magyka.player.show_stats(small=True)
+            world.attributes["player"].show_stats(small=True)
             text.slide_cursor(1, 3)
             print(f'{text.reset}Use {settings.moveBind.upper()} to move.')
             text.options(["Hunt"] + ((["Enter"] if settings.interactBind == "e" else ["Approach"]) if portal else []))
@@ -1201,7 +1245,7 @@ class Screen:
                 for x in range(left, right):
                     tile = mapTiles[y][x]
 
-                    if x == magyka.player.x and y == magyka.player.y:
+                    if x == world.attributes["player"].x and y == world.attributes["player"].y:
                         print(text.reset + "<>", end="")
                         if x != right:
                             print(text.rgb(mapTiles[y][x + 1], back=True), end="")
@@ -1219,18 +1263,18 @@ class Screen:
             moveX = 0
             moveY = 0
 
-            if option == settings.moveBind[0] and mapCollision[magyka.player.y-1][magyka.player.x] != "0;0;0":
+            if option == settings.moveBind[0] and mapCollision[world.attributes["player"].y-1][world.attributes["player"].x] != "0;0;0":
                 moveY -= 1
-            elif option == settings.moveBind[1] and mapCollision[magyka.player.y][magyka.player.x-1] != "0;0;0":
+            elif option == settings.moveBind[1] and mapCollision[world.attributes["player"].y][world.attributes["player"].x-1] != "0;0;0":
                 moveX -= 1
-            elif option == settings.moveBind[2] and mapCollision[magyka.player.y+1][magyka.player.x] != "0;0;0":
+            elif option == settings.moveBind[2] and mapCollision[world.attributes["player"].y+1][world.attributes["player"].x] != "0;0;0":
                 moveY += 1
-            elif option == settings.moveBind[3] and mapCollision[magyka.player.y][magyka.player.x+1] != "0;0;0":
+            elif option == settings.moveBind[3] and mapCollision[world.attributes["player"].y][world.attributes["player"].x+1] != "0;0;0":
                 moveX += 1
 
             if moveX or moveY:
-                magyka.player.x += moveX
-                magyka.player.y += moveY
+                world.attributes["player"].x += moveX
+                world.attributes["player"].y += moveY
 
                 if magyka.hunt:
                     magyka.encounterStepCounter += 1
@@ -1246,25 +1290,25 @@ class Screen:
                         self.nextScreen = "map"
                         return
                     elif responseTime < 480:
-                        magyka.player.add_passive(magyka.load_from_db("passives", "Shaken"))
+                        world.attributes["player"].add_passive(magyka.load_from_db("passives", "Shaken"))
                         self.nextScreen = "map"
                         return
                     else:
-                        magyka.load_encounter(int(mapCollision[magyka.player.y][magyka.player.x].split(";")[0]))
+                        magyka.load_encounter(int(mapCollision[world.attributes["player"].y][world.attributes["player"].x].split(";")[0]))
                         self.nextScreen = "battle"
                         return
 
             if option == settings.interactBind:
                 if portal[2] == "map":
                     mapName = portal[3]
-                    magyka.player.x = portal[4]
-                    magyka.player.y = portal[5]
+                    world.attributes["player"].x = portal[4]
+                    world.attributes["player"].y = portal[5]
                 elif portal[2] == "town":
                     magyka.town = portal[3]
                     self.nextScreen = "town"
                     return
                 elif portal[2] == "location":
-                    magyka.player.location = portal[3]
+                    world.attributes["player"].location = portal[3]
                     self.nextScreen = "location"
                     return
             elif option == "h":
@@ -1276,11 +1320,11 @@ class Screen:
         while 1:
             self.returnScreen = "map"
             text.clear()
-            Image("background").show_at_origin()
+            text.background()
             Image("screen/Town").show_at_description()
             text.header(magyka.town.title())
             text.move_cursor(1, 3)
-            magyka.player.show_stats()
+            world.attributes["player"].show_stats()
 
             text.options(["Inn", "General Store", "Blacksmith", "Arcanist", "Flea Market"])
             option = control.get_input("alphabetic", options="igbaf")
@@ -1311,10 +1355,10 @@ class Screen:
         while 1:
             self.returnScreen = "town"
             text.clear()
-            Image("background").show_at_origin()
+            text.background()
             text.header("Inn")
 
-            price = 5 + magyka.player.level * 2
+            price = 5 + world.attributes["player"].level * 2
             text.move_cursor(3, 4)
             print(f'Price to rest: {text.gp}{text.reset} {price}')
 
@@ -1322,14 +1366,14 @@ class Screen:
             option = control.get_input("alphabetic", options = "r")
 
             if option == "r":
-                if magyka.player.gold >= price:
+                if world.attributes["player"].gold >= price:
                     sound.play_sound("rest")
-                    magyka.player.gold -= price
-                    magyka.player.hp = magyka.player.stats["max hp"]
-                    magyka.player.mp = magyka.player.stats["max mp"]
+                    world.attributes["player"].gold -= price
+                    world.attributes["player"].hp = world.attributes["player"].stats["max hp"]
+                    world.attributes["player"].mp = world.attributes["player"].stats["max mp"]
                     text.slide_cursor(1, 3)
                     print("You fell well rested. HP and MP restored to full, ")
-                    magyka.player.add_passive(magyka.load_from_db("passives", "Well Rested"))
+                    world.attributes["player"].add_passive(magyka.load_from_db("passives", "Well Rested"))
                     control.press_enter()
                 else:
                     text.slide_cursor(1, 3)
@@ -1342,7 +1386,7 @@ class Screen:
         while 1:
             self.returnScreen = "town"
             text.clear()
-            Image("background").show_at_origin()
+            text.background()
             Image("screen/Store").show_at_description()
             text.header(self.storeType.capitalize())
 
@@ -1362,13 +1406,13 @@ class Screen:
                 text.print_at_loc("Equipment:", 3, 4)
                 print("")
                 for i in range(len(Globals.slotList)):
-                    if magyka.player.equipment[Globals.slotList[i]] != "":
+                    if world.attributes["player"].equipment[Globals.slotList[i]] != "":
                         text.slide_cursor(0, 3)
-                        print(f'  - {magyka.player.equipment[Globals.slotList[i]].get_name()}')
+                        print(f'  - {world.attributes["player"].equipment[Globals.slotList[i]].get_name()}')
                 text.slide_cursor(1, 3)
             else:
                 text.move_cursor(3, 4)
-            print(f'{text.gp}{text.reset} {magyka.player.gold}\n')
+            print(f'{text.gp}{text.reset} {world.attributes["player"].gold}\n')
 
             for i in range(-10 + 10*self.page, 10*self.page if 10*self.page < len(itemList) else len(itemList)):
                 quantity = itemList[i].type in Globals.stackableItems
@@ -1381,7 +1425,7 @@ class Screen:
             text.slide_cursor(1, 3)
             print(f'Use {settings.moveBind[1]}{settings.moveBind[3]} to switch pages.')
             text.options((["Next"] if next else [])+(["Previous"] if previous else [])+(["Reforge"] if self.storeType == "blacksmith" else [])+["Crafting"])
-            option = control.get_input("optionumeric", textField=False, options=(settings.moveBind[3] if next else "")+(settings.moveBind[1] if previous else "")\
+            option = control.get_input("optionumeric", options=(settings.moveBind[3] if next else "")+(settings.moveBind[1] if previous else "")\
             +("r" if self.storeType == "blacksmith" else "")+"c"+"".join(tuple(map(str, range(0, len(itemList))))))
 
             if option in tuple(map(str, range(0, len(itemList) + (self.page-1) * 10 + 1))):
@@ -1407,18 +1451,18 @@ class Screen:
             self.returnScreen = "store"
             self.nextScreen = self.returnScreen
             text.clear()
-            Image("background").show_at_origin()
+            text.background()
             Image("item/" + magyka.purchaseItem.name).show_at_description()
             text.header("Purchase")
             text.move_cursor(3, 4)
-            print(f'{text.gp}{text.reset} {magyka.player.gold}')
+            print(f'{text.gp}{text.reset} {world.attributes["player"].gold}')
             magyka.purchaseItem.show_stats()
             text.slide_cursor(1, 3)
             print(f'Cost: {text.gp}{text.reset} {magyka.purchaseItem.value}')
             text.slide_cursor(1, 3)
-            print(f'Currently owned: {magyka.player.num_of_items(magyka.purchaseItem.name)}')
+            print(f'Currently owned: {world.attributes["player"].num_of_items(magyka.purchaseItem.name)}')
             text.slide_cursor(0, 3)
-            print(f'Type the quantity of items to be purchased ({magyka.player.gold // magyka.purchaseItem.value} can be bought).')
+            print(f'Type the quantity of items to be purchased ({world.attributes["player"].gold // magyka.purchaseItem.value} can be bought).')
 
             option = control.get_input("numeric")
 
@@ -1430,11 +1474,11 @@ class Screen:
                 pass
 
             if type(option) is int:
-                if option * magyka.purchaseItem.value <= magyka.player.gold:
+                if option * magyka.purchaseItem.value <= world.attributes["player"].gold:
                     sound.play_sound("coin")
-                    magyka.player.add_item(magyka.purchaseItem, option)
+                    world.attributes["player"].add_item(magyka.purchaseItem, option)
                     if settings.purchaseCost:
-                        magyka.player.gold -= option * magyka.purchaseItem.value
+                        world.attributes["player"].gold -= option * magyka.purchaseItem.value
 
                     quantity = magyka.purchaseItem.type in Globals.stackableItems
                     text.slide_cursor(0, 3)
@@ -1454,7 +1498,7 @@ class Screen:
         while 1:
             self.returnScreen = "store"
             text.clear()
-            Image("background").show_at_origin()
+            text.background()
             Image("screen/Craft").show_at_description()
             text.header("Crafting")
 
@@ -1462,7 +1506,7 @@ class Screen:
             for recipe in magyka.recipes:
                 addRecipe = False
                 for item in recipe["ingredients"]:
-                    if magyka.player.num_of_items(item[0]) > 0:
+                    if world.attributes["player"].num_of_items(item[0]) > 0:
                         addRecipe = True
                         break
 
@@ -1503,7 +1547,7 @@ class Screen:
             self.returnScreen = "crafting"
             self.nextScreen = self.returnScreen
             text.clear()
-            Image("background").show_at_origin()
+            text.background()
             text.header("Craft " + magyka.craftRecipe["result"])
 
             magyka.craftItem = magyka.load_from_db("items", magyka.craftRecipe["result"])
@@ -1519,7 +1563,7 @@ class Screen:
             print("Requires:")
             text.slide_cursor(1, 0)
             for i in range(len(magyka.craftRecipe["ingredients"])):
-                playerIngredientCount = magyka.player.num_of_items(magyka.craftRecipe["ingredients"][i][0])
+                playerIngredientCount = world.attributes["player"].num_of_items(magyka.craftRecipe["ingredients"][i][0])
                 recipeIngredientCount = magyka.craftRecipe["ingredients"][i][1]
                 if playerIngredientCount < recipeIngredientCount:
                     craftable = False
@@ -1546,8 +1590,8 @@ class Screen:
                 if option <= numCraftable:
                     if settings.craftCost:
                         for item in magyka.craftRecipe["ingredients"]:
-                            magyka.player.remove_item(magyka.load_from_db("items", item[0]), item[1])
-                    magyka.player.add_item(magyka.craftItem, magyka.craftRecipe["quantity"] * option)
+                            world.attributes["player"].remove_item(magyka.load_from_db("items", item[0]), item[1])
+                    world.attributes["player"].add_item(magyka.craftItem, magyka.craftRecipe["quantity"] * option)
 
                     if magyka.craftItem.type in Globals.stackableItems:
                         quantity = True
@@ -1568,31 +1612,31 @@ class Screen:
         while 1:
             self.returnScreen = "town"
             text.clear()
-            Image("background").show_at_origin()
+            text.background()
             Image("screen/Store").show_at_description()
             text.header("Flea Market")
             text.move_cursor(3, 4)
             print("Choose an item to sell.")
             text.slide_cursor(1, 0)
 
-            for i in range((self.page - 1) * 10, min(self.page * 10, len(magyka.player.inventory))):
+            for i in range((self.page - 1) * 10, min(self.page * 10, len(world.attributes["player"].inventory))):
                 text.slide_cursor(0, 3)
-                quantity = magyka.player.inventory[i][0].type != "equipment"
-                print(f' {str(i)[:-1]}({str(i)[-1]}) {magyka.player.inventory[i][0].get_name(info=True, value=True, quantity=(magyka.player.inventory[i][1] if quantity else 0))}')
+                quantity = world.attributes["player"].inventory[i][0].type != "equipment"
+                print(f' {str(i)[:-1]}({str(i)[-1]}) {world.attributes["player"].inventory[i][0].get_name(info=True, value=True, quantity=(world.attributes["player"].inventory[i][1] if quantity else 0))}')
 
-            if len(magyka.player.inventory) == 0:
+            if len(world.attributes["player"].inventory) == 0:
                 text.slide_cursor(0, 3)
                 print(f' {text.darkgray}Empty{text.reset}')
 
-            next = len(magyka.player.inventory) > self.page * 10
+            next = len(world.attributes["player"].inventory) > self.page * 10
             previous = self.page > 1
 
             text.options((["Next"] if next else []) + (["Previous"] if previous else []))
-            option = control.get_input("optionumeric", textField=False, options=("n" if next else "")+("p" if previous else "")\
-            +"".join(tuple(map(str, range(0, len(magyka.player.inventory))))))
+            option = control.get_input("optionumeric", options=("n" if next else "")+("p" if previous else "")\
+            +"".join(tuple(map(str, range(0, len(world.attributes["player"].inventory))))))
 
-            if option in tuple(map(str, range(0, len(magyka.player.inventory) + (self.page-1) * 10 + 1))):
-                magyka.sellItem = magyka.player.inventory[int(option) + (self.page - 1) * 10][0]
+            if option in tuple(map(str, range(0, len(world.attributes["player"].inventory) + (self.page-1) * 10 + 1))):
+                magyka.sellItem = world.attributes["player"].inventory[int(option) + (self.page - 1) * 10][0]
                 self.nextScreen = "sell"
                 return
             elif option == "n":
@@ -1607,7 +1651,7 @@ class Screen:
             self.returnScreen = "market"
             self.nextScreen = self.returnScreen
             text.clear()
-            Image("background").show_at_origin()
+            text.background()
             Image("item/" + magyka.sellItem.name).show_at_description()
             text.header("Sell " + magyka.sellItem.name)
 
@@ -1615,14 +1659,14 @@ class Screen:
             magyka.sellItem.show_stats()
 
             text.slide_cursor(1, 3)
-            print(f'{text.gp}{text.reset} {magyka.player.gold}')
+            print(f'{text.gp}{text.reset} {world.attributes["player"].gold}')
             if magyka.sellItem.type != "equipment":
                 text.slide_cursor(1, 3)
-                print(f'Currently owned: {magyka.player.num_of_items(magyka.sellItem.name)}')
+                print(f'Currently owned: {world.attributes["player"].num_of_items(magyka.sellItem.name)}')
             text.slide_cursor(1, 3)
             print(f'Sell Value: {text.gp}{text.reset} {round(magyka.sellItem.value * 0.7)}')
             text.slide_cursor(0, 3)
-            print(f'Type the quantity of items to be sold ({magyka.player.num_of_items(magyka.sellItem.name)} can be sold).')
+            print(f'Type the quantity of items to be sold ({world.attributes["player"].num_of_items(magyka.sellItem.name)} can be sold).')
 
             option = control.get_input("numeric")
 
@@ -1634,10 +1678,10 @@ class Screen:
                 pass
 
             if type(option) is int:
-                if option <= magyka.player.num_of_items(magyka.sellItem.name):
+                if option <= world.attributes["player"].num_of_items(magyka.sellItem.name):
                     sound.play_sound("coin")
-                    magyka.player.remove_item(magyka.sellItem, option)
-                    magyka.player.gold += round(magyka.sellItem.value * 0.7) * option
+                    world.attributes["player"].remove_item(magyka.sellItem, option)
+                    world.attributes["player"].gold += round(magyka.sellItem.value * 0.7) * option
 
                     quantity = magyka.sellItem.type in Globals.stackableItems
                     text.slide_cursor(1, 3)
@@ -1659,11 +1703,11 @@ class Screen:
         while 1:
             self.returnScreen = "camp"
             text.clear()
-            Image("background").show_at_origin()
+            text.background()
             Image("screen/Character").show_at_description()
             text.header("Character")
             text.move_cursor(1, 1)
-            magyka.player.show_stats()
+            world.attributes["player"].show_stats()
 
             text.options(["Inventory", "Equipment", "Quests", "Passives", "Stats"])
             option = control.get_input("alphabetic", options="ieqps")
@@ -1692,13 +1736,13 @@ class Screen:
         while 1:
             self.returnScreen = "character"
             text.clear()
-            Image("background").show_at_origin()
+            text.background()
             Image("screen/Inventory").show_at_description()
             text.header("Inventory")
             print("")
 
-            for i in range((self.page - 1) * 10, min(self.page * 10, len(magyka.player.inventory))):
-                item = magyka.player.inventory[i]
+            for i in range((self.page - 1) * 10, min(self.page * 10, len(world.attributes["player"].inventory))):
+                item = world.attributes["player"].inventory[i]
                 if i >= 100:
                     just = ""
                 elif i >= 10:
@@ -1707,21 +1751,21 @@ class Screen:
                     just = "  "
                 text.print_at_loc(f'{str(i)[:-1]}({str(i)[-1]}) {just}{item[0].get_name(info=True, quantity=item[1])}', 3 + int(str(i)[-1]), 4)
 
-            if len(magyka.player.inventory) == 0:
+            if len(world.attributes["player"].inventory) == 0:
                 text.print_at_loc(f'{text.darkgray}Empty{text.reset}', 3, 4)
 
             print("")
 
-            next = len(magyka.player.inventory) > self.page * 10
+            next = len(world.attributes["player"].inventory) > self.page * 10
             previous = self.page > 1
 
             text.slide_cursor(1, 3)
             print(f'Use {settings.moveBind[1]}{settings.moveBind[3]} to switch pages.')
-            option = control.get_input("optionumeric", textField=False, options=(settings.moveBind[3] if next else "")+(settings.moveBind[1] if previous else "")\
-            +"".join(tuple(map(str, range(0, len(magyka.player.inventory))))))
+            option = control.get_input("optionumeric", options=(settings.moveBind[3] if next else "")+(settings.moveBind[1] if previous else "")\
+            +"".join(tuple(map(str, range(0, len(world.attributes["player"].inventory))))))
 
-            if option in tuple(map(str, range(0, len(magyka.player.inventory) + (self.page-1) * 10 + 1))):
-                magyka.inspectItem = magyka.player.inventory[int(option) + (self.page - 1) * 10][0]
+            if option in tuple(map(str, range(0, len(world.attributes["player"].inventory) + (self.page-1) * 10 + 1))):
+                magyka.inspectItem = world.attributes["player"].inventory[int(option) + (self.page - 1) * 10][0]
                 magyka.inspectItemEquipped = False
                 self.nextScreen = "inspect"
                 return
@@ -1736,23 +1780,23 @@ class Screen:
         while 1:
             self.returnScreen = "character"
             text.clear()
-            Image("background").show_at_origin()
+            text.background()
             Image("screen/Equipment").show_at_description()
             text.header("Equipment")
             print("")
 
             for i in range(len(Globals.slotList)):
                 text.print_at_loc(f'{i}) {Globals.slotList[i].capitalize()}', 3 + i, 4)
-                if magyka.player.equipment[Globals.slotList[i]]:
-                    text.print_at_loc(f'{magyka.player.equipment[Globals.slotList[i]].get_name()}', 3 + i, 14)
+                if world.attributes["player"].equipment[Globals.slotList[i]]:
+                    text.print_at_loc(f'{world.attributes["player"].equipment[Globals.slotList[i]].get_name()}', 3 + i, 14)
                 else:
                     text.print_at_loc(f'{text.darkgray}Empty{text.reset}', 3 + i, 14)
             print("")
 
             option = control.get_input("numeric", options="".join(tuple(map(str, range(0, len(Globals.slotList))))))
 
-            if option in tuple(map(str, range(0, len(Globals.slotList)))) and magyka.player.equipment[Globals.slotList[int(option)]] != "":
-                magyka.inspectItem = magyka.player.equipment[Globals.slotList[int(option)]]
+            if option in tuple(map(str, range(0, len(Globals.slotList)))) and world.attributes["player"].equipment[Globals.slotList[int(option)]] != "":
+                magyka.inspectItem = world.attributes["player"].equipment[Globals.slotList[int(option)]]
                 magyka.inspectItemEquipped = True
                 magyka.inspectSlot = Globals.slotList[int(option)]
                 self.nextScreen = "inspect"
@@ -1765,12 +1809,12 @@ class Screen:
             self.returnScreen = self.oldScreen
             self.nextScreen = self.returnScreen
             text.clear()
-            Image("background").show_at_origin()
+            text.background()
             Image("item/" + magyka.inspectItem.name).show_at_description()
 
             if magyka.inspectItemEquipped:
                 magyka.inspectItem.update()
-            magyka.player.update_stats()
+            world.attributes["player"].update_stats()
 
             text.header("Inspect " + magyka.inspectItem.type.capitalize())
             text.move_cursor(2, 1)
@@ -1793,42 +1837,42 @@ class Screen:
 
             if option == "u" and magyka.inspectItem.type == "equipment":
                 sound.play_sound("equip")
-                magyka.player.unequip(magyka.inspectSlot)
+                world.attributes["player"].unequip(magyka.inspectSlot)
                 return
             elif option == "u" and magyka.inspectItem.type == "consumable" and magyka.inspectItem.target == "self":
-                magyka.inspectItem.use(magyka.player, magyka.player)
-                magyka.player.remove_item(magyka.inspectItem)
+                magyka.inspectItem.use(world.attributes["player"], world.attributes["player"])
+                world.attributes["player"].remove_item(magyka.inspectItem)
                 control.press_enter()
-                if magyka.player.num_of_items(magyka.inspectItem.name) <= 0:
+                if world.attributes["player"].num_of_items(magyka.inspectItem.name) <= 0:
                     return
             elif option == "u" and magyka.inspectItem.type == "modifier":
                 self.nextScreen = "apply_modifier"
                 return
                 s_applyModifier(magyka.inspectItem)
                 if "infinite" not in magyka.inspectItem.tags:
-                    magyka.player.remove_item(magyka.inspectItem)
-                if magyka.player.num_of_items(magyka.inspectItem.name) <= 0:
+                    world.attributes["player"].remove_item(magyka.inspectItem)
+                if world.attributes["player"].num_of_items(magyka.inspectItem.name) <= 0:
                     return
             elif option == "e" and magyka.inspectItem.type == "equipment":
                 sound.play_sound("equip")
-                magyka.player.equip(magyka.inspectItem)
+                world.attributes["player"].equip(magyka.inspectItem)
                 return
             elif option == "d":
-                if magyka.player.num_of_items(magyka.inspectItem.name) > 1:
+                if world.attributes["player"].num_of_items(magyka.inspectItem.name) > 1:
                     while 1:
                         text.clear()
                         text.header("Quantity")
-                        print(f'\n Type the quantity to discard (1-{magyka.player.num_of_items(magyka.inspectItem.name)})')
+                        print(f'\n Type the quantity to discard (1-{world.attributes["player"].num_of_items(magyka.inspectItem.name)})')
 
                         option = control.get_input("numeric")
 
-                        if option in tuple(map(str, range(1, magyka.player.num_of_items(magyka.inspectItem.name)+1))):
-                            magyka.player.remove_item(magyka.inspectItem, int(option))
+                        if option in tuple(map(str, range(1, world.attributes["player"].num_of_items(magyka.inspectItem.name)+1))):
+                            world.attributes["player"].remove_item(magyka.inspectItem, int(option))
                             return
                         elif self.code(option):
                             break
                 else:
-                    magyka.player.remove_item(magyka.inspectItem)
+                    world.attributes["player"].remove_item(magyka.inspectItem)
                     break
             elif option == "m":
                 text.clear_main()
@@ -1844,7 +1888,7 @@ class Screen:
         while 1:
             self.returnScreen = "inventory"
             text.clear()
-            Image("background").show_at_origin()
+            text.background()
             Image("item/" + magyka.inspectItem.name).show_at_description()
             text.header("Apply Modifier")
 
@@ -1852,18 +1896,18 @@ class Screen:
 
             for i in range(len(slots)):
                 text.print_at_loc(f'{i}) {slots[i].capitalize()}', 3 + i, 4)
-                if magyka.player.equipment[slots[i]]:
-                    text.print_at_loc(f'{magyka.player.equipment[slots[i]].get_name()} {magyka.player.equipment[slots[i]].modifier.get_name()}', 3 + i, 14)
+                if world.attributes["player"].equipment[slots[i]]:
+                    text.print_at_loc(f'{world.attributes["player"].equipment[slots[i]].get_name()} {world.attributes["player"].equipment[slots[i]].modifier.get_name()}', 3 + i, 14)
                 else:
                     text.print_at_loc(f'{text.darkgray}Empty{text.reset}', 3 + i, 14)
 
             option = control.get_input("numeric", options="".join(tuple(map(str, range(0, len(slots))))))
 
-            if option in tuple(map(str, range(0, len(slots)))) and magyka.player.equipment[slots[int(option)]]:
-                magyka.inspectItem.use(None, magyka.player.equipment[slots[int(option)]], True)
+            if option in tuple(map(str, range(0, len(slots)))) and world.attributes["player"].equipment[slots[int(option)]]:
+                magyka.inspectItem.use(None, world.attributes["player"].equipment[slots[int(option)]], True)
                 if "infinite" not in magyka.inspectItem.tags:
-                    magyka.player.remove_item(magyka.inspectItem)
-                if magyka.player.num_of_items(magyka.inspectItem.name) <= 0:
+                    world.attributes["player"].remove_item(magyka.inspectItem)
+                if world.attributes["player"].num_of_items(magyka.inspectItem.name) <= 0:
                     self.nextScreen = "inventory"
                     return
                 break
@@ -1874,28 +1918,28 @@ class Screen:
         while 1:
             self.returnScreen = "character"
             text.clear()
-            Image("background").show_at_origin()
+            text.background()
             Image("screen/Passives").show_at_description()
             text.move_cursor(3, 1)
 
-            for i in range((self.page - 1) * 10, min(self.page * 10, len(magyka.player.passives))):
+            for i in range((self.page - 1) * 10, min(self.page * 10, len(world.attributes["player"].passives))):
                 text.slide_cursor(0, 3)
-                print(f'{str(i)[:-1]}({str(i)[-1]}) {magyka.player.passives[i].get_name(turns=True)}')
+                print(f'{str(i)[:-1]}({str(i)[-1]}) {world.attributes["player"].passives[i].get_name(turns=True)}')
 
-            if len(magyka.player.passives) == 0:
+            if len(world.attributes["player"].passives) == 0:
                 text.slide_cursor(0, 3)
                 print(f'{text.darkgray}No Passives{text.reset}')
 
-            next = len(magyka.player.passives) > self.page * 10
+            next = len(world.attributes["player"].passives) > self.page * 10
             previous = self.page > 1
 
             text.slide_cursor(1, 3)
             print(f'Use {settings.moveBind[1]}{settings.moveBind[3]} to switch pages.')
-            option = control.get_input("optionumeric", textField=False, options=(settings.moveBind[3] if next else "")+(settings.moveBind[1] if previous else "")\
-            +"".join(tuple(map(str, range(0, len(magyka.player.passives))))))
+            option = control.get_input("optionumeric", options=(settings.moveBind[3] if next else "")+(settings.moveBind[1] if previous else "")\
+            +"".join(tuple(map(str, range(0, len(world.attributes["player"].passives))))))
 
-            if option in tuple(map(str, range(0, len(magyka.player.passives) + (self.page-1) * 10 + 1))):
-                magyka.inspectPassive = magyka.player.passives[int(option) + (self.page - 1) * 10]
+            if option in tuple(map(str, range(0, len(world.attributes["player"].passives) + (self.page-1) * 10 + 1))):
+                magyka.inspectPassive = world.attributes["player"].passives[int(option) + (self.page - 1) * 10]
                 self.nextScreen = "inspect_passive"
                 return
             elif option == settings.moveBind[3]:
@@ -1909,30 +1953,30 @@ class Screen:
         while 1:
             self.nextScreen = "character"
             text.clear()
-            Image("background").show_at_origin()
+            text.background()
             Image("screen/Stats").show_at_description()
             text.header("Stats")
 
-            stats = magyka.player.stats.copy()
+            stats = world.attributes["player"].stats.copy()
             stats.pop("max hp")
             stats.pop("max mp")
             stats.pop("attack")
 
-            statNamePad = len(max(magyka.player.stats, key=len)) + 1
-            statValuePad = len(max([str(magyka.player.stats[stat]) for stat in stats], key=len))
+            statNamePad = len(max(world.attributes["player"].stats, key=len)) + 1
+            statValuePad = len(max([str(world.attributes["player"].stats[stat]) for stat in stats], key=len))
 
             text.move_cursor(1, 1)
-            magyka.player.show_stats(passives=False)
+            world.attributes["player"].show_stats(passives=False)
             text.slide_cursor(1, 3)
-            print(f'{"Attack".ljust(statNamePad)}: {(str(magyka.player.stats["attack"][0]) + " - " + str(magyka.player.stats["attack"][1])).ljust(statValuePad)}')
+            print(f'{"Attack".ljust(statNamePad)}: {(str(world.attributes["player"].stats["attack"][0]) + " - " + str(world.attributes["player"].stats["attack"][1])).ljust(statValuePad)}')
 
             for stat in stats:
-                if magyka.player.baseStats[stat] <= magyka.player.stats[stat]:
+                if world.attributes["player"].baseStats[stat] <= world.attributes["player"].stats[stat]:
                     changeString = "+"
                 else:
                     changeString = "-"
                 text.slide_cursor(0, 3)
-                print(f'{stat.capitalize().ljust(statNamePad)}: {str(magyka.player.stats[stat]).ljust(statValuePad)} ({changeString}{magyka.player.stats[stat] - magyka.player.baseStats[stat]})')
+                print(f'{stat.capitalize().ljust(statNamePad)}: {str(world.attributes["player"].stats[stat]).ljust(statValuePad)} ({changeString}{world.attributes["player"].stats[stat] - world.attributes["player"].baseStats[stat]})')
 
             control.press_enter()
             return
@@ -1942,7 +1986,7 @@ class Screen:
             self.returnScreen = "passives"
             self.nextScreen = self.returnScreen
             text.clear()
-            Image("background").show_at_origin()
+            text.background()
             text.header("Inspect passive")
             text.move_cursor(3, 4)
             print(f'Name: {magyka.inspectPassive.get_name(turns=True)}')
@@ -1957,14 +2001,14 @@ class Screen:
 
     def rest(self):
         self.nextScreen = self.returnScreen
-        hp = math.floor(magyka.player.stats["max hp"] * 0.85)
-        mp = math.floor(magyka.player.stats["max mp"] * 0.85)
-        if magyka.player.hp >= hp and magyka.player.mp >= mp:
+        hp = math.floor(world.attributes["player"].stats["max hp"] * 0.85)
+        mp = math.floor(world.attributes["player"].stats["max mp"] * 0.85)
+        if world.attributes["player"].hp >= hp and world.attributes["player"].mp >= mp:
             return
-        if hp > magyka.player.hp:
-            magyka.player.hp = hp
-        if mp > magyka.player.mp:
-            magyka.player.mp = mp
+        if hp > world.attributes["player"].hp:
+            world.attributes["player"].hp = hp
+        if mp > world.attributes["player"].mp:
+            world.attributes["player"].mp = mp
         sound.play_sound("rest")
 
 
@@ -1976,7 +2020,8 @@ if __name__ == "__main__":
         import signal
 
     try:
-        magyka = Magyka()
+        world = World({})
+        manager = Manager()
         screen = Screen()
     except Exception as err:
         text.clear()

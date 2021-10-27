@@ -8,7 +8,7 @@ import script.Globals as Globals
 
 class Entity:
     """
-    The base class for other entities.
+    Holds the data for an entity, whether it be a player or an enemy.
     """
 
     def __init__(self, attributes):
@@ -19,12 +19,22 @@ class Entity:
             attributes:
                 name:
                     String display name.
+                class:
+                    String class.
+                text:
+                    String text shown when attacking without a weapon equipped.
                 equipment:
                     Dict of slot: Item (the items equipped). See Globals.slotList.
+                inventory:
+                    List of items the entity has.
+
+                    Each item is in the format [Item, quantity].
                 passives:
                     List of Passives applied.
                 stats:
                     Dict of Entity stats (hp, attack, etc.). See Globals.statList.
+                extraStats:
+                    Dict of any extra stats not in Globals.statList.
                 hp:
                     Integer health points.
                 mp:
@@ -33,6 +43,8 @@ class Entity:
                     Integer gold quantity.
                 xp:
                     Integer xp quantity.
+                mxp:
+                    Integer xp needed to level up.
                 level:
                     Integer or 2 length List of Integers.
                 baseStats:
@@ -51,6 +63,8 @@ class Entity:
 
         self.attributes = {
             "name": "Name",
+            "class": "Warrior",
+            "text": "attacks",
             "equipment": {
                 "weapon": "",
                 "tome": "",
@@ -60,18 +74,27 @@ class Entity:
                 "acc 1": "",
                 "acc 2": ""
             },
+            "inventory": [],
             "passives": [],
             "stats": {},
+            "extraStats": {},
+            "baseStats": {},
+            "statChanges": {},
             "hp": 7,
             "mp": 10,
             "gold": 0,
             "xp": 0,
+            "mxp": 10,
             "level": 1,
-            "baseStats": {},
-            "statChanges": {},
             "tags": {}
         }
         self.attributes.update(attributes)
+
+        if "max hp" not in self.attributes["stats"]:
+            self.attributes["stats"]["max hp"] = self.attributes["hp"]
+
+        if "max mp" not in self.attributes["stats"]:
+            self.attributes["stats"]["max mp"] = self.attributes["mp"]
 
         self.attributes.update({"defaultStats": {
             "attack": [1, 1],
@@ -462,159 +485,9 @@ class Entity:
 
         return [Effect(attackSkill)]
 
-    def show_passives(self):
-        if len(self.attributes["passives"]) > 0:
-            text.slide_cursor(0, 3)
-            print(", ".join([f'{passive.get_name(turns=True)}' for passive in self.attributes["passives"]]))
-
-    def show_stats(self, gpxp=True, passives=True, small=False):
-        """
-        Show the stats of the entity.
-
-        Args:
-            gpxp:
-                Boolean; if True, show gold and xp count. Default is True.
-            passives:
-                Boolean; if True, show Entity passives. Default is True.
-            small:
-                Boolean; if True, decrease the size of the bars. Default is false.
-        """
-
-        if small:
-            barLength = 16
-        else:
-            barLength = 40
-
-        print("")
-        text.slide_cursor(1, 3)
-        print(text.title(
-            self.attributes["name"],
-            self.attributes["level"],
-            self.attributes.get("class", "")
-        ))
-
-        text.slide_cursor(0, 3)
-        print(
-            text.hp,
-            text.bar(
-                self.attributes["hp"],
-                self.attributes["stats"]["max hp"],
-                "red",
-                length=barLength,
-                number=True
-            )
-        )
-        text.slide_cursor(0, 3)
-        print(
-            text.mp,
-            text.bar(
-                self.attributes["mp"],
-                self.attributes["stats"]["max mp"],
-                "blue",
-                length=barLength,
-                number=True
-            )
-        )
-
-        if gpxp:
-            text.slide_cursor(0, 3)
-            print(
-                text.xp,
-                text.bar(
-                    self.attributes["xp"],
-                    self.attributes["mxp"],
-                    "green",
-                    length=barLength,
-                    number=True
-                )
-            )
-
-            text.slide_cursor(0, 3)
-            print(text.gp, text.reset + str(self.attributes["gold"]))
-
-        if passives:
-            self.show_passives()
-
-    def export(self):
-        for i in range(len(self.attributes["inventory"])):
-            self.attributes["inventory"][i][0] = self.attributes["inventory"][i][0].export()
-        for i in range(len(self.attributes["passives"])):
-            self.attributes["passives"][i] = self.attributes["passives"][i].export()
-        for slot in self.attributes["equipment"]:
-            if self.attributes["equipment"][slot]:
-                self.attributes["equipment"][slot] = self.attributes["equipment"][slot].export()
-        return self.attributes
-
-
-class Player(Entity):
-    """
-    The Player Entity class.
-    """
-
-    def __init__(self, attributes):
-        """
-        Initializes the classes and sets up quests.
-
-        Args:
-            attributes:
-                table:
-                    String constant, "player".
-                class:
-                    String class.
-                extraStats:
-                    Dict of any extra stats not in Globals.statList.
-                location:
-                    String Player map name.
-                x:
-                    Integer x location of Player on map.
-                y:
-                    Integer y location of Player on map.
-                saveId:
-                    Integer id used to save Player class.
-                quests:
-                    List of active quests.
-                mainQuests:
-                    List of all main quests.
-                mainQuest:
-                    Integer index of current active main quest.
-                completedQuests:
-                    List of all completed quests.
-                inventory:
-                    List of items the player has.
-
-                    Each item is in the format [Item, quantity].
-                mxp:
-                    Xp needed to level up.
-        """
-
-        self.attributes = {
-            "table": "player",
-            "class": "class",
-            "extraStats": {},
-            "location": "magyka",
-            "x": 128,
-            "y": 113,
-            "saveId": random.randint(10000, 99999),
-            "quests": [],
-            "mainQuests": [],
-            "mainQuest": 0,
-            "completedQuests": [],
-            "inventory": [],
-            "mxp": 10,
-            "levelsGained": 0
-        }
-        self.attributes.update(attributes)
-        super().__init__(self.attributes)
-
-        # for quest in self.attributes["mainQuests"]:
-        #     quest.update({"main": True})
-        # self.add_quest(self.attributes["mainQuests"][0])
-
-        self.update_stats()
-
     def level_up(self):
         """
-        Levels the player up if the player has enough xp.
+        Levels the Entity up if the Entity has enough xp.
         """
 
         while self.attributes["xp"] >= self.attributes["mxp"]:
@@ -633,56 +506,6 @@ class Player(Entity):
 
             self.attributes["hp"] = self.attributes["stats"]["max hp"]
             self.attributes["mp"] = self.attributes["stats"]["max mp"]
-
-    """
-    def addQuest(self, quest):
-        for i in range(len(quest["objective"])):
-            quest["objective"][i].update({"status": 0, "complete": False})
-        if "location" not in quest:
-            quest["location"] = None
-        elif len(quest["location"]) == 2:
-            self.locations[quest["location"][0]].append(quest["location"][1])
-        self.quests.append(quest)
-
-    def updateQuests(self, enemy=None, item=None, location=None):
-        for i in range(len(self.quests)):
-            complete = True
-            for j in range(len(self.quests[i]["objective"])):
-                if self.quests[i]["objective"][j]["type"] == "kill":
-                    if enemy and enemy.name == self.quests[i]["objective"][j]["name"]:
-                        self.quests[i]["objective"][j]["status"] += 1
-                        if self.quests[i]["objective"][j]["status"] >= self.quests[i]["objective"][j]["quantity"]:
-                            self.quests[i]["objective"][j]["complete"] = True
-                elif self.quests[i]["objective"][j]["type"] == "obtain":
-                    if item and item[0].name == self.quests[i]["objective"][j]["name"]:
-                        self.quests[i]["objective"][j]["status"] += item[1]
-                        if self.quests[i]["objective"][j]["status"] >= self.quests[i]["objective"][j]["quantity"]:
-                            self.quests[i]["objective"][j]["complete"] = True
-                if not self.quests[i]["objective"][j]["complete"]:
-                    complete = False
-            if complete:
-                self.completedQuests.append(self.quests[i])
-                self.finishQuest(i)
-
-    def finishQuest(self, index):
-        quest = self.quests.pop(index)
-        if quest.get("main") and self.mainQuest + 1 < len(self.mainQuests):
-            self.mainQuest += 1
-            self.addQuest(self.mainQuests[self.mainQuest])
-        if "item" in quest["reward"]:
-            for item in quest["reward"]["item"]:
-                self.add_item(item[0], item[1])
-        if "xp" in quest["reward"]:
-            self.xp += quest["reward"]["xp"]
-        if "gold" in quest["reward"]:
-            self.gold += quest["reward"]["gold"]
-        if "stat" in quest["reward"]:
-            for stat in quest["reward"]["stat"]:
-                if stat.get("*"):
-                    self.baseStats[stat["type"]] = round(self.baseStats[stat["type"]] * (1 + stat["value"]))
-                else:
-                    self.baseStats[stat["type"]] += stat["value"]
-    """
 
     def num_of_items(self, name):
         """
@@ -793,38 +616,173 @@ class Player(Entity):
         self.remove_item(item)
         self.update_stats()
 
+    def show_passives(self):
+        if len(self.attributes["passives"]) > 0:
+            text.slide_cursor(0, 3)
+            print(", ".join([f'{passive.get_name(turns=True)}' for passive in self.attributes["passives"]]))
 
-class Enemy(Entity):
-    """
-    Class for holding an Enemy Entity.
-    """
-    def __init__(self, attributes):
+    def show_stats(self, gpxp=True, passives=True, small=False):
         """
-        Initializes the class.
+        Show the stats of the entity.
+
+        Args:
+            gpxp:
+                Boolean; if True, show gold and xp count. Default is True.
+            passives:
+                Boolean; if True, show Entity passives. Default is True.
+            small:
+                Boolean; if True, decrease the size of the bars. Default is false.
+        """
+
+        if small:
+            barLength = 16
+        else:
+            barLength = 40
+
+        print("")
+        text.slide_cursor(1, 3)
+        print(text.title(
+            self.attributes["name"],
+            self.attributes["level"],
+            self.attributes.get("class", "")
+        ))
+
+        text.slide_cursor(0, 3)
+        print(
+            text.hp,
+            text.bar(
+                self.attributes["hp"],
+                self.attributes["stats"]["max hp"],
+                "red",
+                length=barLength,
+                number=True
+            )
+        )
+        text.slide_cursor(0, 3)
+        print(
+            text.mp,
+            text.bar(
+                self.attributes["mp"],
+                self.attributes["stats"]["max mp"],
+                "blue",
+                length=barLength,
+                number=True
+            )
+        )
+
+        if gpxp:
+            text.slide_cursor(0, 3)
+            print(
+                text.xp,
+                text.bar(
+                    self.attributes["xp"],
+                    self.attributes["mxp"],
+                    "green",
+                    length=barLength,
+                    number=True
+                )
+            )
+
+            text.slide_cursor(0, 3)
+            print(text.gp, text.reset + str(self.attributes["gold"]))
+
+        if passives:
+            self.show_passives()
+
+    def export(self):
+        attributes = self.attributes.copy()
+        for i in range(len(attributes["inventory"])):
+            attributes["inventory"][i][0] = attributes["inventory"][i][0].export()
+        for i in range(len(attributes["passives"])):
+            attributes["passives"][i] = attributes["passives"][i].export()
+        for slot in attributes["equipment"]:
+            if attributes["equipment"][slot]:
+                attributes["equipment"][slot] = attributes["equipment"][slot].export()
+        return attributes
+
+
+    """
+    The Player Entity class.
+
+    def __init__(self, attributes):
+        Initializes the classes and sets up quests.
 
         Args:
             attributes:
-                table:
-                    String constant, "enemies".
-                text:
-                    String displayed when enemy performs a regular attack.
-                magic:
-                    Magic cast by the enemy.
-                levelDifference:
-                    Integer difference in level from minimum.
-        """
+                location:
+                    String Player map name.
+                quests:
+                    List of active quests.
+                mainQuests:
+                    List of all main quests.
+                mainQuest:
+                    Integer index of current active main quest.
+                completedQuests:
+                    List of all completed quests.
 
         self.attributes = {
-            "table": "enemies",
-            "text": "attacks",
-            "magic": [],
-            "levelDifference": 0
+            "location": "magyka",
+            "x": 128,
+            "y": 113,
+            "quests": [],
+            "mainQuests": [],
+            "mainQuest": 0,
+            "completedQuests": [],
         }
-
-        self.attributes["stats"]["max hp"] = attributes.get("hp", self.attributes["hp"])
-        self.attributes["stats"]["max mp"] = attributes.get("mp", self.attributes["mp"])
-
         self.attributes.update(attributes)
         super().__init__(self.attributes)
 
+        # for quest in self.attributes["mainQuests"]:
+        #     quest.update({"main": True})
+        # self.add_quest(self.attributes["mainQuests"][0])
+
         self.update_stats()
+
+    def addQuest(self, quest):
+        for i in range(len(quest["objective"])):
+            quest["objective"][i].update({"status": 0, "complete": False})
+        if "location" not in quest:
+            quest["location"] = None
+        elif len(quest["location"]) == 2:
+            self.locations[quest["location"][0]].append(quest["location"][1])
+        self.quests.append(quest)
+
+    def updateQuests(self, enemy=None, item=None, location=None):
+        for i in range(len(self.quests)):
+            complete = True
+            for j in range(len(self.quests[i]["objective"])):
+                if self.quests[i]["objective"][j]["type"] == "kill":
+                    if enemy and enemy.name == self.quests[i]["objective"][j]["name"]:
+                        self.quests[i]["objective"][j]["status"] += 1
+                        if self.quests[i]["objective"][j]["status"] >= self.quests[i]["objective"][j]["quantity"]:
+                            self.quests[i]["objective"][j]["complete"] = True
+                elif self.quests[i]["objective"][j]["type"] == "obtain":
+                    if item and item[0].name == self.quests[i]["objective"][j]["name"]:
+                        self.quests[i]["objective"][j]["status"] += item[1]
+                        if self.quests[i]["objective"][j]["status"] >= self.quests[i]["objective"][j]["quantity"]:
+                            self.quests[i]["objective"][j]["complete"] = True
+                if not self.quests[i]["objective"][j]["complete"]:
+                    complete = False
+            if complete:
+                self.completedQuests.append(self.quests[i])
+                self.finishQuest(i)
+
+    def finishQuest(self, index):
+        quest = self.quests.pop(index)
+        if quest.get("main") and self.mainQuest + 1 < len(self.mainQuests):
+            self.mainQuest += 1
+            self.addQuest(self.mainQuests[self.mainQuest])
+        if "item" in quest["reward"]:
+            for item in quest["reward"]["item"]:
+                self.add_item(item[0], item[1])
+        if "xp" in quest["reward"]:
+            self.xp += quest["reward"]["xp"]
+        if "gold" in quest["reward"]:
+            self.gold += quest["reward"]["gold"]
+        if "stat" in quest["reward"]:
+            for stat in quest["reward"]["stat"]:
+                if stat.get("*"):
+                    self.baseStats[stat["type"]] = round(self.baseStats[stat["type"]] * (1 + stat["value"]))
+                else:
+                    self.baseStats[stat["type"]] += stat["value"]
+    """

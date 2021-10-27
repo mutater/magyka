@@ -3,6 +3,7 @@ import re
 import script.Globals as Globals
 import sys
 import time
+from script.Logger import logger
 from script.Sound import sound
 from script.Text import text
 
@@ -128,12 +129,14 @@ class Control:
         print(f'{text.option}[Press Enter]{text.reset}')
         self.wait_for_key("enter")
     
-    def get_input(self, mode, textField=True, back=True, showText=True, options="", prompt="", silentOptions=""):
-        if not options == "":
+    def get_input(self, mode="alphanumeric", back=True, showText=True, options="", prompt="", silentOptions=""):
+        if options:
             textField = False
-        if mode == "none":
+        elif mode == "none":
             textField = False
-        
+        else:
+            textField = True
+
         if textField:
             text.slide_cursor(1, 3)
             if mode == "command":
@@ -174,8 +177,10 @@ class Control:
         while 1:
             time.sleep(0.05)
             key = self.get_key()
+            logger.log(terminalSize, os.get_terminal_size())
             if not terminalSize == os.get_terminal_size():
-                return "D"
+                return "/C"
+
             # Looking for single character keys
             if len(key) == 1 and ((
                     mode in ("command", "all")

@@ -93,7 +93,7 @@ class Image:
         sys.stdout.flush()
     
     def show_at_description(self):
-        self.show(7, 85)
+        self.show(text.height // 2 - 8, text.descriptionCenterCol - 16)
     
     def show_at_origin(self):
         self.show(1, 1)
