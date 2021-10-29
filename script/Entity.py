@@ -82,6 +82,8 @@ class Entity:
             "statChanges": {},
             "hp": 7,
             "mp": 10,
+            "buffer hp": 7,
+            "buffer mp": 10,
             "gold": 0,
             "xp": 0,
             "mxp": 10,
@@ -115,7 +117,7 @@ class Entity:
 
         baseStats = self.attributes["stats"].copy()
         self.attributes.update({"baseStats": baseStats})
-        self.statChanges = dict((stat, {"+": 0, "*": 1, "=": 0}) for stat in self.attributes["stats"])
+        self.attributes["statChanges"] = dict((stat, {"+": 0, "*": 1, "=": 0}) for stat in self.attributes["stats"])
         self.guard = ""
 
     def update_stats(self):
@@ -123,14 +125,11 @@ class Entity:
         Updates the Entity stats based on equipment, current passives, etc.
         """
 
-        # Variables used to calculate new hp and mp values after max hp and max mp changes.
-        bufferhp = self.attributes["hp"] - self.attributes["stats"]["max hp"]
-        buffermp = self.attributes["mp"] - self.attributes["stats"]["max mp"]
         oldMaxHp = self.attributes["stats"]["max hp"]
         oldMaxMp = self.attributes["stats"]["max mp"]
 
         effects = []
-        self.statChanges = dict((stat, {"+": 0, "*": 100, "=": -1}) for stat in self.attributes["stats"])
+        self.attributes["statChanges"] = dict((stat, {"+": 0, "*": 100, "=": -1}) for stat in self.attributes["stats"])
 
         # Replace attack if no weapon equipped.
         if not self.attributes["equipment"].get("weapon"):
@@ -157,14 +156,14 @@ class Entity:
                 continue
 
             if effect["opp"] == "=":
-                if effect["value"] < self.statChanges[effect["type"]]["="]:
-                    self.statChanges[effect["type"]]["="] = effect["value"]
+                if effect["value"] < self.attributes["statChanges"][effect["type"]]["="]:
+                    self.attributes["statChanges"][effect["type"]]["="] = effect["value"]
                 else:
-                    self.statChanges[effect["type"]]["="] = self.statChanges[effect["type"]]["="]
+                    self.attributes["statChanges"][effect["type"]]["="] = self.attributes["statChanges"][effect["type"]]["="]
             elif effect["opp"] == "*":
-                self.statChanges[effect["type"]]["*"] += effect["value"]
+                self.attributes["statChanges"][effect["type"]]["*"] += effect["value"]
             else:
-                self.statChanges[effect["type"]]["+"] += effect["value"]
+                self.attributes["statChanges"][effect["type"]]["+"] += effect["value"]
 
         # Apply statChanges to stats
         for statName in self.attributes["stats"]:
@@ -172,23 +171,23 @@ class Entity:
                 continue
 
             self.attributes["stats"][statName] = (
-                    self.attributes["baseStats"][statName]
-                    + self.statChanges[statName]["+"]
-                    + round(self.attributes["baseStats"][statName] * self.statChanges[statName]["*"] / 100)
+                self.attributes["statChanges"][statName]["+"] +
+                round(self.attributes["baseStats"][statName] * self.attributes["statChanges"][statName]["*"] / 100)
             )
 
-            # if self.statChanges[statName][0][1] + self.statChanges[statName][1][1] > 0\
+            # if self.attributes["statChanges"][statName][0][1] + self.attributes["statChanges"][statName][1][1] > 0\
             #         and self.attributes["stats"][statName] == 0:
             #     self.attributes["stats"][statName] = 1
-            if self.statChanges[statName]["="] >= 0:
-                self.attributes["stats"][statName] = self.statChanges[statName][2]
+            if self.attributes["statChanges"][statName]["="] >= 0:
+                self.attributes["stats"][statName] = self.attributes["statChanges"][statName][2]
 
-        self.attributes["hp"] = self.attributes["stats"]["max hp"] + bufferhp
-        self.attributes["mp"] = self.attributes["stats"]["max mp"] + buffermp
-        if self.attributes["hp"] <= 0 and bufferhp != 0 and self.attributes["stats"]["max hp"] - oldMaxHp != 0:
-            self.attributes["hp"] = 1
-        if self.attributes["mp"] <= 0 and buffermp != 0 and self.attributes["stats"]["max mp"] - oldMaxMp != 0:
-            self.attributes["mp"] = 0
+        if self.attributes["hp"] > self.attributes["stats"]["max hp"] < oldMaxMp:
+            self.attributes["buffer hp"] = self.attributes["hp"]
+            self.attributes["hp"] += self.attributes["stats"]["max hp"] - oldMaxHp
+            if self.attributes["buffer hp"] > self.attributes["hp"]:
+                self.attributes["hp"] = min(self.attributes["stats"]["max hp"], self.attributes["buffer hp"])
+        if self.attributes["stats"]["max hp"] > oldMaxHp and self.attributes["buffer hp"] > self.attributes["hp"]:
+            self.attributes["hp"] = min(self.attributes["stats"]["max hp"], self.attributes["buffer hp"])
 
     def defend(self, effect, attackerStats={}, tags={}, passive=False):
         """

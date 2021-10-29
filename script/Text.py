@@ -70,6 +70,8 @@ class Text:
         self.twoThirdsWidth = 0
         self.descriptionWidth = 0
         self.descriptionCenterCol = 0
+        self.pressEnterRow = 0
+        self.pressEnterCol = 0
         
         self.update_values()
 
@@ -80,6 +82,9 @@ class Text:
 
         self.twoThirdsWidth = round(self.width * 2 / 3)
         self.twoThirdsWidth += 0 if self.twoThirdsWidth % 2 else 1
+
+        self.pressEnterCol = 4
+        self.pressEnterRow = self.height - 2
 
     def c(self, color, back=False):
         """
@@ -344,7 +349,7 @@ class Text:
 
         for i in range(len(txt)):
             self.move_cursor(r + i, c)
-            print(text[i].strip())
+            print(txt[i].strip())
 
     @staticmethod
     def title(name, level, playerClass=""):
@@ -371,7 +376,7 @@ class Text:
         """
         if value < 0:
             value = 0
-        filledLength = round(value / maximum * length)
+        filledLength = min(round(value / maximum * length), length)
         
         filledText = self.c(color) + self.c("dark " + color, back=True) + "#" * filledLength
         backText = self.gray + self.c("dark gray", back=True) + "-" * (length - filledLength)

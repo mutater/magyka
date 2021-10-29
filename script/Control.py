@@ -125,7 +125,7 @@ class Control:
     
     def press_enter(self):
         text.set_cursor_visible(False)
-        text.move_cursor(28, 4)
+        text.move_cursor(text.pressEnterRow, text.pressEnterCol)
         print(f'{text.option}[Press Enter]{text.reset}')
         self.wait_for_key("enter")
     
@@ -177,7 +177,6 @@ class Control:
         while 1:
             time.sleep(0.05)
             key = self.get_key()
-            logger.log(terminalSize, os.get_terminal_size())
             if not terminalSize == os.get_terminal_size():
                 return "/C"
 

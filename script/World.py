@@ -43,4 +43,4 @@ class World:
             attributes["player"] = attributes["player"].export()
         if self.attributes["enemy"]:
             attributes["enemy"] = attributes["enemy"].export()
-        return json.dumps(attributes)
+        return attributes
