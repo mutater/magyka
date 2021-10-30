@@ -81,7 +81,6 @@ class Manager:
         self.encounterSteps = 10
         self.encounterStepCounter = 0
 
-        self.world = World({})
         self.saves = []
 
         for file in os.listdir("saves"):
@@ -120,7 +119,7 @@ class Manager:
         for i in range(len(recipes)):
             recipes[i]["ingredients"] = json.loads(recipes[i]["ingredients"])
         
-        self.world.__init__({
+        world.__init__({
             "maps": {},
             "encounters": encounters,
             "stores": stores,
@@ -129,12 +128,12 @@ class Manager:
         })
 
     def load_world(self, save):
-        self.world = World(save)
+        world = World(save)
 
-        if self.world.attributes["player"]:
-            self.world.attributes["player"] = self.load("enemies", self.world.attributes["player"])
-        if self.world.attributes["enemy"]:
-            self.world.attributes["enemy"] = self.load("enemies", self.world.attributes["enemy"])
+        if world.attributes["player"]:
+            world.attributes["player"] = self.load("enemies", world.attributes["player"])
+        if world.attributes["enemy"]:
+            world.attributes["enemy"] = self.load("enemies", world.attributes["enemy"])
 
     def load(self, table, obj):
         """
@@ -286,33 +285,33 @@ class Manager:
 
         # Zero argument Command Handling
         if command == "s":
-            self.world.attributes["player"].attributes["name"] = "Vincent"
-            self.world.attributes["player"].attributes["saveId"] = 69420
+            world.attributes["player"].attributes["name"] = "Vincent"
+            world.attributes["player"].attributes["saveId"] = 69420
 
-            self.world.attributes["player"].attributes["extraStats"].update({
+            world.attributes["player"].attributes["extraStats"].update({
                 "hpPerLevel": 3,
                 "mpPerLevel": 1,
                 "strengthPerLevel": 2,
                 "vitalityPerLevel": 1,
                 "intelligencePerLevel": 0
             })
-            self.world.attributes["player"].attributes["baseStats"].update({
+            world.attributes["player"].attributes["baseStats"].update({
                 "hit": 95,
                 "dodge": 5
             })
 
-            self.world.attributes["player"].attributes["class"] = "Developer"
-            self.world.attributes["player"].update_stats()
+            world.attributes["player"].attributes["class"] = "Developer"
+            world.attributes["player"].update_stats()
 
             self.nextScreen = "camp"
             return True
         elif command == "qs":
-            self.world.attributes["player"].attributes["name"] = "Dev"
-            self.world.attributes["player"].attributes["saveId"] = 69420
-            self.world.attributes["player"].attributes["gold"] = 999999999
+            world.attributes["player"].attributes["name"] = "Dev"
+            world.attributes["player"].attributes["saveId"] = 69420
+            world.attributes["player"].attributes["gold"] = 999999999
             self.dev_command("give all")
 
-            self.world.attributes["player"].attributes["extraStats"].update({
+            world.attributes["player"].attributes["extraStats"].update({
                 "hpPerLevel": 3,
                 "mpPerLevel": 1,
                 "strengthPerLevel": 2,
@@ -320,13 +319,13 @@ class Manager:
                 "intelligencePerLevel": 0
             })
 
-            self.world.attributes["player"].attributes["baseStats"].update({
+            world.attributes["player"].attributes["baseStats"].update({
                 "hit": 95,
                 "dodge": 5
             })
 
-            self.world.attributes["player"].attributes["class"] = "Developer"
-            self.world.attributes["player"].update_stats()
+            world.attributes["player"].attributes["class"] = "Developer"
+            world.attributes["player"].update_stats()
 
             self.nextScreen = "camp"
             return True
@@ -334,17 +333,17 @@ class Manager:
             text.clear()
             os.execv(sys.executable, ['python'] + sys.argv)
         elif command == "heal":
-            self.world.attributes["player"].attributes["hp"] = self.world.attributes["player"].attributes["stats"]["max hp"]
-            self.world.attributes["player"].attributes["mp"] = self.world.attributes["player"].attributes["stats"]["max mp"]
+            world.attributes["player"].attributes["hp"] = world.attributes["player"].attributes["stats"]["max hp"]
+            world.attributes["player"].attributes["mp"] = world.attributes["player"].attributes["stats"]["max mp"]
         elif command == "buy":
-            self.world.attributes["player"].add_item(self.purchaseItem)
+            world.attributes["player"].add_item(self.purchaseItem)
         elif command == "kill":
             self.battleEnemy.attributes["hp"] = 0
             self.nextScreen = "victory"
             return True
         elif command == "level":
-            self.world.attributes["player"].attributes["xp"] = self.world.attributes["player"].attributes["mxp"]
-            self.world.attributes["player"].level_up()
+            world.attributes["player"].attributes["xp"] = world.attributes["player"].attributes["mxp"]
+            world.attributes["player"].level_up()
         elif command == "god":
             settings.godMode = not settings.godMode
             text.slide_cursor(1, 3)
@@ -372,31 +371,31 @@ class Manager:
                 control.press_enter()
         elif commandSplit[0] == "clear":
             if commandSplit[1] == "inventory":
-                self.world.attributes["player"].attributes["inventory"] = []
+                world.attributes["player"].attributes["inventory"] = []
             elif commandSplit[1] == "equipment":
-                for slot in self.world.attributes["player"].attributes["equipment"]:
-                    self.world.attributes["player"].attributes["equipment"][slot] = ""
-                self.world.attributes["player"].update_stats()
+                for slot in world.attributes["player"].attributes["equipment"]:
+                    world.attributes["player"].attributes["equipment"][slot] = ""
+                world.attributes["player"].update_stats()
             elif commandSplit[1] == "passives":
-                self.world.attributes["player"].attributes["passives"] = []
-                self.world.attributes["player"].update_stats()
+                world.attributes["player"].attributes["passives"] = []
+                world.attributes["player"].update_stats()
         elif commandSplit[0] == "give":
             commandSplitComma = commandSplit[1].split(", ")
             try:
                 if commandSplitComma[0] == "all":
                     devItems = [item["name"] for item in manager.session.cursor().execute("select * from items").fetchall()]
                     for item in devItems:
-                        self.world.attributes["player"].add_item(self.load_from_db("items", item))
+                        world.attributes["player"].add_item(self.load_from_db("items", item))
                 else:
                     quantity = 1 if len(commandSplitComma) == 1 else commandSplitComma[1]
-                    self.world.attributes["player"].add_item(self.load_from_db("items", commandSplitComma[0]), quantity)
+                    world.attributes["player"].add_item(self.load_from_db("items", commandSplitComma[0]), quantity)
             except:
                 traceback.print_exc()
                 control.press_enter()
         elif commandSplit[0] == "equip":
             try:
                 item = self.load_from_db("items", commandSplit[1])
-                self.world.attributes["player"].equip(item)
+                world.attributes["player"].equip(item)
                 text.slide_cursor(1, 3)
 
                 if item:
@@ -420,7 +419,7 @@ class Manager:
                 control.press_enter()
         elif commandSplit[0] == "passive":
             passive = self.load_from_db("passives", commandSplit[1])
-            self.world.attributes["player"].add_passive(passive)
+            world.attributes["player"].add_passive(passive)
         elif commandSplit[0] == "fight":
             self.battleEnemy = self.load_from_db("enemies", commandSplit[1])
             self.nextScreen = "battle"
@@ -470,17 +469,17 @@ class Manager:
                 Integer level of the enemy.
         """
 
-        enemies = copy.deepcopy(self.encounters[self.world.attributes["player"].location])
+        enemies = copy.deepcopy(self.encounters[world.attributes["player"].location])
         weight = 0
         minLevel = level
         maxLevel = level + 5
 
-        if self.world.attributes["player"].attributes["level"] >= maxLevel - 1:
+        if world.attributes["player"].attributes["level"] >= maxLevel - 1:
             minLevel = maxLevel - 1
-        if self.world.attributes["player"].attributes["level"] == 1 and level == 1:
+        if world.attributes["player"].attributes["level"] == 1 and level == 1:
             minLevel = 1
             maxLevel = 2
-        elif self.world.attributes["player"].attributes["level"] == 2 and level <= 2:
+        elif world.attributes["player"].attributes["level"] == 2 and level <= 2:
             minLevel = 1
             maxLevel = 2
         level = random.randint(minLevel, maxLevel)
@@ -919,8 +918,8 @@ class Screen:
             text.move_cursor(1, 1)
             world.attributes["player"].show_stats()
 
-            text.options(["Map", "Character", "Rest", "Options"])
-            option = control.get_input("alphabetic", options="mcroq", silentOptions="r", back=False)
+            options = text.options(["Map", "Character", "Rest", "Options"])
+            option = control.get_input("alphabetic", options=options, silentOptions="r", back=False)
 
             if option == "m":
                 self.nextScreen = "map"
@@ -948,19 +947,47 @@ class Screen:
         text.background()
 
         def print_player():
-            text.print_at_loc(text.title(world.attributes["player"].name, world.attributes["player"].level, world.attributes["player"].playerClass) + " ", 3, 4)
-            text.print_at_loc(text.bar(world.attributes["player"].hp, world.attributes["player"].stats["max hp"], "red", length=40, number=True) + " ", 4, 5)
-            text.print_at_loc(text.bar(world.attributes["player"].mp, world.attributes["player"].stats["max mp"], "blue", length=40, number=True) + " ", 5, 5)
+            text.move_cursor(3, 4)
+            print(text.title(
+                world.get_player("name"),
+                world.get_player("level"),
+                world.get_player("class")
+            ) + " ")
+
+            text.slide_cursor(1, 4)
+            print(text.bar(
+                world.get_player("hp"),
+                world.get_player("stats")["max hp"],
+                "red",
+                length=40,
+                number=True
+            ) + " ")
+
+            text.slide_cursor(0, 4)
+            print(text.bar(
+                world.get_player("mp"),
+                world.get_player("stats")["max mp"],
+                "blue",
+                length=40,
+                number=True
+            ) + " ")
 
         def print_enemy():
             text.clear_description()
-            text.print_at_loc(text.title(world.attributes["enemy"].name, world.attributes["enemy"].level), 3, 84)
+            text.header(text.title(world.get_enemy("name"), world.get_enemy("level")))
             Image("enemy/" + world.attributes["enemy"].name).show_at_description()
 
-            text.print_at_loc(text.bar(world.attributes["enemy"].hp, world.attributes["enemy"].stats["max hp"], "red") + " ", 24, 85)
-            text.print_at_loc(f' {world.attributes["enemy"].hp}/{world.attributes["enemy"].stats["max hp"]}' + " ", 25, 85)
-            text.print_at_loc(text.bar(world.attributes["enemy"].mp, world.attributes["enemy"].stats["max mp"], "blue") + " ", 27, 85)
-            text.print_at_loc(f' {world.attributes["enemy"].mp}/{world.attributes["enemy"].stats["max mp"]}' + " ", 28, 85)
+            rowOffset = text.height // 4 * 3 - 4
+            colOffset = text.twoThirdsWidth + 4
+            barLength = text.width - colOffset - 4
+            text.move_cursor(rowOffset, colOffset)
+            print(text.bar(world.get_enemy("hp"), world.get_enemy("stats")["max hp"], "red") + " ")
+            text.slide_cursor(0, colOffset)
+            print(f' {world.get_enemy("hp")}/{world.get_enemy("stats")["max hp"]}' + " ")
+            text.slide_cursor(1, colOffset)
+            print(text.bar(world.get_enemy("mp"), world.get_enemy("stats")["max mp"], "blue") + " ")
+            text.slide_cursor(0, colOffset)
+            print(f' {world.get_enemy("mp")}/{world.get_enemy("stats")["max mp"]}' + " ")
 
         print_player()
         print_enemy()
@@ -2063,6 +2090,7 @@ if __name__ == "__main__":
         import signal
 
     try:
+        world = World({})
         manager = Manager()
         screen = Screen()
     except Exception as err:
