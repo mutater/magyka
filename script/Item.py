@@ -1,6 +1,7 @@
 import copy
 import random
 import script.Globals as Globals
+from script.Logger import logger
 from script.Text import text
 
 
@@ -291,9 +292,9 @@ class Item:
 
         if info:
             for effect in self.attributes["effect"]:
-                if effect.type == "healHp" and not self.attributes["slot"]:
+                if effect.attributes["type"] == "healHp" and not self.attributes["slot"]:
                     hp = "♥"
-                if effect.type == "healMp" and not self.attributes["slot"]:
+                if effect.attributes["type"] == "healMp" and not self.attributes["slot"]:
                     mp = "♦"
             
             if hp or mp or symbol:
@@ -325,7 +326,7 @@ class Item:
         print(self.get_name())
         if self.attributes["type"] == "equipment":
             text.slide_cursor(0, 3)
-            print(self.modifier.get_name())
+            print(self.attributes["modifier"].get_name())
         text.slide_cursor(0, 3)
         
         effects = []
@@ -345,11 +346,11 @@ class Item:
 
         print("")
         for effect in effects:
-            effect.show_stats(stats=False, passive=False)
+            effect.show_damage()
         for passive in passives:
             passive.show_stats()
         for effect in effects:
-            effect.show_stats(damage=False, passive=False)
+            effect.show_stats()
         if len(self.attributes["tags"]) > 0:
             text.slide_cursor(0, 3)
             i = 0
@@ -374,7 +375,7 @@ class Item:
         """
 
         text.slide_cursor(1, 3)
-        print(self.modifier.get_name())
+        print(self.attributes["modifier"].get_name())
 
         if self.attributes["enchantments"]:
             text.slide_cursor(1, 3)
@@ -459,6 +460,32 @@ class Item:
                 for enchantment in self.attributes["enchantments"]:
                     target.enchant(enchantment)
             target.update()
+
+    def export(self):
+        attributes = copy.deepcopy(self.attributes)
+
+        for i in range(len(attributes["effect"])):
+            attributes["effect"][i] = attributes["effect"][i].export()
+        for i in range(len(attributes["baseEffect"])):
+            attributes["baseEffect"][i] = attributes["baseEffect"][i].export()
+        for i in range(len(attributes["enchantments"])):
+            attributes["enchantments"][i] = attributes["enchantments"][i].export()
+
+        if attributes["tags"].get("passive"):
+            for i in range(len(attributes["tags"]["passive"])):
+                attributes["tags"]["passive"][i] = attributes["tags"]["passive"][i].export()
+        if attributes["baseTags"].get("passive"):
+            for i in range(len(attributes["baseTags"]["passive"])):
+                attributes["baseTags"]["passive"][i] = attributes["baseTags"]["passive"][i].export()
+
+        if attributes["tags"].get("loot"):
+            attributes["tags"]["loot"] = attributes["tags"]["loot"].export()
+        if attributes["baseTags"].get("loot"):
+            attributes["baseTags"]["loot"] = attributes["baseTags"]["loot"].export()
+        if attributes["modifier"]:
+            attributes["modifier"] = attributes["modifier"].export()
+
+        return attributes
 
 
 class Enchantment:
@@ -560,6 +587,27 @@ class Enchantment:
             effect.show_stats(damage=False)
         Tags.show_tags(self.attributes["tags"])
 
+    def export(self):
+        attributes = copy.deepcopy(self.attributes)
+
+        logger.log(attributes)
+
+        for i in range(len(attributes["effect"])):
+            attributes["effect"][i] = attributes["effect"][i].export()
+
+        if attributes["tags"].get("passive"):
+            for i in range(len(attributes["tags"]["passive"])):
+                attributes["tags"]["passive"][i] = attributes["tags"]["passive"][i].export()
+        if attributes["baseTags"].get("passive"):
+            for i in range(len(attributes["baseTags"]["passive"])):
+                if type(attributes["baseTags"]["passive"][i]) is list:
+                    for j in range(len(attributes["baseTags"]["passive"][i])):
+                        attributes["baseTags"]["passive"][i][j] = attributes["baseTags"]["passive"][i][j].export()
+                else:
+                    attributes["baseTags"]["passive"][i] = attributes["baseTags"]["passive"][i].export()
+
+        return attributes
+
 
 class Modifier:
     """
@@ -616,3 +664,15 @@ class Modifier:
         for effect in self.attributes["effect"]:
             effect.show_stats()
         Tags.show_tags(self.attributes["tags"])
+
+    def export(self):
+        attributes = copy.deepcopy(self.attributes)
+
+        for i in range(len(attributes["effect"])):
+            attributes["effect"][i] = attributes["effect"][i].export()
+
+        if attributes["tags"].get("passive"):
+            for i in range(len(attributes["tags"]["passive"])):
+                attributes["tags"]["passive"][i] = attributes["tags"]["passive"][i].export()
+
+        return attributes

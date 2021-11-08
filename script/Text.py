@@ -67,6 +67,7 @@ class Text:
         self.set_cursor_visible(False)
 
         self.width, self.height = os.get_terminal_size()
+        self.oneThirdWidth = 0
         self.twoThirdsWidth = 0
         self.descriptionWidth = 0
         self.descriptionCenterCol = 0
@@ -80,6 +81,7 @@ class Text:
         self.descriptionWidth = self.width - self.twoThirdsWidth - 3
         self.descriptionCenterCol = self.twoThirdsWidth + 2 + self.descriptionWidth // 2
 
+        self.oneThirdWidth = self.width // 3 + 1
         self.twoThirdsWidth = round(self.width * 2 / 3)
         self.twoThirdsWidth += 0 if self.twoThirdsWidth % 2 else 1
 
@@ -200,17 +202,30 @@ class Text:
         if col:
             print(f'\x1b[{col}C', end="")
 
-    def header(self, string):
+    def header(self, string, row=0, col=0, w=0):
         """
         Prints a header in the form "-= STRING =-" at a specific location.
 
         Args:
             string:
                 String in the header.
+            row:
+                Int row location of header. Default is 0, meaning it will be row 3.
+            col:
+                Int col location of header. Default is 0, meaning it will be twoThirdsWidth.
+            w:
+                Int width of header in characters. Default is 0, meaning it will be descriptionWidth.
         """
 
-        self.move_cursor(3, self.twoThirdsWidth + 2)
-        print(("-= " + string + " =-").center(self.descriptionWidth))
+        if row == 0:
+            row = 3
+        if col == 0:
+            col = self.twoThirdsWidth + 2
+        if w == 0:
+            w = self.descriptionWidth
+
+        self.move_cursor(row, col)
+        print(("-= " + string + " =-").center(w))
     
     def clear_header(self, row=3, col=85):
         """
@@ -309,7 +324,15 @@ class Text:
             print(" "*os.get_terminal_size()[0], end="")
         sys.stdout.flush()
 
-    def background(self):
+    def background(self, lineCol=0):
+        """
+        Draws a dark border with a vertical line.
+
+        Args:
+            lineCol:
+                Int col location of midline. Default is 0, meaning twoThirdsWidth.
+        """
+
         width, height = os.get_terminal_size()
         color = "42;42;42"
 
@@ -323,7 +346,10 @@ class Text:
                 end=""
             )
 
-        for i in [1, self.twoThirdsWidth, width - 1]:
+        if lineCol == 0:
+            lineCol = self.twoThirdsWidth
+
+        for i in [1, lineCol, width - 1]:
             for j in range(1, height):
                 self.move_cursor(j, i)
                 print(

@@ -37,7 +37,18 @@ tutorial mode
 
 
 def dict_factory(cursor, row):
-    # Converts sqlite return value into a dictionary with column names as keys
+    """
+    Converts sqlite row into a dictionary with column names as keys
+
+    Args:
+        cursor:
+            An sqlite cursor.
+        row:
+            The row to be converted into a dict.
+
+    Returns:
+        Dict of sqlite return.
+    """
     d = {}
     for i, col in enumerate(cursor.description):
         d[col[0]] = row[i]
@@ -45,7 +56,28 @@ def dict_factory(cursor, row):
     return d
 
 
+def set_exit_handler():
+    """
+    Sets up the exit handler and runs code for when he game starts.
+    """
+
+    if Globals.system == "Windows":
+        win32api.SetConsoleCtrlHandler(exit_handler, True)
+    else:
+        signal.signal(signal.SIGHUP, exit_handler)
+
+    manager.saves = []
+
+
 def exit_handler(*args):
+    """
+    Saves the game and returns the control scheme for users to normal.
+
+    Args:
+        *args:
+            Nothing goes here, but it doesn't work without it for whatever reason.
+    """
+
     world.save()
     text.set_cursor_visible(True)
     if Globals.system != "Windows":
@@ -70,6 +102,7 @@ class Manager:
 
         self.nextScreen = ""
         self.inspectItem = None
+        self.inspectItemEquipped = False
         self.inspectSlot = ""
         self.purchaseItem = None
         self.craftItem = None
@@ -86,8 +119,9 @@ class Manager:
         for file in os.listdir("saves"):
             if file.endswith(".json"):
                 try:
-                    with open("saves/" + file, "r") as saveFile:
-                        self.saves.append(json.loads(saveFile.read()))
+                    if not file.endswith("backup.json"):
+                        with open("saves/" + file, "r") as saveFile:
+                            self.saves.append(json.loads(saveFile.read()))
                 except:
                     self.saves.append(file.split(".")[0])
                     logger.log(f'Error loading world file:\n\n{traceback.format_exc()}')
@@ -103,7 +137,7 @@ class Manager:
 
     def init_world(self):
         with open("data/portals.json") as portalFile:
-            mapPortals = json.load(portalFile)
+            portals = json.load(portalFile)
 
         with open("data/encounters.json", "r") as encounterFile:
             encounters = json.load(encounterFile)
@@ -119,16 +153,17 @@ class Manager:
         for i in range(len(recipes)):
             recipes[i]["ingredients"] = json.loads(recipes[i]["ingredients"])
         
-        world.__init__({
+        world.attributes.update({
             "maps": {},
             "encounters": encounters,
             "stores": stores,
             "quests": quests,
-            "recipes": recipes
+            "recipes": recipes,
+            "portals": portals
         })
 
     def load_world(self, save):
-        world = World(save)
+        world.__init__(save)
 
         if world.attributes["player"]:
             world.attributes["player"] = self.load("enemies", world.attributes["player"])
@@ -177,9 +212,12 @@ class Manager:
                     if type(obj["enchantments"][i]) is str:
                         obj["enchantments"][i] = self.load("enchantments", obj["enchantments"][i])
                     else:
-                        level, tier = obj["enchantments"][i][1], obj["enchantments"][i][2]
-                        obj["enchantments"][i] = self.load_from_db("enchantments", obj["enchantments"][i][0])
-                        obj["enchantments"][i].update(level, tier)
+                        if type(obj["enchantments"][i]) is list:
+                            level, tier = obj["enchantments"][i][1], obj["enchantments"][i][2]
+                            obj["enchantments"][i] = self.load_from_db("enchantments", obj["enchantments"][i][0])
+                            obj["enchantments"][i].update(level, tier)
+                        else:
+                            obj["enchantments"][i] = self.load("enchantments", obj["enchantments"][i])
 
                 if "loot" in obj["tags"]:
                     if type(obj["tags"]["loot"]) is str:
@@ -427,8 +465,14 @@ class Manager:
 
         # Multiple Command Argument Handling
         elif commandSplit[0] == "player":
-            commandSplitComma = commandSplit[1].split(", ")
-            world.attributes["player"].attributes[commandSplitComma[0]] = int(commandSplitComma[1])
+            try:
+                commandSplitComma = commandSplit[1].split(", ")
+                world.attributes["player"].attributes[commandSplitComma[0]] = eval(commandSplitComma[1])
+            except:
+                text.clear()
+                traceback.print_exc()
+                logger.log(traceback.format_exc())
+                control.press_enter()
         elif commandSplit[0] == "stats":
             commandSplitComma = commandSplit[1].split(", ")
             world.attributes["player"].attributes["stats"][commandSplitComma[0]] = int(commandSplitComma[1])
@@ -625,6 +669,7 @@ class Screen:
                 return
             elif option == "c":
                 manager.load_world(manager.saves[0])
+                set_exit_handler()
                 self.nextScreen = "camp"
                 return
             elif option == "l":
@@ -816,10 +861,7 @@ class Screen:
                     world.attributes["player"].update_stats()
 
                     self.nextScreen = "camp"
-                    if Globals.system == "Windows":
-                        win32api.SetConsoleCtrlHandler(exit_handler, True)
-                    else:
-                        signal.signal(signal.SIGHUP, exit_handler)
+                    set_exit_handler()
 
                     manager.init_world()
                     return
@@ -837,9 +879,9 @@ class Screen:
                 save = (
                     manager.saves[i]["name"] +
                     text.title(
-                        manager.saves[i]["attributes"]["player"]["name"],
-                        manager.saves[i]["attributes"]["player"]["level"],
-                        manager.saves[i]["attributes"]["player"]["playerClass"]
+                        manager.saves[i]["player"]["name"],
+                        manager.saves[i]["player"]["level"],
+                        manager.saves[i]["player"]["class"]
                     )
                 )
                 print(f'({i}) {save}')
@@ -860,10 +902,7 @@ class Screen:
                 self.nextScreen = "camp"
                 self.returnScreen = "camp"
 
-                if Globals.system == "Windows":
-                    win32api.SetConsoleCtrlHandler(exit_handler, True)
-                else:
-                    signal.signal(signal.SIGHUP, exit_handler)
+                set_exit_handler()
 
                 return
             elif option == "d":
@@ -885,9 +924,9 @@ class Screen:
                 save = (
                         manager.saves[i]["name"] +
                         text.title(
-                            manager.saves[i]["attributes"]["player"]["name"],
-                            manager.saves[i]["attributes"]["player"]["level"],
-                            manager.saves[i]["attributes"]["player"]["playerClass"]
+                            manager.saves[i]["player"]["name"],
+                            manager.saves[i]["player"]["level"],
+                            manager.saves[i]["player"]["class"]
                         )
                 )
                 print(f'({i}) {save}')
@@ -900,8 +939,8 @@ class Screen:
 
             if option in tuple(map(str, range(0, len(manager.saves)))):
                 save = manager.saves[int(option)]
-                os.remove("saves/" + save["name"] + str(save["saveId"]) + ".json")
-                os.remove("saves/" + save["name"] + str(save["saveId"]) + " backup.json")
+                os.remove("saves/" + save["name"] + ".json")
+                os.remove("saves/" + save["name"] + " backup.json")
                 manager.saves.pop(int(option))
                 return
             elif self.code(option):
@@ -998,7 +1037,7 @@ class Screen:
                 world.attributes["player"].guard = ""
                 over = False
 
-                magic = world.attributes["player"].equipment.get("tome") and world.attributes["player"].mp >= world.attributes["player"].equipment["tome"].mana
+                magic = world.get_player("equipment").get("tome") and world.attributes["player"].mp >= world.get_player("equipment")["tome"].mana
 
                 text.clear_main()
                 print_player()
@@ -1017,8 +1056,8 @@ class Screen:
                     world.attributes["player"].attack(world.attributes["enemy"])
                     break
                 elif option == "m":
-                    world.attributes["player"].mp -= world.attributes["player"].equipment["tome"].mana
-                    if world.attributes["player"].equipment["tome"].target == "self":
+                    world.attributes["player"].mp -= world.get_player("equipment")["tome"].mana
+                    if world.get_player("equipment")["tome"].target == "self":
                         world.attributes["player"].attack(world.attributes["player"], type="magic")
                     else:
                         world.attributes["player"].attack(world.attributes["enemy"], type="magic")
@@ -1047,7 +1086,7 @@ class Screen:
                         print("")
 
                         itemList = []
-                        for item in world.attributes["player"].inventory:
+                        for item in world.get_player("inventory"):
                             if item[0].type == "consumable":
                                 itemList.append(item)
 
@@ -1059,10 +1098,13 @@ class Screen:
                                 just = " "
                             else:
                                 just = "  "
-                            text.print_at_loc(f'{str(i)[:-1]}({str(i)[-1]}) {just}{item[0].get_name(True, item[1])}', 3 + int(str(i)[-1]), 4)
+
+                            text.move_cursor(3 + int(str(i)[-1]), 4)
+                            print(f'{str(i)[:-1]}({str(i)[-1]}) {just}{item[0].get_name(True, item[1])}')
 
                         if len(itemList) == 0:
-                            text.print_at_loc(f'{text.darkgray}No Consumables{text.reset}', 3, 4)
+                            text.move_cursor(3, 4)
+                            print(f'{text.darkgray}No Consumables{text.reset}')
 
                         print("")
 
@@ -1198,9 +1240,11 @@ class Screen:
         world.attributes["player"].xp += xp
         world.attributes["player"].level_up()
 
-        text.print_at_loc(f'Obtained: (x{lootModifier} Loot Modifier)', 3, 4)
+        text.move_cursor(3, 4)
+        print(f'Obtained: (x{lootModifier} Loot Modifier)')
         for i in range(len(items)):
-            text.print_at_loc(f'- {items[i][0].get_name(info=True, quantity=items[i][1])}', 4 + i, 5)
+            text.move_cursor(4 + i, 5)
+            print(f'- {items[i][0].get_name(info=True, quantity=items[i][1])}')
             world.attributes["player"].add_item(items[i][0], items[i][1])
 
         print("")
@@ -1260,12 +1304,17 @@ class Screen:
 
     # - Map
     def map(self):
+        def draw_background():
+            text.clear()
+            text.background(text.oneThirdWidth)
+            text.header(mapName.title(), row=3, col=3)
+
         mapName = "magyka"
         mapTiles = mapper.get_text(None, "image/map/" + mapName + ".png")
         mapCollision = mapper.get_text(None, "image/map/" + mapName + " collision.png")
-        text.clear()
-        Image("map background").show_at_origin()
-        text.header(mapName.title(), row=3, col=3, w=38)
+
+        draw_background()
+
         while 1:
             self.returnScreen = "camp"
 
@@ -1278,18 +1327,18 @@ class Screen:
                 mapHeight = len(mapTiles)
 
             mapTop = 2
-            mapLeft = 43
+            mapLeft = text.oneThirdWidth + 2
 
             portal = False
-            if world.mapPortals.get(mapName):
-                for p in world.mapPortals[mapName]:
-                    if p[0] == world.attributes["player"].x and p[1] == world.attributes["player"].y:
+            if world.attributes["portals"].get(mapName):
+                for p in world.attributes["portals"][mapName]:
+                    if p[0] == world.get_player("x") and p[1] == world.get_player("y"):
                         portal = p
 
-            top = world.attributes["player"].y - mapHeight // 2
-            bottom = world.attributes["player"].y + mapHeight // 2
-            left = world.attributes["player"].x - mapWidth // 2
-            right = world.attributes["player"].x + mapWidth // 2
+            top = world.get_player("y") - mapHeight // 2
+            bottom = world.get_player("y") + mapHeight // 2
+            left = world.get_player("x") - mapWidth // 2
+            right = world.get_player("x") + mapWidth // 2
 
             if top < 0:
                 top = 0
@@ -1305,7 +1354,10 @@ class Screen:
             world.attributes["player"].show_stats(small=True)
             text.slide_cursor(1, 3)
             print(f'{text.reset}Use {settings.moveBind.upper()} to move.')
-            text.options(["Hunt"] + ((["Enter"] if settings.interactBind == "e" else ["Approach"]) if portal else []))
+            options = text.options(
+                ["Hunt"] +
+                ((["Enter"] if settings.interactBind == "e" else ["Approach"]) if portal else [])
+            )
             text.slide_cursor(1, 3)
 
             print(f'Hunting: {"True" if manager.hunt else "False"}')
@@ -1315,7 +1367,7 @@ class Screen:
                 for x in range(left, right):
                     tile = mapTiles[y][x]
 
-                    if x == world.attributes["player"].x and y == world.attributes["player"].y:
+                    if x == world.get_player("x") and y == world.get_player("y"):
                         print(text.reset + "<>", end="")
                         if x != right:
                             print(text.rgb(mapTiles[y][x + 1], back=True), end="")
@@ -1328,23 +1380,27 @@ class Screen:
 
                     print(tileText, end="")
 
-            option = control.get_input("alphabetic", options=settings.moveBind+"h"+(settings.interactBind if portal else ""), silentOptions=settings.moveBind, showText=False)
+            options += settings.moveBind
+            option = control.get_input(options=options, silentOptions=settings.moveBind, showText=False)
 
             moveX = 0
             moveY = 0
 
-            if option == settings.moveBind[0] and mapCollision[world.attributes["player"].y-1][world.attributes["player"].x] != "0;0;0":
+            x = world.get_player("x")
+            y = world.get_player("y")
+
+            if option == settings.moveBind[0] and mapCollision[y-1][x] != "0;0;0":
                 moveY -= 1
-            elif option == settings.moveBind[1] and mapCollision[world.attributes["player"].y][world.attributes["player"].x-1] != "0;0;0":
+            elif option == settings.moveBind[1] and mapCollision[y][x-1] != "0;0;0":
                 moveX -= 1
-            elif option == settings.moveBind[2] and mapCollision[world.attributes["player"].y+1][world.attributes["player"].x] != "0;0;0":
+            elif option == settings.moveBind[2] and mapCollision[y+1][x] != "0;0;0":
                 moveY += 1
-            elif option == settings.moveBind[3] and mapCollision[world.attributes["player"].y][world.attributes["player"].x+1] != "0;0;0":
+            elif option == settings.moveBind[3] and mapCollision[y][x+1] != "0;0;0":
                 moveX += 1
 
             if moveX or moveY:
-                world.attributes["player"].x += moveX
-                world.attributes["player"].y += moveY
+                world.attributes["player"].attributes["x"] += moveX
+                world.attributes["player"].attributes["y"] += moveY
 
                 if manager.hunt:
                     manager.encounterStepCounter += 1
@@ -1364,15 +1420,15 @@ class Screen:
                         self.nextScreen = "map"
                         return
                     else:
-                        manager.load_encounter(int(mapCollision[world.attributes["player"].y][world.attributes["player"].x].split(";")[0]))
+                        manager.load_encounter(int(mapCollision[world.get_player("y")][world.get_player("x")].split(";")[0]))
                         self.nextScreen = "battle"
                         return
 
             if option == settings.interactBind:
                 if portal[2] == "map":
                     mapName = portal[3]
-                    world.attributes["player"].x = portal[4]
-                    world.attributes["player"].y = portal[5]
+                    world.set_player("x", portal[4])
+                    world.set_player("y", portal[5])
                 elif portal[2] == "town":
                     manager.town = portal[3]
                     self.nextScreen = "town"
@@ -1385,6 +1441,9 @@ class Screen:
                 manager.hunt = not manager.hunt
             elif self.code(option):
                 return
+
+            if option == "/C":
+                draw_background()
 
     def town(self):
         while 1:
@@ -1439,8 +1498,8 @@ class Screen:
                 if world.attributes["player"].gold >= price:
                     sound.play_sound("rest")
                     world.attributes["player"].gold -= price
-                    world.attributes["player"].hp = world.attributes["player"].stats["max hp"]
-                    world.attributes["player"].mp = world.attributes["player"].stats["max mp"]
+                    world.attributes["player"].hp = world.get_player("stats")["max hp"]
+                    world.attributes["player"].mp = world.get_player("stats")["max mp"]
                     text.slide_cursor(1, 3)
                     print("You fell well rested. HP and MP restored to full, ")
                     world.attributes["player"].add_passive(manager.load_from_db("passives", "Well Rested"))
@@ -1473,12 +1532,13 @@ class Screen:
             previous = self.page > 1
 
             if self.storeType != "general":
-                text.print_at_loc("Equipment:", 3, 4)
+                text.move_cursor(3, 4)
+                print("Equipment:")
                 print("")
                 for i in range(len(Globals.slotList)):
-                    if world.attributes["player"].equipment[Globals.slotList[i]] != "":
+                    if world.get_player("equipment")[Globals.slotList[i]] != "":
                         text.slide_cursor(0, 3)
-                        print(f'  - {world.attributes["player"].equipment[Globals.slotList[i]].get_name()}')
+                        print(f'  - {world.get_player("equipment")[Globals.slotList[i]].get_name()}')
                 text.slide_cursor(1, 3)
             else:
                 text.move_cursor(3, 4)
@@ -1586,10 +1646,12 @@ class Screen:
             for i in range(-10 + 10*self.page, 10*self.page if 10*self.page < len(recipes) else len(recipes)):
                 item = manager.load_from_db("items", recipes[i]["result"])
                 quantity = recipe["quantity"] if item.type in Globals.stackableItems else 0
-                text.print_at_loc(f'{str(i)[:-1]}({str(i)[-1]}) {item.get_name(info=True, quantity=quantity)}', 3 + int(str(i)[-1]), 4)
+                text.move_cursor(3 + int(str(i)[-1]), 4)
+                print(f'{str(i)[:-1]}({str(i)[-1]}) {item.get_name(info=True, quantity=quantity)}')
 
             if len(recipes) == 0:
-                text.print_at_loc(f' {text.darkgray}No Items Craftable{text.reset}', 3, 4)
+                text.move_cursor(3, 4)
+                print(f' {text.darkgray}No Items Craftable{text.reset}')
 
             next = len(recipes) > self.page * 10
             previous = self.page > 1
@@ -1689,24 +1751,24 @@ class Screen:
             print("Choose an item to sell.")
             text.slide_cursor(1, 0)
 
-            for i in range((self.page - 1) * 10, min(self.page * 10, len(world.attributes["player"].inventory))):
+            for i in range((self.page - 1) * 10, min(self.page * 10, len(world.get_player("inventory")))):
                 text.slide_cursor(0, 3)
-                quantity = world.attributes["player"].inventory[i][0].type != "equipment"
-                print(f' {str(i)[:-1]}({str(i)[-1]}) {world.attributes["player"].inventory[i][0].get_name(info=True, value=True, quantity=(world.attributes["player"].inventory[i][1] if quantity else 0))}')
+                quantity = world.get_player("inventory")[i][0].type != "equipment"
+                print(f' {str(i)[:-1]}({str(i)[-1]}) {world.get_player("inventory")[i][0].get_name(info=True, value=True, quantity=(world.get_player("inventory")[i][1] if quantity else 0))}')
 
-            if len(world.attributes["player"].inventory) == 0:
+            if len(world.get_player("inventory")) == 0:
                 text.slide_cursor(0, 3)
                 print(f' {text.darkgray}Empty{text.reset}')
 
-            next = len(world.attributes["player"].inventory) > self.page * 10
+            next = len(world.get_player("inventory")) > self.page * 10
             previous = self.page > 1
 
             text.options((["Next"] if next else []) + (["Previous"] if previous else []))
             option = control.get_input("optionumeric", options=("n" if next else "")+("p" if previous else "")\
-            +"".join(tuple(map(str, range(0, len(world.attributes["player"].inventory))))))
+            +"".join(tuple(map(str, range(0, len(world.get_player("inventory")))))))
 
-            if option in tuple(map(str, range(0, len(world.attributes["player"].inventory) + (self.page-1) * 10 + 1))):
-                manager.sellItem = world.attributes["player"].inventory[int(option) + (self.page - 1) * 10][0]
+            if option in tuple(map(str, range(0, len(world.get_player("inventory")) + (self.page-1) * 10 + 1))):
+                manager.sellItem = world.get_player("inventory")[int(option) + (self.page - 1) * 10][0]
                 self.nextScreen = "sell"
                 return
             elif option == "n":
@@ -1779,8 +1841,14 @@ class Screen:
             text.move_cursor(1, 1)
             world.attributes["player"].show_stats()
 
-            text.options(["Inventory", "Equipment", "Quests", "Passives", "Stats"])
-            option = control.get_input("alphabetic", options="ieqps")
+            options = text.options([
+                "Inventory",
+                "Equipment",
+                text.darkgray + "Quests",
+                "Passives",
+                "Stats"
+            ])
+            option = control.get_input("alphabetic", options=options)
 
             if option == "i":
                 self.page = 1
@@ -1811,31 +1879,37 @@ class Screen:
             text.header("Inventory")
             print("")
 
-            for i in range((self.page - 1) * 10, min(self.page * 10, len(world.attributes["player"].inventory))):
-                item = world.attributes["player"].inventory[i]
+            for i in range((self.page - 1) * 10, min(self.page * 10, len(world.get_player("inventory")))):
+                item = world.get_player("inventory")[i]
                 if i >= 100:
                     just = ""
                 elif i >= 10:
                     just = " "
                 else:
                     just = "  "
-                text.print_at_loc(f'{str(i)[:-1]}({str(i)[-1]}) {just}{item[0].get_name(info=True, quantity=item[1])}', 3 + int(str(i)[-1]), 4)
 
-            if len(world.attributes["player"].inventory) == 0:
-                text.print_at_loc(f'{text.darkgray}Empty{text.reset}', 3, 4)
+                text.move_cursor(3 + int(str(i)[-1]), 4)
+                print(f'{str(i)[:-1]}({str(i)[-1]}) {just}{item[0].get_name(info=True, quantity=item[1])}')
+
+            if len(world.get_player("inventory")) == 0:
+                text.move_cursor(3, 4)
+                print(f'{text.darkgray}Empty{text.reset}')
 
             print("")
 
-            next = len(world.attributes["player"].inventory) > self.page * 10
+            next = len(world.get_player("inventory")) > self.page * 10
             previous = self.page > 1
 
             text.slide_cursor(1, 3)
             print(f'Use {settings.moveBind[1]}{settings.moveBind[3]} to switch pages.')
-            option = control.get_input("optionumeric", options=(settings.moveBind[3] if next else "")+(settings.moveBind[1] if previous else "")\
-            +"".join(tuple(map(str, range(0, len(world.attributes["player"].inventory))))))
+            option = control.get_input("optionumeric", options=(
+                (settings.moveBind[3] if next else "") +
+                (settings.moveBind[1] if previous else "") +
+                "".join(tuple(map(str, range(0, len(world.get_player("inventory"))))))
+            ))
 
-            if option in tuple(map(str, range(0, len(world.attributes["player"].inventory) + (self.page-1) * 10 + 1))):
-                manager.inspectItem = world.attributes["player"].inventory[int(option) + (self.page - 1) * 10][0]
+            if option in tuple(map(str, range(0, len(world.get_player("inventory")) + (self.page-1) * 10 + 1))):
+                manager.inspectItem = world.get_player("inventory")[int(option) + (self.page - 1) * 10][0]
                 manager.inspectItemEquipped = False
                 self.nextScreen = "inspect"
                 return
@@ -1856,17 +1930,20 @@ class Screen:
             print("")
 
             for i in range(len(Globals.slotList)):
-                text.print_at_loc(f'{i}) {Globals.slotList[i].capitalize()}', 3 + i, 4)
-                if world.attributes["player"].equipment[Globals.slotList[i]]:
-                    text.print_at_loc(f'{world.attributes["player"].equipment[Globals.slotList[i]].get_name()}', 3 + i, 14)
+                text.move_cursor(3 + i, 4)
+                print(f'{i}) {Globals.slotList[i].capitalize()}')
+                text.move_cursor(3 + i, 14)
+                if world.get_player("equipment")[Globals.slotList[i]]:
+                    print(f'{world.get_player("equipment")[Globals.slotList[i]].get_name()}')
                 else:
-                    text.print_at_loc(f'{text.darkgray}Empty{text.reset}', 3 + i, 14)
+                    print(f'{text.darkgray}Empty{text.reset}')
             print("")
 
             option = control.get_input("numeric", options="".join(tuple(map(str, range(0, len(Globals.slotList))))))
 
-            if option in tuple(map(str, range(0, len(Globals.slotList)))) and world.attributes["player"].equipment[Globals.slotList[int(option)]] != "":
-                manager.inspectItem = world.attributes["player"].equipment[Globals.slotList[int(option)]]
+            if option in tuple(map(str, range(0, len(Globals.slotList)))) and\
+                    world.get_player("equipment")[Globals.slotList[int(option)]] != "":
+                manager.inspectItem = world.get_player("equipment")[Globals.slotList[int(option)]]
                 manager.inspectItemEquipped = True
                 manager.inspectSlot = Globals.slotList[int(option)]
                 self.nextScreen = "inspect"
@@ -1880,63 +1957,77 @@ class Screen:
             self.nextScreen = self.returnScreen
             text.clear()
             text.background()
-            Image("item/" + manager.inspectItem.name).show_at_description()
+            Image("item/" + manager.inspectItem.attributes["name"]).show_at_description()
 
             if manager.inspectItemEquipped:
                 manager.inspectItem.update()
             world.attributes["player"].update_stats()
 
-            text.header("Inspect " + manager.inspectItem.type.capitalize())
+            text.header("Inspect " + manager.inspectItem.attributes["type"].capitalize())
             text.move_cursor(2, 1)
             manager.inspectItem.show_stats()
             text.slide_cursor(1, 3)
-            print(f'Value: {text.gp} {text.reset}{manager.inspectItem.value}')
+            print(f'Value: {text.gp} {text.reset}{manager.inspectItem.attributes["value"]}')
 
-            if manager.inspectItem.type == "equipment":
-                text.options((["Unequip"] if manager.inspectItemEquipped else ["Equip", "Discard"])+["More Info"])
-                option = control.get_input("alphabetic", options=("u" if manager.inspectItemEquipped else "ed")+"m", silentOptions=("u" if manager.inspectItemEquipped else "e"))
-            elif manager.inspectItem.type == "consumable":
-                text.options((["Use"] if manager.inspectItem.target == "self" else [])+["Discard"])
-                option = control.get_input("alphabetic", options=("u" if manager.inspectItem.target == "self" else "")+"d")
-            elif manager.inspectItem.type == "modifier":
-                text.options(["Use", "Discard"])
-                option = control.get_input("alphabetic", options="ud")
+            options = []
+
+            if manager.inspectItem.attributes["type"] == "equipment":
+                if manager.inspectItemEquipped:
+                    options += ["Unequip"]
+                else:
+                    options += ["Equip", "Discard"]
+
+                options += ["More Info"]
+            elif manager.inspectItem.attributes["type"] == "consumable":
+                if manager.inspectItem.attributes["target"] == "self":
+                    options += ["Use"]
+                options += ["Discard"]
+            elif manager.inspectItem.attributes["type"] == "modifier":
+                options += ["Use", "Discard"]
             else:
-                text.options(["Discard"])
-                option = control.get_input("alphabetic", options="d")
+                options += ["Discard"]
 
-            if option == "u" and manager.inspectItem.type == "equipment":
-                sound.play_sound("equip")
-                world.attributes["player"].unequip(manager.inspectSlot)
-                return
-            elif option == "u" and manager.inspectItem.type == "consumable" and manager.inspectItem.target == "self":
-                manager.inspectItem.use(world.attributes["player"], world.attributes["player"])
-                world.attributes["player"].remove_item(manager.inspectItem)
-                control.press_enter()
-                if world.attributes["player"].num_of_items(manager.inspectItem.name) <= 0:
+            options = text.options(options)
+            option = control.get_input(options=options, silentOptions="ued")
+
+            if option == "u":
+                if manager.inspectItem.attributes["type"] == "equipment":
+                    sound.play_sound("equip")
+                    world.attributes["player"].unequip(manager.inspectSlot)
                     return
-            elif option == "u" and manager.inspectItem.type == "modifier":
-                self.nextScreen = "apply_modifier"
-                return
-                s_applyModifier(manager.inspectItem)
-                if "infinite" not in manager.inspectItem.tags:
+                elif manager.inspectItem.attributes["type"] == "consumable":
+                    manager.inspectItem.use(world.attributes["player"], world.attributes["player"])
                     world.attributes["player"].remove_item(manager.inspectItem)
-                if world.attributes["player"].num_of_items(manager.inspectItem.name) <= 0:
+                    control.press_enter()
+
+                    if world.attributes["player"].num_of_items(manager.inspectItem.attributes["name"]) <= 0:
+                        return
+                elif manager.inspectItem.attributes["type"] == "modifier":
+                    text.slide_cursor(1, 3)
+                    print("YOU CANT DO THAT YET SUCKER")
+                    control.press_enter()
                     return
-            elif option == "e" and manager.inspectItem.type == "equipment":
+                    """self.nextScreen = "apply_modifier"
+                    return
+                    s_applyModifier(manager.inspectItem)
+                    if "infinite" not in manager.inspectItem.tags:
+                        world.attributes["player"].remove_item(manager.inspectItem)
+                    if world.attributes["player"].num_of_items(manager.inspectItem.attributes["name"]) <= 0:
+                        return"""
+            elif option == "e":
                 sound.play_sound("equip")
                 world.attributes["player"].equip(manager.inspectItem)
                 return
             elif option == "d":
-                if world.attributes["player"].num_of_items(manager.inspectItem.name) > 1:
+                if world.attributes["player"].num_of_items(manager.inspectItem.attributes["name"]) > 1:
                     while 1:
                         text.clear()
                         text.header("Quantity")
-                        print(f'\n Type the quantity to discard (1-{world.attributes["player"].num_of_items(manager.inspectItem.name)})')
+                        print(f'\n Type the quantity to discard (1-{world.attributes["player"].num_of_items(manager.inspectItem.attributes["name"])})')
 
                         option = control.get_input("numeric")
 
-                        if option in tuple(map(str, range(1, world.attributes["player"].num_of_items(manager.inspectItem.name)+1))):
+                        if option in tuple(map(str, range(1, world.attributes["player"].num_of_items(manager.inspectItem.attributes["name"])+1))):
                             world.attributes["player"].remove_item(manager.inspectItem, int(option))
                             return
                         elif self.code(option):
@@ -1959,25 +2050,27 @@ class Screen:
             self.returnScreen = "inventory"
             text.clear()
             text.background()
-            Image("item/" + manager.inspectItem.name).show_at_description()
+            Image("item/" + manager.inspectItem.attributes["name"]).show_at_description()
             text.header("Apply Modifier")
 
             slots = manager.inspectItem.slot.split(", ")
 
             for i in range(len(slots)):
-                text.print_at_loc(f'{i}) {slots[i].capitalize()}', 3 + i, 4)
-                if world.attributes["player"].equipment[slots[i]]:
-                    text.print_at_loc(f'{world.attributes["player"].equipment[slots[i]].get_name()} {world.attributes["player"].equipment[slots[i]].modifier.get_name()}', 3 + i, 14)
+                text.move_cursor(3 + i, 4)
+                print(f'{i}) {slots[i].capitalize()}')
+                text.move_cursor(3 + i, 14)
+                if world.get_player("equipment")[slots[i]]:
+                    print(f'{world.get_player("equipment")[slots[i]].get_name()} {world.get_player("equipment")[slots[i]].modifier.get_name()}')
                 else:
-                    text.print_at_loc(f'{text.darkgray}Empty{text.reset}', 3 + i, 14)
+                    print(f'{text.darkgray}Empty{text.reset}')
 
             option = control.get_input("numeric", options="".join(tuple(map(str, range(0, len(slots))))))
 
-            if option in tuple(map(str, range(0, len(slots)))) and world.attributes["player"].equipment[slots[int(option)]]:
-                manager.inspectItem.use(None, world.attributes["player"].equipment[slots[int(option)]], True)
+            if option in tuple(map(str, range(0, len(slots)))) and world.get_player("equipment")[slots[int(option)]]:
+                manager.inspectItem.use(None, world.get_player("equipment")[slots[int(option)]], True)
                 if "infinite" not in manager.inspectItem.tags:
                     world.attributes["player"].remove_item(manager.inspectItem)
-                if world.attributes["player"].num_of_items(manager.inspectItem.name) <= 0:
+                if world.attributes["player"].num_of_items(manager.inspectItem.attributes["name"]) <= 0:
                     self.nextScreen = "inventory"
                     return
                 break
@@ -2027,26 +2120,37 @@ class Screen:
             Image("screen/Stats").show_at_description()
             text.header("Stats")
 
-            stats = world.attributes["player"].stats.copy()
+            stats = world.get_player("stats").copy()
             stats.pop("max hp")
             stats.pop("max mp")
             stats.pop("attack")
 
-            statNamePad = len(max(world.attributes["player"].stats, key=len)) + 1
-            statValuePad = len(max([str(world.attributes["player"].stats[stat]) for stat in stats], key=len))
+            statNamePad = len(max(stats, key=len)) + 1
+            statValuePad = len(max([str(stats[stat]) for stat in stats], key=len))
 
             text.move_cursor(1, 1)
             world.attributes["player"].show_stats(passives=False)
             text.slide_cursor(1, 3)
-            print(f'{"Attack".ljust(statNamePad)}: {(str(world.attributes["player"].stats["attack"][0]) + " - " + str(world.attributes["player"].stats["attack"][1])).ljust(statValuePad)}')
+            print(
+                "Attack".ljust(statNamePad) + ": " +
+                (
+                    str(world.get_player("stats")["attack"][0]) +
+                    " - " + str(world.get_player("stats")["attack"][1])
+                ).ljust(statValuePad)
+            )
 
             for stat in stats:
-                if world.attributes["player"].baseStats[stat] <= world.attributes["player"].stats[stat]:
+                if world.attributes["player"].baseStats[stat] <= world.get_player("stats")[stat]:
                     changeString = "+"
                 else:
                     changeString = "-"
+
                 text.slide_cursor(0, 3)
-                print(f'{stat.capitalize().ljust(statNamePad)}: {str(world.attributes["player"].stats[stat]).ljust(statValuePad)} ({changeString}{world.attributes["player"].stats[stat] - world.attributes["player"].baseStats[stat]})')
+                print(
+                    stat.capitalize().ljust(statNamePad) + ": " +
+                    str(world.get_player("stats")[stat]).ljust(statValuePad) + " (" + changeString +
+                    world.get_player("stats")[stat] - world.get_player("baseStats")[stat] + ")"
+                )
 
             control.press_enter()
             return
@@ -2071,14 +2175,17 @@ class Screen:
 
     def rest(self):
         self.nextScreen = self.returnScreen
-        hp = math.floor(world.attributes["player"].stats["max hp"] * 0.85)
-        mp = math.floor(world.attributes["player"].stats["max mp"] * 0.85)
-        if world.attributes["player"].hp >= hp and world.attributes["player"].mp >= mp:
+        hp = math.floor(world.get_player("stats")["max hp"] * 0.85)
+        mp = math.floor(world.get_player("stats")["max mp"] * 0.85)
+
+        if world.get_player("hp") >= hp and world.get_player("mp") >= mp:
             return
-        if hp > world.attributes["player"].hp:
-            world.attributes["player"].hp = hp
-        if mp > world.attributes["player"].mp:
-            world.attributes["player"].mp = mp
+
+        if hp > world.get_player("hp"):
+            world.set_player("hp", hp)
+        if mp > world.get_player("mp"):
+            world.set_player("mp", mp)
+
         sound.play_sound("rest")
 
 

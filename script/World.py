@@ -1,5 +1,7 @@
 from script.Entity import Entity
+import copy
 import json
+import os
 
 
 class World:
@@ -112,7 +114,7 @@ class World:
             saveFile.write(json.dumps(self.export()))
 
     def export(self):
-        attributes = self.attributes.copy()
+        attributes = copy.deepcopy(self.attributes)
         if self.attributes["player"]:
             attributes["player"] = attributes["player"].export()
         if self.attributes["enemy"]:

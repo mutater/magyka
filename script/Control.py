@@ -129,12 +129,16 @@ class Control:
         print(f'{text.option}[Press Enter]{text.reset}')
         self.wait_for_key("enter")
     
-    def get_input(self, mode="alphanumeric", back=True, showText=True, options="", prompt="", silentOptions=""):
+    def get_input(self, mode="alphanumeric", back=True, showText=True, options=False, prompt="", silentOptions=""):
+        textField = False
+
         if options:
+            textField = False
+        elif options == "":
             textField = False
         elif mode == "none":
             textField = False
-        else:
+        elif options != "":
             textField = True
 
         if textField:

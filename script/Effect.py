@@ -1,3 +1,6 @@
+import copy
+
+from script.Control import control
 from script.Text import text
 import script.Globals as Globals
 
@@ -66,39 +69,45 @@ class Effect:
             effectText = "Damages " + effectText
         if self.attributes["type"] in ("+hp", "-hp"):
             effectText = "Heals " + effectText
-        
-        text.slide_print(effectText, 0, 3)
+
+        text.slide_cursor(0, 3)
+        print(effectText)
 
     def show_stats(self):
-        if self.attributes["type"] in Globals.statList:
+        if self.attributes["type"] in Globals.statList and self.attributes["type"] != "attack":
             effectText = ""
 
-            effectText += "+" if self.attributes["value"] > 0 else "-"
-            effectText += self.attributes["type"].capitalize()
-
-            if self.attributes["type"] == "max hp":
-                effectText += " " + text.hp + text.reset
-            elif self.attributes["type"] == "max mp":
-                effectText += " " + text.mp + text.reset
+            effectText += "+ " if self.attributes["value"] > 0 else "- "
 
             if self.attributes["opp"] == "*":
                 effectText += str(abs(self.attributes["value"])) + "%"
             else:
                 effectText += str(self.attributes["value"])
 
+            if self.attributes["type"] == "max hp":
+                effectText += " " + text.hp + text.reset
+            elif self.attributes["type"] == "max mp":
+                effectText += " " + text.mp + text.reset
+
+            effectText += " " + self.attributes["type"].capitalize()
+
             if self.attributes["type"] in ("crit", "hit", "dodge"):
                 effectText += " Chance"
 
-            text.slide_print(effectText, 0, 4)
+            text.slide_cursor(0, 4)
+            print(effectText)
 
     def show_passive(self):
         for passive in self.attributes["passive"]:
             passive.show_stats()
 
     def export(self):
-        for i in range(len(self.attributes["passive"])):
-            self.attributes["passive"][i] = self.attributes["passive"][i].export()
-        return self.attributes
+        attributes = copy.deepcopy(self.attributes)
+
+        for i in range(len(attributes["passive"])):
+            attributes["passive"][i] = attributes["passive"][i].export()
+
+        return attributes
 
 
 class Passive:
@@ -170,6 +179,9 @@ class Passive:
         print(f'Applies {text.c(effectColor)}{self.attributes["name"]}{text.reset} for {turnText}')
 
     def export(self):
-        for i in range(len(self.attributes["effect"])):
-            self.attributes["effect"][i] = self.attributes["effect"][i].export()
-        return self.attributes
+        attributes = copy.deepcopy(self.attributes)
+
+        for i in range(len(attributes["effect"])):
+            attributes["effect"][i] = attributes["effect"][i].export()
+
+        return attributes

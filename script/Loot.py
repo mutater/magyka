@@ -1,3 +1,4 @@
+import copy
 import random
 
 
@@ -68,3 +69,11 @@ class Loot:
                     ]
                 items.append([self.attributes["drops"][i][0], self.attributes["drops"][i][1]])
         return items
+
+    def export(self):
+        attributes = copy.deepcopy(self.attributes)
+
+        for i in range(len(attributes["drops"])):
+            attributes["drops"][i][0] = attributes["drops"][i][0].export()
+
+        return attributes

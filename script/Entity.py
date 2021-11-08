@@ -2,6 +2,7 @@ import copy
 import math
 import random
 from script.Effect import Effect
+from script.Logger import logger
 from script.Text import text
 import script.Globals as Globals
 
@@ -82,8 +83,6 @@ class Entity:
             "statChanges": {},
             "hp": 7,
             "mp": 10,
-            "buffer hp": 7,
-            "buffer mp": 10,
             "gold": 0,
             "xp": 0,
             "mxp": 10,
@@ -125,9 +124,6 @@ class Entity:
         Updates the Entity stats based on equipment, current passives, etc.
         """
 
-        oldMaxHp = self.attributes["stats"]["max hp"]
-        oldMaxMp = self.attributes["stats"]["max mp"]
-
         effects = []
         self.attributes["statChanges"] = dict((stat, {"+": 0, "*": 100, "=": -1}) for stat in self.attributes["stats"])
 
@@ -152,18 +148,18 @@ class Entity:
 
         # Get the stat changes of the effects
         for effect in effects:
-            if effect["type"] not in self.attributes["stats"] or effect["type"] == "attack":
+            if effect.attributes["type"] not in self.attributes["stats"] or effect.attributes["type"] == "attack":
                 continue
 
-            if effect["opp"] == "=":
-                if effect["value"] < self.attributes["statChanges"][effect["type"]]["="]:
-                    self.attributes["statChanges"][effect["type"]]["="] = effect["value"]
+            if effect.attributes["opp"] == "=":
+                if effect.attributes["value"] < self.attributes["statChanges"][effect.attributes["type"]]["="]:
+                    self.attributes["statChanges"][effect.attributes["type"]]["="] = effect.attributes["value"]
                 else:
-                    self.attributes["statChanges"][effect["type"]]["="] = self.attributes["statChanges"][effect["type"]]["="]
-            elif effect["opp"] == "*":
-                self.attributes["statChanges"][effect["type"]]["*"] += effect["value"]
+                    self.attributes["statChanges"][effect.attributes["type"]]["="] = self.attributes["statChanges"][effect.attributes["type"]]["="]
+            elif effect.attributes["opp"] == "*":
+                self.attributes["statChanges"][effect.attributes["type"]]["*"] += effect.attributes["value"]
             else:
-                self.attributes["statChanges"][effect["type"]]["+"] += effect["value"]
+                self.attributes["statChanges"][effect.attributes["type"]]["+"] += effect.attributes["value"]
 
         # Apply statChanges to stats
         for statName in self.attributes["stats"]:
@@ -181,13 +177,8 @@ class Entity:
             if self.attributes["statChanges"][statName]["="] >= 0:
                 self.attributes["stats"][statName] = self.attributes["statChanges"][statName][2]
 
-        if self.attributes["hp"] > self.attributes["stats"]["max hp"] < oldMaxMp:
-            self.attributes["buffer hp"] = self.attributes["hp"]
-            self.attributes["hp"] += self.attributes["stats"]["max hp"] - oldMaxHp
-            if self.attributes["buffer hp"] > self.attributes["hp"]:
-                self.attributes["hp"] = min(self.attributes["stats"]["max hp"], self.attributes["buffer hp"])
-        if self.attributes["stats"]["max hp"] > oldMaxHp and self.attributes["buffer hp"] > self.attributes["hp"]:
-            self.attributes["hp"] = min(self.attributes["stats"]["max hp"], self.attributes["buffer hp"])
+        if self.attributes["hp"] > self.attributes["stats"]["max hp"]:
+            self.attributes["hp"] = self.attributes["stats"]["max hp"]
 
     def defend(self, effect, attackerStats={}, tags={}, passive=False):
         """
@@ -601,7 +592,7 @@ class Entity:
         if not item:
             return
 
-        if item.slot == "accessory":
+        if item.attributes["slot"] == "accessory":
             if not self.attributes["equipment"].get("acc 1"):
                 slot = "acc 1"
             else:
@@ -690,6 +681,7 @@ class Entity:
 
     def export(self):
         attributes = self.attributes.copy()
+        logger.log(attributes["inventory"])
         for i in range(len(attributes["inventory"])):
             attributes["inventory"][i][0] = attributes["inventory"][i][0].export()
         for i in range(len(attributes["passives"])):
