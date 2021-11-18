@@ -81,7 +81,7 @@ class Text:
         self.descriptionWidth = self.width - self.twoThirdsWidth - 3
         self.descriptionCenterCol = self.twoThirdsWidth + 2 + self.descriptionWidth // 2
 
-        self.oneThirdWidth = self.width // 3 + 1
+        self.oneThirdWidth = round(self.width / 3) + 1
         self.twoThirdsWidth = round(self.width * 2 / 3)
         self.twoThirdsWidth += 0 if self.twoThirdsWidth % 2 else 1
 
@@ -171,8 +171,7 @@ class Text:
         self.fill_screen("")
         self.move_cursor(1, 1)
 
-    @staticmethod
-    def move_cursor(row, col):
+    def move_cursor(self, row, col):
         """
         Moves the cursor to a specific point on the terminal.
 
@@ -183,7 +182,11 @@ class Text:
                 Integer x location he cursor is moved to, in characters.
         """
 
-        print(f'\x1b[{row};{col}H', end="")
+        sys.stdout.write(self.get_move_cursor(row, col))
+
+    @staticmethod
+    def get_move_cursor(row, col):
+        return f'\x1b[{row};{col}H'
 
     @staticmethod
     def slide_cursor(row=0, col=0):
@@ -250,7 +253,8 @@ class Text:
         print(self.reset, end="")
         for i in range(28):
             self.move_cursor(2 + i, 3)
-            print(" "*78)
+            sys.stdout.write(" "*78)
+        sys.stdout.flush()
     
     def clear_main_small(self):
         """
@@ -260,7 +264,8 @@ class Text:
         print(self.reset, end="")
         for i in range(28):
             self.move_cursor(2 + i, 3)
-            print(" "*38)
+            sys.stdout.write(" "*38)
+        sys.stdout.flush()
     
     def clear_description(self):
         """
@@ -270,7 +275,8 @@ class Text:
         print(self.reset, end="")
         for i in range(28):
             self.move_cursor(2 + i, 83)
-            print(" "*36)
+            sys.stdout.write(" "*36)
+        sys.stdout.flush()
     
     def options(self, names, space=3):
         """
@@ -321,7 +327,7 @@ class Text:
 
         for i in range(os.get_terminal_size()[1]):
             self.move_cursor(i + 1, 0)
-            print(" "*os.get_terminal_size()[0], end="")
+            sys.stdout.write(" "*os.get_terminal_size()[0])
         sys.stdout.flush()
 
     def background(self, lineCol=0):
@@ -338,13 +344,7 @@ class Text:
 
         for i in [1, height]:
             self.move_cursor(i, 1)
-            print(
-                self.rgb(color, True),
-                " "*width,
-                self.reset,
-                sep="",
-                end=""
-            )
+            sys.stdout.write(self.rgb(color, True) + " "*width + self.reset)
 
         if lineCol == 0:
             lineCol = self.twoThirdsWidth
@@ -352,13 +352,8 @@ class Text:
         for i in [1, lineCol, width - 1]:
             for j in range(1, height):
                 self.move_cursor(j, i)
-                print(
-                    self.rgb(color, True),
-                    "  ",
-                    self.reset,
-                    sep="",
-                    end=""
-                )
+                sys.stdout.write(self.rgb(color, True) + "  " + self.reset)
+        sys.stdout.flush()
 
     def print_at_description(self, txt, r=3, c=84):
         """

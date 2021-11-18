@@ -179,7 +179,7 @@ class Control:
         sys.stdout.flush()
         terminalSize = os.get_terminal_size()
         while 1:
-            time.sleep(0.05)
+            time.sleep(0.02)
             key = self.get_key()
             if not terminalSize == os.get_terminal_size():
                 return "/C"

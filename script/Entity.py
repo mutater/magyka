@@ -681,7 +681,6 @@ class Entity:
 
     def export(self):
         attributes = self.attributes.copy()
-        logger.log(attributes["inventory"])
         for i in range(len(attributes["inventory"])):
             attributes["inventory"][i][0] = attributes["inventory"][i][0].export()
         for i in range(len(attributes["passives"])):
@@ -690,7 +689,6 @@ class Entity:
             if attributes["equipment"][slot]:
                 attributes["equipment"][slot] = attributes["equipment"][slot].export()
         return attributes
-
 
     """
     The Player Entity class.

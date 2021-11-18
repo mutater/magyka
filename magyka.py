@@ -6,6 +6,7 @@ from script.Image import Image
 from script.Item import Item, Enchantment, Modifier
 from script.Logger import logger
 from script.Loot import Loot
+from script.Map import Map
 from script.Mapper import mapper
 from script.Settings import settings
 from script.Sound import sound
@@ -1310,44 +1311,22 @@ class Screen:
             text.header(mapName.title(), row=3, col=3)
 
         mapName = "magyka"
+
         mapTiles = mapper.get_text(None, "image/map/" + mapName + ".png")
         mapCollision = mapper.get_text(None, "image/map/" + mapName + " collision.png")
+
+        m = Map(attributes={"tiles": mapTiles, "collision": mapCollision})
 
         draw_background()
 
         while 1:
             self.returnScreen = "camp"
 
-            mapHeight = 28
-            mapWidth = 38
-
-            if len(mapTiles[0]) < mapWidth:
-                mapWidth = len(mapTiles[0])
-            if len(mapTiles) < mapHeight:
-                mapHeight = len(mapTiles)
-
-            mapTop = 2
-            mapLeft = text.oneThirdWidth + 2
-
             portal = False
             if world.attributes["portals"].get(mapName):
                 for p in world.attributes["portals"][mapName]:
                     if p[0] == world.get_player("x") and p[1] == world.get_player("y"):
                         portal = p
-
-            top = world.get_player("y") - mapHeight // 2
-            bottom = world.get_player("y") + mapHeight // 2
-            left = world.get_player("x") - mapWidth // 2
-            right = world.get_player("x") + mapWidth // 2
-
-            if top < 0:
-                top = 0
-            if bottom > len(mapTiles):
-                bottom = len(mapTiles)
-            if left < 0:
-                left = 0
-            if right > len(mapTiles[0]):
-                right = len(mapTiles[0])
 
             text.clear_main_small()
             text.move_cursor(1, 1)
@@ -1362,23 +1341,7 @@ class Screen:
 
             print(f'Hunting: {"True" if manager.hunt else "False"}')
 
-            for y in range(top, bottom):
-                text.move_cursor(mapTop + y - top, mapLeft)
-                for x in range(left, right):
-                    tile = mapTiles[y][x]
-
-                    if x == world.get_player("x") and y == world.get_player("y"):
-                        print(text.reset + "<>", end="")
-                        if x != right:
-                            print(text.rgb(mapTiles[y][x + 1], back=True), end="")
-                        continue
-
-                    if x > left and tile == mapTiles[y][x - 1]:
-                        tileText = "  "
-                    else:
-                        tileText = text.rgb(tile, back=True) + "  "
-
-                    print(tileText, end="")
+            m.draw(world.get_player("x"), world.get_player("y"))
 
             options += settings.moveBind
             option = control.get_input(options=options, silentOptions=settings.moveBind, showText=False)
