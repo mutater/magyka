@@ -416,17 +416,17 @@ class Item:
                 print(
                     f'{user.attributes["name"]} '
                     f'{self.attributes["text"]} '
-                    f'{self.get_name()} on {target.name}, ',
+                    f'{self.get_name()} on {target.attributes["name"]}, ',
                     end=""
                 )
                 
-                if random.randint(1, 100) > user.stats["hit"] and\
+                if random.randint(1, 100) > user.attributes["stats"]["hit"] and\
                         not (self.attributes["tags"].get("noMiss") or self.attributes["tags"].get("hit")):
                     print("but misses.")
                     return
-                elif random.randint(1, 100) <= target.stats["dodge"] and\
+                elif random.randint(1, 100) <= target.attributes["stats"]["dodge"] and\
                         not (self.attributes["tags"].get("noDodge") or self.attributes["tags"].get("hit")):
-                    print(f'but {target.name} dodges.')
+                    print(f'but {target.attributes["name"]} dodges.')
                     return
             
             for i in range(len(self.attributes["effect"])):
@@ -589,8 +589,6 @@ class Enchantment:
 
     def export(self):
         attributes = copy.deepcopy(self.attributes)
-
-        logger.log(attributes)
 
         for i in range(len(attributes["effect"])):
             attributes["effect"][i] = attributes["effect"][i].export()

@@ -77,6 +77,10 @@ class Text:
         self.update_values()
 
     def update_values(self):
+        """
+        Updates the values used for formatting display to the console.
+        """
+
         self.width, self.height = os.get_terminal_size()
         self.descriptionWidth = self.width - self.twoThirdsWidth - 3
         self.descriptionCenterCol = self.twoThirdsWidth + 2 + self.descriptionWidth // 2

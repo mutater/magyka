@@ -18,8 +18,8 @@ class World:
             "name": "New World",
             "player": Entity({
                 "location": "magyka",
-                "x": 128,
-                "y": 113,
+                "x": 112,
+                "y": 96,
             }),
             "enemy": None,
             "maps": {},

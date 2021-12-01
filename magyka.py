@@ -202,23 +202,25 @@ class Manager:
             elif table == "modifiers":
                 pass
             elif table == "lootTables":
-                for i in range(len(obj["drops"])):
-                    if type(obj["drops"]) is list:
-                        for j in range(len(obj["drops"][i][0])):
-                            obj["drops"][i][0][j] = self.load_from_db("items", obj["drops"][i][0][j])
-                    else:
-                        obj["drops"][i][0] = self.load_from_db("items", obj["drops"][i][0])
-            elif table == "items":
-                for i in range(len(obj["enchantments"])):
-                    if type(obj["enchantments"][i]) is str:
-                        obj["enchantments"][i] = self.load("enchantments", obj["enchantments"][i])
-                    else:
-                        if type(obj["enchantments"][i]) is list:
-                            level, tier = obj["enchantments"][i][1], obj["enchantments"][i][2]
-                            obj["enchantments"][i] = self.load_from_db("enchantments", obj["enchantments"][i][0])
-                            obj["enchantments"][i].update(level, tier)
+                if "drops" in obj:
+                    for i in range(len(obj["drops"])):
+                        if type(obj["drops"]) is list:
+                            for j in range(len(obj["drops"][i][0])):
+                                obj["drops"][i][0][j] = self.load_from_db("items", obj["drops"][i][0][j])
                         else:
+                            obj["drops"][i][0] = self.load_from_db("items", obj["drops"][i][0])
+            elif table == "items":
+                if "enchantments" in obj:
+                    for i in range(len(obj["enchantments"])):
+                        if type(obj["enchantments"][i]) is str:
                             obj["enchantments"][i] = self.load("enchantments", obj["enchantments"][i])
+                        else:
+                            if type(obj["enchantments"][i]) is list:
+                                level, tier = obj["enchantments"][i][1], obj["enchantments"][i][2]
+                                obj["enchantments"][i] = self.load_from_db("enchantments", obj["enchantments"][i][0])
+                                obj["enchantments"][i].update(level, tier)
+                            else:
+                                obj["enchantments"][i] = self.load("enchantments", obj["enchantments"][i])
 
                 if "loot" in obj["tags"]:
                     if type(obj["tags"]["loot"]) is str:
@@ -229,19 +231,22 @@ class Manager:
                 if obj["type"] == "equipment":
                     obj.update({"modifier": self.load_from_db("modifiers", "Normal")})
             elif table == "enemies":
-                for i in range(len(obj["inventory"])):
-                    obj["inventory"][i][0] = self.load("items", obj["inventory"][i][0])
-                for i in range(len(obj["passives"])):
-                    obj["passives"][i] = self.load("passives", obj["passives"][i])
-                for slot in obj["equipment"]:
-                    if obj["equipment"][slot]:
-                        obj["equipment"][slot] = self.load("items", obj["equipment"][slot])
+                if "inventory" in obj:
+                    for i in range(len(obj["inventory"])):
+                        obj["inventory"][i][0] = self.load("items", obj["inventory"][i][0])
+                if "passives" in obj:
+                    for i in range(len(obj["passives"])):
+                        obj["passives"][i] = self.load("passives", obj["passives"][i])
+                if "equipment" in obj:
+                    for slot in obj["equipment"]:
+                        if obj["equipment"][slot]:
+                            obj["equipment"][slot] = self.load("items", obj["equipment"][slot])
 
             if "effect" in obj:
                 for i in range(len(obj["effect"])):
                     obj["effect"][i] = self.load("effects", obj["effect"][i])
 
-            if obj.get("tags"):
+            if "tags" in obj:
                 if "passive" in obj["tags"]:
                     for i in range(len(obj["tags"]["passive"])):
                         if type(obj["tags"]["passive"][i]) is str:
@@ -296,13 +301,6 @@ class Manager:
             jsonLoads = ["stats", "level", "tags"]
         else:
             jsonLoads = []
-
-        if not obj.get("effect"):
-            obj["effect"] = []
-        if not obj.get("tags"):
-            obj["tags"] = {}
-        if not obj.get("enchantments"):
-            obj["enchantments"] = []
 
         for jsonLoad in jsonLoads:
             if jsonLoad not in obj:
@@ -514,7 +512,7 @@ class Manager:
                 Integer level of the enemy.
         """
 
-        enemies = copy.deepcopy(self.encounters[world.attributes["player"].location])
+        enemies = copy.deepcopy(world.attributes["encounters"][world.get_player("location")])
         weight = 0
         minLevel = level
         maxLevel = level + 5
@@ -538,7 +536,9 @@ class Manager:
                 continue
 
             if level - enemy.attributes["level"][0] > 0:
-                enemy.levelDifference = level - enemy.attributes["level"][0]
+                enemy.attributes["levelDifference"] = level - enemy.attributes["level"][0]
+            else:
+                enemy.attributes["levelDifference"] = 0
 
             enemy.attributes["level"] = level
 
@@ -565,15 +565,16 @@ class Manager:
         try:
             weightNum = random.randint(1, weight)
         except:
-            self.battleEnemy = None
+            world.attributes["enemy"] = None
             return
 
         for weight, enemy in enemies.items():
             if weight > weightNum:
-                self.battleEnemy = enemy
+                world.attributes["enemy"] = enemy
                 break
 
 
+# noinspection PyTypeChecker
 class Screen:
     """
     Handles menus and visuals shown to player. Contains actual "game" code.
@@ -978,10 +979,10 @@ class Screen:
 
     def battle(self):
         manager.itemLog = []
-        if type(world.attributes["enemy"].level) is list:
-            world.attributes["enemy"].level = world.attributes["enemy"].level[0]
-        world.attributes["enemy"].hp = world.attributes["enemy"].stats["max hp"]
-        world.attributes["enemy"].mp = world.attributes["enemy"].stats["max mp"]
+        if type(world.get_enemy("level")) is list:
+            world.set_enemy("level", world.get_enemy("level")[0])
+        world.set_enemy("hp", world.get_enemy("stats")["max hp"])
+        world.set_enemy("mp", world.get_enemy("stats")["max mp"])
 
         text.clear()
         text.background()
@@ -1015,18 +1016,18 @@ class Screen:
         def print_enemy():
             text.clear_description()
             text.header(text.title(world.get_enemy("name"), world.get_enemy("level")))
-            Image("enemy/" + world.attributes["enemy"].name).show_at_description()
+            Image("enemy/" + world.get_enemy("name")).show_at_description()
 
-            rowOffset = text.height // 4 * 3 - 4
+            rowOffset = round(text.height * 3 / 4) + 2
             colOffset = text.twoThirdsWidth + 4
             barLength = text.width - colOffset - 4
             text.move_cursor(rowOffset, colOffset)
-            print(text.bar(world.get_enemy("hp"), world.get_enemy("stats")["max hp"], "red") + " ")
-            text.slide_cursor(0, colOffset)
+            print(text.bar(world.get_enemy("hp"), world.get_enemy("stats")["max hp"], "red", length=barLength) + " ")
+            text.move_cursor(rowOffset + 1, colOffset)
             print(f' {world.get_enemy("hp")}/{world.get_enemy("stats")["max hp"]}' + " ")
-            text.slide_cursor(1, colOffset)
-            print(text.bar(world.get_enemy("mp"), world.get_enemy("stats")["max mp"], "blue") + " ")
-            text.slide_cursor(0, colOffset)
+            text.move_cursor(rowOffset + 3, colOffset)
+            print(text.bar(world.get_enemy("mp"), world.get_enemy("stats")["max mp"], "blue", length=barLength) + " ")
+            text.move_cursor(rowOffset + 4, colOffset)
             print(f' {world.get_enemy("mp")}/{world.get_enemy("stats")["max mp"]}' + " ")
 
         print_player()
@@ -1040,7 +1041,9 @@ class Screen:
 
                 magic = world.get_player("equipment").get("tome") and world.attributes["player"].mp >= world.get_player("equipment")["tome"].mana
 
-                text.clear_main()
+                text.clear()
+                text.background()
+                print_enemy()
                 print_player()
                 print("")
 
@@ -1088,7 +1091,7 @@ class Screen:
 
                         itemList = []
                         for item in world.get_player("inventory"):
-                            if item[0].type == "consumable":
+                            if item[0].attributes["type"] == "consumable":
                                 itemList.append(item)
 
                         for i in range((self.page - 1) * 10, min(self.page * 10, len(itemList))):
@@ -1112,16 +1115,16 @@ class Screen:
                         next = len(itemList) > self.page * 10
                         previous = self.page > 1
 
-                        text.options((["Next"] if next else []) + (["Previous"] if previous else []))
-                        option = control.get_input("optionumeric", options=("n" if next else "")+("p" if previous else "")\
-                        +"".join(tuple(map(str, range(0, len(itemList))))))
+                        options = text.options((["Next"] if next else []) + (["Previous"] if previous else []))
+                        options += "".join(tuple(map(str, range(0, len(itemList)))))
+                        option = control.get_input("optionumeric", options=options)
 
                         if option in tuple(map(str, range(0, len(itemList) + (self.page-1) * 10 + 1))):
                             item = itemList[int(option) + (self.page - 1) * 10][0]
                             while 1:
                                 text.clear()
                                 text.background()
-                                Image("item/" + item.name).show_at_description()
+                                Image("item/" + item.attributes["name"]).show_at_description()
                                 text.header("Use Item")
 
                                 text.move_cursor(2, 1)
@@ -1139,17 +1142,17 @@ class Screen:
                                     print_player()
                                     print("")
 
-                                    if item.target == "self":
+                                    if item.attributes["target"] == "self":
                                         item.use(world.attributes["player"], world.attributes["player"])
                                     else:
                                         item.use(world.attributes["player"], world.attributes["enemy"])
 
-                                    if not item.tags.get("infinite"):
+                                    if not item.attributes["tags"].get("infinite"):
                                         world.attributes["player"].remove_item(item)
 
                                     itemFound = False
                                     for i in manager.itemLog:
-                                        if i[0].name == item.name:
+                                        if i[0].name == item.attributes["name"]:
                                             i[1] += 1
                                             itemFound = True
                                             break
@@ -1170,7 +1173,7 @@ class Screen:
                     if usedItem:
                         break
                 elif option == "c":
-                    pass # FLEEING
+                    pass  # FLEEING
                 elif self.code(option):
                     return
 
@@ -1179,10 +1182,10 @@ class Screen:
             print_enemy()
             control.press_enter()
 
-            if world.attributes["enemy"].hp <= 0:
+            if world.get_enemy("hp") <= 0:
                 self.nextScreen = "victory"
                 return
-            elif world.attributes["player"].hp <= 0:
+            if world.get_player("hp") <= 0:
                 self.nextScreen = "defeat"
                 return
 
@@ -1192,7 +1195,7 @@ class Screen:
 
             if world.attributes["player"].guard == "counter":
                 text.slide_cursor(1, 3)
-                print(f'{world.attributes["enemy"].name} {world.attributes["enemy"].text} {world.attributes["player"].name}, but {world.attributes["player"].name} counters, ', end="")
+                print(f'{world.get_enemy("name")} {world.attributes["enemy"].text} {world.attributes["player"].name}, but {world.attributes["player"].name} counters, ', end="")
                 sound.play_sound(["attack", "slash"])
                 world.attributes["player"].attack(world.attributes["enemy"], message=False)
             else:
@@ -1207,38 +1210,40 @@ class Screen:
             print_enemy()
             control.press_enter()
 
-            if world.attributes["enemy"].hp <= 0:
+            if world.get_enemy("hp") <= 0:
                 self.nextScreen = "victory"
                 return
-            elif world.attributes["player"].hp <= 0:
+            if world.get_player("hp") <= 0:
                 self.nextScreen = "defeat"
                 return
 
     def victory(self):
         text.clear()
         text.background()
-        Image("enemy/"+world.attributes["enemy"].name).show_at_description()
+        Image("enemy/"+world.get_enemy("name")).show_at_description()
         text.header("Victory")
         sound.play_sound("victory")
         # UPDATE PLAYER QUESTS
 
-        levelDifference = world.attributes["enemy"].level - world.attributes["player"].level
+        levelDifference = world.get_enemy("level") - world.get_player("level")
 
         if levelDifference == 0:
             lootModifier = 1
         else:
             lootModifier = max(round(1.15 ** levelDifference, 2), 0.25)
 
-        xp = math.ceil(world.attributes["enemy"].xp * lootModifier)
-        gold = math.ceil(random.randint(math.ceil(world.attributes["enemy"].gold*0.9), math.ceil(world.attributes["enemy"].gold*1.1)) * lootModifier)
-        items = manager.load_from_db("lootTables", world.attributes["enemy"].name)
+        xp = math.ceil(world.get_enemy("xp") * lootModifier)
+        gold = math.ceil(random.randint(
+            math.ceil(world.get_enemy("gold")*0.9), math.ceil(world.get_enemy("gold")*1.1)
+        ) * lootModifier)
+        items = manager.load_from_db("lootTables", world.get_enemy("name"))
         if items:
             items = items.use()
         else:
             items = []
 
-        world.attributes["player"].gold += gold
-        world.attributes["player"].xp += xp
+        world.attributes["player"].attributes["gold"] += gold
+        world.attributes["player"].attributes["xp"] += xp
         world.attributes["player"].level_up()
 
         text.move_cursor(3, 4)
@@ -1274,7 +1279,7 @@ class Screen:
         text.clear()
         text.header("Defeat")
         text.background()
-        Image("enemy/"+world.attributes["enemy"].name).show_at_description()
+        Image("enemy/"+world.get_enemy("name")).show_at_description()
         sound.play_sound("defeat")
         text.move_cursor(3, 4)
         print("Defeated by:")
@@ -2048,24 +2053,26 @@ class Screen:
             Image("screen/Passives").show_at_description()
             text.move_cursor(3, 1)
 
-            for i in range((self.page - 1) * 10, min(self.page * 10, len(world.attributes["player"].passives))):
-                text.slide_cursor(0, 3)
-                print(f'{str(i)[:-1]}({str(i)[-1]}) {world.attributes["player"].passives[i].get_name(turns=True)}')
+            passives = world.get_player("passives")
 
-            if len(world.attributes["player"].passives) == 0:
+            for i in range((self.page - 1) * 10, min(self.page * 10, len(passives))):
+                text.slide_cursor(0, 3)
+                print(f'{str(i)[:-1]}({str(i)[-1]}) {passives[i].get_name(turns=True)}')
+
+            if len(passives) == 0:
                 text.slide_cursor(0, 3)
                 print(f'{text.darkgray}No Passives{text.reset}')
 
-            next = len(world.attributes["player"].passives) > self.page * 10
+            next = len(passives) > self.page * 10
             previous = self.page > 1
 
             text.slide_cursor(1, 3)
             print(f'Use {settings.moveBind[1]}{settings.moveBind[3]} to switch pages.')
             option = control.get_input("optionumeric", options=(settings.moveBind[3] if next else "")+(settings.moveBind[1] if previous else "")\
-            +"".join(tuple(map(str, range(0, len(world.attributes["player"].passives))))))
+            +"".join(tuple(map(str, range(0, len(passives))))))
 
-            if option in tuple(map(str, range(0, len(world.attributes["player"].passives) + (self.page-1) * 10 + 1))):
-                manager.inspectPassive = world.attributes["player"].passives[int(option) + (self.page - 1) * 10]
+            if option in tuple(map(str, range(0, len(passives) + (self.page-1) * 10 + 1))):
+                manager.inspectPassive = passives[int(option) + (self.page - 1) * 10]
                 self.nextScreen = "inspect_passive"
                 return
             elif option == settings.moveBind[3]:
@@ -2103,7 +2110,7 @@ class Screen:
             )
 
             for stat in stats:
-                if world.attributes["player"].baseStats[stat] <= world.get_player("stats")[stat]:
+                if world.get_player("baseStats")[stat] <= world.get_player("stats")[stat]:
                     changeString = "+"
                 else:
                     changeString = "-"
@@ -2112,7 +2119,7 @@ class Screen:
                 print(
                     stat.capitalize().ljust(statNamePad) + ": " +
                     str(world.get_player("stats")[stat]).ljust(statValuePad) + " (" + changeString +
-                    world.get_player("stats")[stat] - world.get_player("baseStats")[stat] + ")"
+                    str(world.get_player("stats")[stat] - world.get_player("baseStats")[stat]) + ")"
                 )
 
             control.press_enter()

@@ -198,6 +198,8 @@ class Entity:
 
         """
 
+        logger.log(effect, effect.attributes["type"], effect.attributes["value"])
+
         if passive:
             print("")
             text.slide_cursor(0, 4)
@@ -228,7 +230,7 @@ class Entity:
         else:
             attackerStats["variance"] = 20
 
-        if effect.attributes["type"] in ("damageHp", "damageMp", "passive"):
+        if effect.attributes["type"] in ("-hp", "-mp", "passive"):
             deflect = self.guard == "deflect"
 
             if self.guard == "block":
@@ -237,7 +239,7 @@ class Entity:
             elif self.guard == "counter":
                 return
 
-            if effect.attributes["type"] in ("damageHp", "damageMp"):
+            if effect.attributes["type"] in ("-hp", "-mp"):
                 crit = 0
                 if attackerStats.get("crit"):
                     crit = attackerStats.get("crit")
@@ -250,7 +252,7 @@ class Entity:
                 else:
                     crit = 1
 
-                if type(effect.value) is list:
+                if type(effect.attributes["value"]) is list:
                     a = random.randint(round(effect.attributes["value"][0]), round(effect.attributes["value"][1]))
                 else:
                     a = effect.attributes["value"]
@@ -269,7 +271,7 @@ class Entity:
                     amount //= 2
                 amount = max(1, amount)
 
-                if effect.attributes["type"] == "damageHp":
+                if effect.attributes["type"] == "-hp":
                     self.attributes["hp"] -= amount
                     print(f'dealing {amount} {text.hp}{text.reset} {critical}damage', end="")
                 else:
@@ -277,14 +279,14 @@ class Entity:
                     print(f'dealing {amount} {text.mp}{text.reset} {critical}damage', end="")
             elif effect.attributes["type"] == "passive":
                 self.add_passive(effect)
-        elif effect.attributes["type"] in ("healHp", "healMp"):
+        elif effect.attributes["type"] in ("+hp", "+mp"):
             if type(effect.attributes["value"]) is list:
                 amount = random.randint(effect.attributes["value"][0], effect.attributes["value"][1])
             else:
                 amount = effect.attributes["value"]
 
             if effect.attributes["opp"] == "*":
-                if effect.attributes["type"] == "healHp":
+                if effect.attributes["type"] == "+hp":
                     amount = (amount / 100) * self.attributes["stats"]["max hp"]
                 else:
                     amount = (amount / 100) * self.attributes["stats"]["max mp"]
@@ -292,7 +294,7 @@ class Entity:
             amount += self.attributes["stats"]["vitality"] / 2
             amount = max(round(amount), 1)
 
-            if effect.attributes["type"] == "healHp":
+            if effect.attributes["type"] == "+hp":
                 if amount + self.attributes["hp"] > self.attributes["stats"]["max hp"]:
                     amount = self.attributes["stats"]["max hp"] - self.attributes["hp"]
                 self.attributes["hp"] += amount
@@ -305,9 +307,9 @@ class Entity:
         elif effect.attributes["type"] == "stat":
             if effect.attributes["opp"] == "*":
                 self.attributes["baseStats"][effect.attributes["stat"]] = round(
-                    self.attributes["baseStats"][effect.attributes["stat"]] * ((effect.value + 1) / 100))
+                    self.attributes["baseStats"][effect.attributes["stat"]] * ((effect.attributes["value"] + 1) / 100))
             else:
-                self.attributes["baseStats"][effect.attributes["stat"]] += effect.value
+                self.attributes["baseStats"][effect.attributes["stat"]] += effect.attributes["value"]
             self.update_stats()
 
             if effect.stat == "max hp":
@@ -317,17 +319,17 @@ class Entity:
             else:
                 symbol = ""
 
-            if (effect.opp == "*" and effect.value >= 1) or (effect.opp != "*" and effect.opp > 0):
+            if (effect.opp == "*" and effect.attributes["value"] >= 1) or (effect.opp != "*" and effect.opp > 0):
                 increase = "increasing"
             else:
                 increase = "decreasing"
 
             percent = "%" if "*" in effect else ""
 
-            print(f'{increase} {effect.stat.title()}{symbol} by {str(effect.value)}{percent}{text.reset}', end="")
+            print(f'{increase} {effect.stat.title()}{symbol} by {str(effect.attributes["value"])}{percent}{text.reset}', end="")
 
-        if effect.passive:
-            self.defend(effect.passive, passive=True)
+        if effect.attributes["passive"]:
+            self.defend(effect.attributes["passive"], passive=True)
 
         if self.attributes["hp"] < 0:
             self.attributes["hp"] = 0
@@ -375,7 +377,7 @@ class Entity:
         self.update_stats()
         for passive in self.attributes["passives"]:
             for effect in passive.attributes["effect"]:
-                if effect.attributes["type"] in ("damageHp", "damageMp", "healHp", "healMp"):
+                if effect.attributes["type"] in ("-hp", "-mp", "+hp", "+mp"):
                     text.slide_cursor(1, 3)
                     print(f'{passive.get_name()} persists, ', end="")
                     self.defend(effect)
@@ -423,7 +425,7 @@ class Entity:
         if random.randint(1, 100) > self.attributes["stats"]["hit"]:
             print("but misses.")
             return
-        elif random.randint(1, 100) <= entity.stats["dodge"]:
+        elif random.randint(1, 100) <= entity.attributes["stats"]["dodge"]:
             print(f'but {entity.attributes["name"]} dodges.')
             return
 
@@ -445,7 +447,7 @@ class Entity:
         """
 
         attackSkill = {
-            "type": "damageHp",
+            "type": "-hp",
             "value": [
                 self.attributes["stats"]["attack"][0] + self.attributes["stats"]["strength"] / 2,
                 self.attributes["stats"]["attack"][1] + self.attributes["stats"]["strength"] / 2
@@ -459,9 +461,9 @@ class Entity:
             passives = []
             for effect in self.attributes["equipment"]["weapon"].attributes["effect"]:
                 if effect.type == "passive":
-                    passives += effect.value
-                if effect.passive:
-                    passives += effect.passive
+                    passives += effect.attributes["value"]
+                if effect.attributes["passive"]:
+                    passives += effect.attributes["passive"]
             attackSkill.update({"passive": passives})
 
         if self.attributes["equipment"]:
