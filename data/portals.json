@@ -1,11 +1,9 @@
 {
   "magyka": [
-    [122, 113, "town", "fordsville"],
-    [122, 114, "town", "fordsville"],
-    [123, 113, "town", "fordsville"],
-    [123, 114, "town", "fordsville"],
-    [134, 112, "location", "slime garden"],
-    [742, 567, "map", "world map", 742, 547],
-    [742, 547, "map", "world map", 742, 567]
+    [106, 97, "town", "fordsville"],
+    [106, 98, "town", "fordsville"],
+    [107, 97, "town", "fordsville"],
+    [107, 98, "town", "fordsville"],
+    [118, 96, "location", "slime garden"]
   ]
 }

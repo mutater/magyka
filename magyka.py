@@ -1330,8 +1330,12 @@ class Screen:
             portal = False
             if world.attributes["portals"].get(mapName):
                 for p in world.attributes["portals"][mapName]:
+                    logger.log(p, world.get_player("x"), world.get_player("y"))
                     if p[0] == world.get_player("x") and p[1] == world.get_player("y"):
                         portal = p
+                        break
+
+            logger.log(portal)
 
             text.clear_main_small()
             text.move_cursor(1, 1)
@@ -1357,13 +1361,13 @@ class Screen:
             x = world.get_player("x")
             y = world.get_player("y")
 
-            if option == settings.moveBind[0] and mapCollision[y-1][x] != "0;0;0":
+            if option == settings.moveBind[0] and m.get_collision_tile(x, y-1):
                 moveY -= 1
-            elif option == settings.moveBind[1] and mapCollision[y][x-1] != "0;0;0":
+            elif option == settings.moveBind[1] and m.get_collision_tile(x-1, y):
                 moveX -= 1
-            elif option == settings.moveBind[2] and mapCollision[y+1][x] != "0;0;0":
+            elif option == settings.moveBind[2] and m.get_collision_tile(x, y+1):
                 moveY += 1
-            elif option == settings.moveBind[3] and mapCollision[y][x+1] != "0;0;0":
+            elif option == settings.moveBind[3] and m.get_collision_tile(x+1, y):
                 moveX += 1
 
             if moveX or moveY:
@@ -1380,6 +1384,7 @@ class Screen:
                     manager.encounterSteps = random.randint(10, 20)
                     manager.encounterStepCounter = 0
                     responseTime = manager.react_flash(480)
+
                     if responseTime < 320:
                         self.nextScreen = "map"
                         return
@@ -1388,7 +1393,7 @@ class Screen:
                         self.nextScreen = "map"
                         return
                     else:
-                        manager.load_encounter(int(mapCollision[world.get_player("y")][world.get_player("x")].split(";")[0]))
+                        manager.load_encounter(m.get_collision_tile(x, y))
                         self.nextScreen = "battle"
                         return
 
@@ -1423,8 +1428,8 @@ class Screen:
             text.move_cursor(1, 3)
             world.attributes["player"].show_stats()
 
-            text.options(["Inn", "General Store", "Blacksmith", "Arcanist", "Flea Market"])
-            option = control.get_input("alphabetic", options="igbaf")
+            options = text.options(["Inn", "General Store", "Blacksmith", "Arcanist", "Flea Market"])
+            option = control.get_input(options=options)
 
             if option in ("gba"):
                 self.nextScreen = "store"

@@ -54,6 +54,29 @@ class Map:
 
         return self.attributes["tiles"][y][x]
 
+    def get_collision_tile(self, x, y):
+        """
+        Loads a collision tile from int x and y position.
+
+        Args:
+            x:
+                Int tile location in x axis.
+            y:
+                Int tile location in y axis.
+
+        Returns:
+            Integer 0 for "collidable" or an integer representing enemy level.
+        """
+
+        if x >= len(self.attributes["collision"][0]) or x < 0:
+            return 0
+        if y >= len(self.attributes["collision"]) or y < 0:
+            return 0
+        if self.attributes["collision"][y][x] == "0;0;0":
+            return 0
+
+        return int(self.attributes["collision"][y][x].split(";")[0])
+
     def draw(self, playerX, playerY):
         mapWidth = min((text.width - text.oneThirdWidth - 2) // 2, 60)
         mapHeight = min(text.height - 2, 40)
