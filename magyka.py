@@ -85,6 +85,20 @@ def exit_handler(*args):
         control.reset_input_settings()
 
 
+def remove_non_integers(string):
+    """
+    Removes all non integers from a string.
+
+    Args:
+        string:
+            String
+
+    Returns:
+        String that's int() safe
+    """
+    return "".join(filter(lambda x: not x.isdigit(), string))
+
+
 class Manager:
     """
     Holds runtime data and handles interactions needing multiple classes.
@@ -111,6 +125,7 @@ class Manager:
         self.sellItem = None
         self.inspectPassive = None
         self.itemLog = None
+        self.town = ""
         self.hunt = False
         self.encounterSteps = 10
         self.encounterStepCounter = 0
@@ -502,6 +517,77 @@ class Manager:
         text.clear()
         Image("red").show_at_origin()
         return control.time_keypress(timeout)
+
+    @staticmethod
+    def get_page_options(items, page):
+        """
+        Gets the options to be passed to the Control.options function.
+
+        Args:
+            items:
+                List to be taken from.
+            page:
+                Integer page of the list.
+
+        Returns:
+            String option characters.
+        """
+
+        next = page * 10 < len(items)
+        previous = page > 1
+        options = ""
+
+        if next:
+            options += settings.moveBind[3]
+        if previous:
+            options += settings.moveBind[1]
+
+        options += "".join(tuple(map(str, range(0, len(items)))))
+        return options
+
+    @staticmethod
+    def show_page(items, displayString, page, silent=False, justify=True):
+        """
+        Displays a 10 length page of a list.
+
+        Args:
+            items:
+                List to be displayed.
+            displayString:
+                String formatted as an fstring to display each item of the list.
+
+                items[i] represents each item of the list.
+
+                For example, to display an inventory item's name, the displayString would be:
+                items[i][0].attributes["name"]
+            page:
+                Integer page of the list.
+        """
+
+        text.slide_cursor(-1, 0)
+        for i in range((page - 1) * 10, min(page * 10, len(items))):
+            text.slide_cursor(0, 3)
+            if i >= 100:
+                just = ""
+            elif i >= 10:
+                just = " "
+            else:
+                just = "  "
+
+            if not justify:
+                just = ""
+
+            itemString = eval('f"""{' + displayString + '}"""')
+            print(f"{str(i)[:-1]}({str(i)[-1]}) {just}" + itemString)
+
+        if len(items) < 1:
+            text.move_cursor(3, 4)
+            print(f'{text.darkgray}Empty{text.reset}')
+
+        print("")
+        if not silent:
+            text.slide_cursor(1, 3)
+            print(f'Use {settings.moveBind[1]}{settings.moveBind[3]} to switch pages.')
 
     def load_encounter(self, level=1):
         """
@@ -1492,7 +1578,7 @@ class Screen:
             Image("screen/Store").show_at_description()
             text.header(self.storeType.capitalize())
 
-            storeData = manager.stores[manager.town][self.storeType]
+            storeData = world.attributes["stores"][manager.town][self.storeType]
             itemList = []
 
             for item in storeData["inventory"]:
@@ -1500,9 +1586,6 @@ class Screen:
                     itemList.append(manager.load_from_db("items", item))
                 except:
                     pass
-
-            next = len(itemList) > self.page * 10
-            previous = self.page > 1
 
             if self.storeType != "general":
                 text.move_cursor(3, 4)
@@ -1515,23 +1598,27 @@ class Screen:
                 text.slide_cursor(1, 3)
             else:
                 text.move_cursor(3, 4)
-            print(f'{text.gp}{text.reset} {world.attributes["player"].gold}\n')
 
-            for i in range(-10 + 10*self.page, 10*self.page if 10*self.page < len(itemList) else len(itemList)):
-                quantity = itemList[i].type in Globals.stackableItems
-                text.slide_cursor(0, 3)
-                print(f'{i}) {itemList[i].get_name(info=True, value=True, quantity=1 if quantity else 0)}')
+            print(f'{text.gp}{text.reset} {world.get_player("gold")}')
+            text.slide_cursor(2, 0)
 
-            if len(itemList) == 0:
-                print(f' {text.darkgray}Empty{text.reset}')
+            manager.show_page(
+                itemList,
+                """(
+                items[i].get_name(
+                    info=True, value=True, quantity=(
+                        1 if items[i].attributes["type"] in Globals.stackableItems else 0
+                    )
+                )
+                )""",
+                self.page
+            )
 
-            text.slide_cursor(1, 3)
-            print(f'Use {settings.moveBind[1]}{settings.moveBind[3]} to switch pages.')
-            text.options((["Next"] if next else [])+(["Previous"] if previous else [])+(["Reforge"] if self.storeType == "blacksmith" else [])+["Crafting"])
-            option = control.get_input("optionumeric", options=(settings.moveBind[3] if next else "")+(settings.moveBind[1] if previous else "")\
-            +("r" if self.storeType == "blacksmith" else "")+"c"+"".join(tuple(map(str, range(0, len(itemList))))))
+            # if blacksmith options += "r"
+            options = manager.get_page_options(itemList, self.page)
+            option = control.get_input("alphanumeric", options=options)
 
-            if option in tuple(map(str, range(0, len(itemList) + (self.page-1) * 10 + 1))):
+            if option in remove_non_integers(options):
                 manager.purchaseItem = itemList[int(option) + (self.page-1) * 10]
                 self.nextScreen = "purchase"
                 return
@@ -1850,38 +1937,17 @@ class Screen:
             text.background()
             Image("screen/Inventory").show_at_description()
             text.header("Inventory")
-            print("")
 
-            for i in range((self.page - 1) * 10, min(self.page * 10, len(world.get_player("inventory")))):
-                item = world.get_player("inventory")[i]
-                if i >= 100:
-                    just = ""
-                elif i >= 10:
-                    just = " "
-                else:
-                    just = "  "
+            manager.show_page(
+                world.get_player("inventory"),
+                "items[i][0].get_name(info=True, quantity=items[i][1])",
+                self.page
+            )
 
-                text.move_cursor(3 + int(str(i)[-1]), 4)
-                print(f'{str(i)[:-1]}({str(i)[-1]}) {just}{item[0].get_name(info=True, quantity=item[1])}')
+            options = manager.get_page_options(world.get_player("inventory"), self.page)
+            option = control.get_input("optionumeric", options=options)
 
-            if len(world.get_player("inventory")) == 0:
-                text.move_cursor(3, 4)
-                print(f'{text.darkgray}Empty{text.reset}')
-
-            print("")
-
-            next = len(world.get_player("inventory")) > self.page * 10
-            previous = self.page > 1
-
-            text.slide_cursor(1, 3)
-            print(f'Use {settings.moveBind[1]}{settings.moveBind[3]} to switch pages.')
-            option = control.get_input("optionumeric", options=(
-                (settings.moveBind[3] if next else "") +
-                (settings.moveBind[1] if previous else "") +
-                "".join(tuple(map(str, range(0, len(world.get_player("inventory"))))))
-            ))
-
-            if option in tuple(map(str, range(0, len(world.get_player("inventory")) + (self.page-1) * 10 + 1))):
+            if option in remove_non_integers(options):
                 manager.inspectItem = world.get_player("inventory")[int(option) + (self.page - 1) * 10][0]
                 manager.inspectItemEquipped = False
                 self.nextScreen = "inspect"
@@ -1900,25 +1966,28 @@ class Screen:
             text.background()
             Image("screen/Equipment").show_at_description()
             text.header("Equipment")
-            print("")
 
-            for i in range(len(Globals.slotList)):
-                text.move_cursor(3 + i, 4)
-                print(f'{i}) {Globals.slotList[i].capitalize()}')
-                text.move_cursor(3 + i, 14)
-                if world.get_player("equipment")[Globals.slotList[i]]:
-                    print(f'{world.get_player("equipment")[Globals.slotList[i]].get_name()}')
-                else:
-                    print(f'{text.darkgray}Empty{text.reset}')
-            print("")
+            mergedList = [[slot, world.get_player("equipment")[slot]] for slot in Globals.slotList]
 
-            option = control.get_input("numeric", options="".join(tuple(map(str, range(0, len(Globals.slotList))))))
+            manager.show_page(
+                mergedList,
+                """(
+                (items[i][0].capitalize().ljust(10) + items[i][1].get_name())
+                if items[i][1] != "" else
+                (items[i][0].capitalize().ljust(10) + text.darkgray + "Empty" + text.reset)
+                )""",
+                self.page,
+                silent=True,
+                justify=False
+            )
 
-            if option in tuple(map(str, range(0, len(Globals.slotList)))) and\
-                    world.get_player("equipment")[Globals.slotList[int(option)]] != "":
-                manager.inspectItem = world.get_player("equipment")[Globals.slotList[int(option)]]
+            options = manager.get_page_options(mergedList, self.page)
+            option = control.get_input("optionumeric", options=options)
+
+            if option in remove_non_integers(options) and mergedList[int(option)][1] != "":
+                manager.inspectItem = mergedList[int(option)][1]
                 manager.inspectItemEquipped = True
-                manager.inspectSlot = Globals.slotList[int(option)]
+                manager.inspectSlot = mergedList[int(option)][0]
                 self.nextScreen = "inspect"
                 return
             elif self.code(option):
@@ -2056,27 +2125,15 @@ class Screen:
             text.clear()
             text.background()
             Image("screen/Passives").show_at_description()
-            text.move_cursor(3, 1)
 
             passives = world.get_player("passives")
 
-            for i in range((self.page - 1) * 10, min(self.page * 10, len(passives))):
-                text.slide_cursor(0, 3)
-                print(f'{str(i)[:-1]}({str(i)[-1]}) {passives[i].get_name(turns=True)}')
+            manager.show_page(passives, "passives[i].get_name(turns=True)", self.page)
 
-            if len(passives) == 0:
-                text.slide_cursor(0, 3)
-                print(f'{text.darkgray}No Passives{text.reset}')
+            options = manager.get_page_options(passives, self.page)
+            option = control.get_input("optionumeric", options=options)
 
-            next = len(passives) > self.page * 10
-            previous = self.page > 1
-
-            text.slide_cursor(1, 3)
-            print(f'Use {settings.moveBind[1]}{settings.moveBind[3]} to switch pages.')
-            option = control.get_input("optionumeric", options=(settings.moveBind[3] if next else "")+(settings.moveBind[1] if previous else "")\
-            +"".join(tuple(map(str, range(0, len(passives))))))
-
-            if option in tuple(map(str, range(0, len(passives) + (self.page-1) * 10 + 1))):
+            if option in remove_non_integers(options):
                 manager.inspectPassive = passives[int(option) + (self.page - 1) * 10]
                 self.nextScreen = "inspect_passive"
                 return

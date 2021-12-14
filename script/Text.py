@@ -204,10 +204,14 @@ class Text:
                 Integer x distance the cursor is moved, in characters.
         """
 
-        if row:
+        if row < 0:
+            print(f'\x1b[{abs(row)}A', end="")
+        if row > 0:
             print(f'\x1b[{row}B', end="")
-        if col:
+        if col > 0:
             print(f'\x1b[{col}C', end="")
+        if col < 0:
+            print(f'\x1b[{abs(col)}D', end="")
 
     def header(self, string, row=0, col=0, w=0):
         """
