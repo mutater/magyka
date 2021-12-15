@@ -1175,7 +1175,7 @@ class Screen:
                     else:
                         world.attributes["player"].guard = "counter"
                     text.slide_cursor(1, 3)
-                    print(f'{world.attributes["player"].name} lowers into a defensive stance.')
+                    print(f'{world.attributes["player"].attributes["name"]} lowers into a defensive stance.')
                     break
                 elif option == "i":
                     self.page = 1
@@ -1250,7 +1250,7 @@ class Screen:
 
                                     itemFound = False
                                     for i in manager.itemLog:
-                                        if i[0].name == item.attributes["name"]:
+                                        if i[0].attributes["name"] == item.attributes["name"]:
                                             i[1] += 1
                                             itemFound = True
                                             break
@@ -1293,13 +1293,20 @@ class Screen:
 
             if world.attributes["player"].guard == "counter":
                 text.slide_cursor(1, 3)
-                print(f'{world.get_enemy("name")} {world.attributes["enemy"].text} {world.attributes["player"].name}, but {world.attributes["player"].name} counters, ', end="")
+                print(
+                    (
+                        world.get_enemy("name"), " ",
+                        world.attributes["enemy"].text, " ",
+                        world.attributes["player"].attributes["name"], " but ",
+                        world.attributes["player"].attributes["name"], " counters, "
+                    ), end=""
+                )
                 sound.play_sound(["attack", "slash"])
                 world.attributes["player"].attack(world.attributes["enemy"], message=False)
             else:
                 sound.play_sound(["hit", "hit2"])
                 if settings.godMode:
-                    print(f'{world.attributes["player"].name} does not take damage.')
+                    print(f'{world.attributes["player"].attributes["name"]} does not take damage.')
                 else:
                     world.attributes["enemy"].attack(world.attributes["player"])
 
@@ -1653,7 +1660,7 @@ class Screen:
             self.nextScreen = self.returnScreen
             text.clear()
             text.background()
-            Image("item/" + manager.purchaseItem.name).show_at_description()
+            Image("item/" + manager.purchaseItem.attributes["name"]).show_at_description()
             text.header("Purchase")
 
             item = manager.purchaseItem
@@ -1855,8 +1862,8 @@ class Screen:
             self.nextScreen = self.returnScreen
             text.clear()
             text.background()
-            Image("item/" + manager.sellItem.name).show_at_description()
-            text.header("Sell " + manager.sellItem.name)
+            Image("item/" + manager.sellItem.attributes["name"]).show_at_description()
+            text.header("Sell " + manager.sellItem.attributes["name"])
 
             text.move_cursor(2, 1)
             manager.sellItem.show_stats()
@@ -1865,11 +1872,11 @@ class Screen:
             print(f'{text.gp}{text.reset} {world.attributes["player"].gold}')
             if manager.sellItem.type != "equipment":
                 text.slide_cursor(1, 3)
-                print(f'Currently owned: {world.attributes["player"].num_of_items(manager.sellItem.name)}')
+                print(f'Currently owned: {world.attributes["player"].num_of_items(manager.sellItem.attributes["name"])}')
             text.slide_cursor(1, 3)
             print(f'Sell Value: {text.gp}{text.reset} {round(manager.sellItem.value * 0.7)}')
             text.slide_cursor(0, 3)
-            print(f'Type the quantity of items to be sold ({world.attributes["player"].num_of_items(manager.sellItem.name)} can be sold).')
+            print(f'Type the quantity of items to be sold ({world.attributes["player"].num_of_items(manager.sellItem.attributes["name"])} can be sold).')
 
             option = control.get_input("numeric")
 
@@ -1881,7 +1888,7 @@ class Screen:
                 pass
 
             if type(option) is int:
-                if option <= world.attributes["player"].num_of_items(manager.sellItem.name):
+                if option <= world.attributes["player"].num_of_items(manager.sellItem.attributes["name"]):
                     sound.play_sound("coin")
                     world.attributes["player"].remove_item(manager.sellItem, option)
                     world.attributes["player"].gold += round(manager.sellItem.value * 0.7) * option
