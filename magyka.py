@@ -1399,8 +1399,8 @@ class Screen:
         text.slide_cursor(1, 3)
         print(f'You died, ', end="")
         world.attributes["player"].add_passive(manager.load_from_db("passives", "Charon's Curse"))
-        world.attributes["player"].hp = 1
-        world.attributes["player"].mp = 0
+        world.set_player("hp", 1)
+        world.set_player("mp", 0)
 
         time.sleep(1)
         control.press_enter()
