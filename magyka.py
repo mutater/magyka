@@ -96,6 +96,10 @@ def remove_non_integers(string):
     Returns:
         String that's int() safe
     """
+
+    if string.isdigit():
+        return string
+
     return "".join(filter(lambda x: not x.isdigit(), string))
 
 
@@ -1045,7 +1049,7 @@ class Screen:
             text.move_cursor(1, 1)
             world.attributes["player"].show_stats()
 
-            options = text.options(["Map", "Character", "Rest", "Options"])
+            options = text.options(["Map", "Character", "Rest", text.darkgray + "Options"])
             option = control.get_input("alphabetic", options=options, silentOptions="r", back=False)
 
             if option == "m":
@@ -1416,7 +1420,6 @@ class Screen:
             portal = False
             if world.attributes["portals"].get(mapName):
                 for p in world.attributes["portals"][mapName]:
-                    logger.log(p, world.get_player("x"), world.get_player("y"))
                     if p[0] == world.get_player("x") and p[1] == world.get_player("y"):
                         portal = p
                         break
@@ -1616,7 +1619,7 @@ class Screen:
 
             # if blacksmith options += "r"
             options = manager.get_page_options(itemList, self.page)
-            option = control.get_input("alphanumeric", options=options)
+            option = control.get_input("optionumeric", options=options)
 
             if option in remove_non_integers(options):
                 manager.purchaseItem = itemList[int(option) + (self.page-1) * 10]
@@ -1644,35 +1647,35 @@ class Screen:
             text.background()
             Image("item/" + manager.purchaseItem.name).show_at_description()
             text.header("Purchase")
+
+            item = manager.purchaseItem
+            numBuyable = world.get_player("gold") // item.attributes["value"]
+
             text.move_cursor(3, 4)
-            print(f'{text.gp}{text.reset} {world.attributes["player"].gold}')
+            print(f'{text.gp}{text.reset} {world.get_player("gold")}')
             manager.purchaseItem.show_stats()
             text.slide_cursor(1, 3)
-            print(f'Cost: {text.gp}{text.reset} {manager.purchaseItem.value}')
+            print(f'Cost: {text.gp}{text.reset} {item.attributes["value"]}')
             text.slide_cursor(1, 3)
-            print(f'Currently owned: {world.attributes["player"].num_of_items(manager.purchaseItem.name)}')
+            print(f'Currently owned: {world.attributes["player"].num_of_items(item.attributes["name"])}')
             text.slide_cursor(0, 3)
-            print(f'Type the quantity of items to be purchased ({world.attributes["player"].gold // manager.purchaseItem.value} can be bought).')
+            print(f'Type the quantity of items to be purchased ({numBuyable} can be bought).')
 
             option = control.get_input("numeric")
 
             print("")
 
-            try:
+            if option.isdigit():
                 option = int(option)
-            except:
-                pass
-
-            if type(option) is int:
-                if option * manager.purchaseItem.value <= world.attributes["player"].gold:
+                if option * item.attributes["value"] <= world.get_player("gold"):
                     sound.play_sound("coin")
-                    world.attributes["player"].add_item(manager.purchaseItem, option)
+                    world.attributes["player"].add_item(item, option)
                     if settings.purchaseCost:
-                        world.attributes["player"].gold -= option * manager.purchaseItem.value
+                        world.attributes["player"].gold -= option * item.attributes["value"]
 
-                    quantity = manager.purchaseItem.type in Globals.stackableItems
+                    quantity = item.attributes["type"] in Globals.stackableItems
                     text.slide_cursor(0, 3)
-                    print(f'{manager.purchaseItem.get_name()}{" x" + str(option) if quantity else ""} added to your inventory!')
+                    print(f'{item.get_name()}{" x" + str(option) if quantity else ""} added to your inventory!')
 
                     control.press_enter()
                     return
