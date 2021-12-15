@@ -1165,12 +1165,12 @@ class Screen:
                         world.attributes["player"].attack(world.attributes["enemy"], type="magic")
                     break
                 elif option == "g":
-                    guardState = random.randint(1, 5)
+                    guardState = random.randint(1, 7)
                     if settings.alwaysCounter:
-                        guardState = 5
+                        guardState = 7
                     if guardState <= 3:
                         world.attributes["player"].guard = "deflect"
-                    elif guardState == 4:
+                    elif guardState <= 5:
                         world.attributes["player"].guard = "block"
                     else:
                         world.attributes["player"].guard = "counter"
@@ -1686,7 +1686,7 @@ class Screen:
                     sound.play_sound("coin")
                     world.attributes["player"].add_item(item, option)
                     if settings.purchaseCost:
-                        world.attributes["player"].gold -= option * item.attributes["value"]
+                        world.attributes["player"].attributes["gold"] -= option * item.attributes["value"]
 
                     quantity = item.attributes["type"] in Globals.stackableItems
                     text.slide_cursor(0, 3)
@@ -2246,13 +2246,17 @@ if __name__ == "__main__":
     else:
         import signal
 
-    try:
-        world = World({})
-        manager = Manager()
-        screen = Screen()
-    except Exception as err:
-        text.clear()
-        text.move_cursor(1, 1)
-        traceback.print_exc()
-        logger.log(traceback.format_exc())
-        control.press_enter()
+    while 1:
+        try:
+            world = World({})
+            manager = Manager()
+            screen = Screen()
+        except KeyboardInterrupt or SystemExit:
+            text.clear()
+            break
+        except Exception:
+            text.clear()
+            text.move_cursor(1, 1)
+            traceback.print_exc()
+            logger.log(traceback.format_exc())
+            control.press_enter()
