@@ -364,7 +364,7 @@ class Entity:
         passive.attributes["turns"] = turns
 
         for p in self.attributes["passives"]:
-            if passive.name == p.name:
+            if passive.attributes["name"] == p.attributes["name"]:
                 passiveFound = True
                 p.attributes["turns"] = turns
                 break
@@ -415,7 +415,7 @@ class Entity:
                         + f'{self.attributes["equipment"]["weapon"].attributes["text"]}'
                         + f'{entity.attributes["name"]}, ')
                 else:
-                    attackText = f'{self.attributes["name"]} attacks {entity.name}, '
+                    attackText = f'{self.attributes["name"]} attacks {entity.attributes["name"]}, '
             attack = self.get_attack()
 
         if message:
