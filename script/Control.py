@@ -83,7 +83,7 @@ class Control:
             return key
 
     def reset_input_settings(self):
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.orig_settings)
+        os.system("reset")
 
     def wait_for_key(self, key):
         """
