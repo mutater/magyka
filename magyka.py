@@ -79,7 +79,8 @@ def exit_handler(*args):
             Nothing goes here, but it doesn't work without it for whatever reason.
     """
 
-    world.save()
+    if manager.saveOnExit:
+        world.save()
     text.set_cursor_visible(True)
     if Globals.system != "Windows":
         control.reset_input_settings()
@@ -135,6 +136,7 @@ class Manager:
         self.encounterStepCounter = 0
 
         self.saves = []
+        self.saveOnExit = True
 
         for file in os.listdir("saves"):
             if file.endswith(".json"):
@@ -360,6 +362,9 @@ class Manager:
             world.attributes["player"].update_stats()
 
             self.nextScreen = "camp"
+            self.init_world()
+            self.saveOnExit = False
+            set_exit_handler()
             return True
         elif command == "qs":
             world.attributes["player"].attributes["name"] = "Dev"
@@ -384,6 +389,9 @@ class Manager:
             world.attributes["player"].update_stats()
 
             self.nextScreen = "camp"
+            self.init_world()
+            self.saveOnExit = False
+            set_exit_handler()
             return True
         elif command == "restart":
             text.clear()
