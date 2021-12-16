@@ -86,6 +86,25 @@ def exit_handler(*args):
         control.reset_input_settings()
 
 
+def isint(string):
+    """
+    Tests if a string is int() safe.
+
+    Args:
+        string:
+            String.
+
+    Returns:
+        Bool; True if int() safe, False if not.
+    """
+
+    try:
+        int(string)
+        return True
+    except ValueError:
+        return False
+
+
 def remove_non_integers(string):
     """
     Removes all non integers from a string.
@@ -98,10 +117,13 @@ def remove_non_integers(string):
         String that's int() safe
     """
 
-    if string.isdigit():
+    try:
+        int(string)
         return string
+    except ValueError:
+        pass
 
-    return "".join(filter(lambda x: not x.isdigit(), string))
+    return "".join(filter(lambda x: x in "0123456789", string))
 
 
 class Manager:
@@ -554,7 +576,9 @@ class Manager:
         if previous:
             options += settings.moveBind[1]
 
-        options += "".join(tuple(map(str, range(0, len(items)))))
+        highestOption = int(str(min(page * 10 - 1, len(items) - 1))[-1]) + 1
+
+        options += "".join(tuple(map(str, range(0, highestOption))))
         return options
 
     @staticmethod
@@ -1175,7 +1199,7 @@ class Screen:
                     else:
                         world.attributes["player"].guard = "counter"
                     text.slide_cursor(1, 3)
-                    print(f'{world.attributes["player"].attributes["name"]} lowers into a defensive stance.')
+                    print(f'{world.get_player("name")} lowers into a defensive stance.')
                     break
                 elif option == "i":
                     self.page = 1
@@ -1296,9 +1320,9 @@ class Screen:
                 print(
                     (
                         world.get_enemy("name"), " ",
-                        world.attributes["enemy"].text, " ",
-                        world.attributes["player"].attributes["name"], " but ",
-                        world.attributes["player"].attributes["name"], " counters, "
+                        world.get_enemy("text"), " ",
+                        world.get_player("name"), " but ",
+                        world.get_player("name"), " counters, "
                     ), end=""
                 )
                 sound.play_sound(["attack", "slash"])
@@ -1306,7 +1330,7 @@ class Screen:
             else:
                 sound.play_sound(["hit", "hit2"])
                 if settings.godMode:
-                    print(f'{world.attributes["player"].attributes["name"]} does not take damage.')
+                    print(f'{world.get_player("name")} does not take damage.')
                 else:
                     world.attributes["enemy"].attack(world.attributes["player"])
 
@@ -1438,8 +1462,6 @@ class Screen:
                     if p[0] == world.get_player("x") and p[1] == world.get_player("y"):
                         portal = p
                         break
-
-            logger.log(portal)
 
             text.clear_main_small()
             text.move_cursor(1, 1)
@@ -1680,7 +1702,7 @@ class Screen:
 
             print("")
 
-            if option.isdigit():
+            if isint(option):
                 option = int(option)
                 if option * item.attributes["value"] <= world.get_player("gold"):
                     sound.play_sound("coin")
@@ -1829,23 +1851,20 @@ class Screen:
             print("Choose an item to sell.")
             text.slide_cursor(1, 0)
 
-            for i in range((self.page - 1) * 10, min(self.page * 10, len(world.get_player("inventory")))):
-                text.slide_cursor(0, 3)
-                quantity = world.get_player("inventory")[i][0].type != "equipment"
-                print(f' {str(i)[:-1]}({str(i)[-1]}) {world.get_player("inventory")[i][0].get_name(info=True, value=True, quantity=(world.get_player("inventory")[i][1] if quantity else 0))}')
+            manager.show_page(
+                world.get_player("inventory"),
+                """(
+                items[i][0].get_name(info=True, value=True, quantity=(
+                    items[i][1] if items[i][0].attributes["type"] != "equipment" else 0
+                ))
+                )""",
+                self.page
+            )
 
-            if len(world.get_player("inventory")) == 0:
-                text.slide_cursor(0, 3)
-                print(f' {text.darkgray}Empty{text.reset}')
+            options = manager.get_page_options(world.get_player("inventory"), self.page)
+            option = control.get_input("optionumeric", options=options)
 
-            next = len(world.get_player("inventory")) > self.page * 10
-            previous = self.page > 1
-
-            text.options((["Next"] if next else []) + (["Previous"] if previous else []))
-            option = control.get_input("optionumeric", options=("n" if next else "")+("p" if previous else "")\
-            +"".join(tuple(map(str, range(0, len(world.get_player("inventory")))))))
-
-            if option in tuple(map(str, range(0, len(world.get_player("inventory")) + (self.page-1) * 10 + 1))):
+            if option in remove_non_integers(options):
                 manager.sellItem = world.get_player("inventory")[int(option) + (self.page - 1) * 10][0]
                 self.nextScreen = "sell"
                 return
@@ -1862,45 +1881,49 @@ class Screen:
             self.nextScreen = self.returnScreen
             text.clear()
             text.background()
-            Image("item/" + manager.sellItem.attributes["name"]).show_at_description()
-            text.header("Sell " + manager.sellItem.attributes["name"])
+
+            item = manager.sellItem
+            itemSellValue = round(item.attributes["value"] * 0.8)
+
+            Image("item/" + item.attributes["name"]).show_at_description()
+            text.header("Sell " + item.attributes["name"])
 
             text.move_cursor(2, 1)
-            manager.sellItem.show_stats()
+            item.show_stats()
 
             text.slide_cursor(1, 3)
-            print(f'{text.gp}{text.reset} {world.attributes["player"].gold}')
+            print(f'{text.gp}{text.reset} {world.get_player("gold")}')
             if manager.sellItem.type != "equipment":
                 text.slide_cursor(1, 3)
-                print(f'Currently owned: {world.attributes["player"].num_of_items(manager.sellItem.attributes["name"])}')
+                print(f'Currently owned: {world.attributes["player"].num_of_items(item.attributes["name"])}')
             text.slide_cursor(1, 3)
-            print(f'Sell Value: {text.gp}{text.reset} {round(manager.sellItem.value * 0.7)}')
+            print(f'Sell Value: {text.gp}{text.reset} {itemSellValue}')
             text.slide_cursor(0, 3)
-            print(f'Type the quantity of items to be sold ({world.attributes["player"].num_of_items(manager.sellItem.attributes["name"])} can be sold).')
+            print(
+                "Type the quantity of items to be sold (",
+                world.attributes["player"].num_of_items(item.attributes["name"]),
+                " can be sold).",
+                sep=""
+            )
 
             option = control.get_input("numeric")
 
             print("")
 
-            try:
+            if isint(option):
                 option = int(option)
-            except:
-                pass
-
-            if type(option) is int:
-                if option <= world.attributes["player"].num_of_items(manager.sellItem.attributes["name"]):
+                if option <= world.attributes["player"].num_of_items(item.attributes["name"]):
                     sound.play_sound("coin")
-                    world.attributes["player"].remove_item(manager.sellItem, option)
-                    world.attributes["player"].gold += round(manager.sellItem.value * 0.7) * option
+                    world.attributes["player"].remove_item(item, option)
+                    world.attributes["player"].attributes["gold"] += itemSellValue * option
 
-                    quantity = manager.sellItem.type in Globals.stackableItems
+                    quantity = item.attributes["type"] in Globals.stackableItems
                     text.slide_cursor(1, 3)
-                    print(f'Sold {manager.sellItem.get_name()}{" x" + str(option) if quantity else ""}.')
+                    print(f'Sold {item.get_name()}{" x" + str(option) if quantity else ""}.')
 
                     control.press_enter()
                     return
                 else:
-                    quantity = manager.sellItem.type in Globals.stackableItems
                     text.slide_cursor(1, 3)
                     print(f' {text.lightred} You cannot sell that many.')
                     control.press_enter()

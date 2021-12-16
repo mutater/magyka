@@ -486,7 +486,6 @@ class Entity:
             self.attributes["xp"] -= self.attributes["mxp"]
             self.attributes["mxp"] = math.ceil(self.attributes["mxp"] * 1.2)
             self.attributes["level"] += 1
-            self.attributes["levelsGained"] += 1
 
             self.attributes["baseStats"]["max hp"] += self.attributes["extraStats"]["hpPerLevel"]
             self.attributes["baseStats"]["max mp"] += self.attributes["extraStats"]["mpPerLevel"]
