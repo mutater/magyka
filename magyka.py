@@ -578,6 +578,9 @@ class Manager:
 
         highestOption = int(str(min(page * 10 - 1, len(items) - 1))[-1]) + 1
 
+        if len(items) < 1:
+            highestOption = 0
+
         options += "".join(tuple(map(str, range(0, highestOption))))
         return options
 
@@ -1713,6 +1716,8 @@ class Screen:
                     quantity = item.attributes["type"] in Globals.stackableItems
                     text.slide_cursor(0, 3)
                     print(f'{item.get_name()}{" x" + str(option) if quantity else ""} added to your inventory!')
+                    text.slide_cursor(1, 3)
+                    print(f'- {text.gp}{text.reset} {item.attributes["value"] * option}')
 
                     control.press_enter()
                     return
@@ -1849,7 +1854,7 @@ class Screen:
             text.header("Flea Market")
             text.move_cursor(3, 4)
             print("Choose an item to sell.")
-            text.slide_cursor(1, 0)
+            text.slide_cursor(2, 0)
 
             manager.show_page(
                 world.get_player("inventory"),
@@ -1893,7 +1898,7 @@ class Screen:
 
             text.slide_cursor(1, 3)
             print(f'{text.gp}{text.reset} {world.get_player("gold")}')
-            if manager.sellItem.type != "equipment":
+            if item.attributes["type"] != "equipment":
                 text.slide_cursor(1, 3)
                 print(f'Currently owned: {world.attributes["player"].num_of_items(item.attributes["name"])}')
             text.slide_cursor(1, 3)
@@ -1920,6 +1925,8 @@ class Screen:
                     quantity = item.attributes["type"] in Globals.stackableItems
                     text.slide_cursor(1, 3)
                     print(f'Sold {item.get_name()}{" x" + str(option) if quantity else ""}.')
+                    text.slide_cursor(1, 3)
+                    print(f'+ {text.gp}{text.reset} {itemSellValue * option}')
 
                     control.press_enter()
                     return

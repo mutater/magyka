@@ -200,21 +200,12 @@ class Item:
         for effect in effects:
             for selfEffect in self.attributes["effect"]:
                 if effect.attributes["type"] == selfEffect.attributes["type"]:
-                    if selfEffect.attributes["type"] == "attack":
-                        for i in range(2):
-                            if effect.attributes["opp"] == "*":
-                                selfEffect.attributes["value"][i] = round(
-                                    selfEffect.attributes["value"][i]
-                                    * ((effect.attributes["value"] / 100) + 1))
-                            else:
-                                selfEffect.attributes["value"][i] += effect.attributes["value"]
+                    if selfEffect.attributes["opp"] == "*":
+                        selfEffect.attributes["value"] = round(
+                            selfEffect.attributes["value"]
+                            * ((effect.attributes["value"] / 100) + 1))
                     else:
-                        if selfEffect.attributes["opp"] == "*":
-                            selfEffect.attributes["value"] = round(
-                                selfEffect.attributes["value"]
-                                * ((effect.attributes["value"] / 100) + 1))
-                        else:
-                            selfEffect.attributes["value"] += effect.attributes["value"]
+                        selfEffect.attributes["value"] += effect.attributes["value"]
     
     def modify(self, modifier):
         """
@@ -584,7 +575,7 @@ class Enchantment:
     
     def show_stats(self):
         for effect in self.attributes["effect"]:
-            effect.show_stats(damage=False)
+            effect.show_stats()
         Tags.show_tags(self.attributes["tags"])
 
     def export(self):

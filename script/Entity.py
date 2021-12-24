@@ -312,21 +312,28 @@ class Entity:
                 self.attributes["baseStats"][effect.attributes["stat"]] += effect.attributes["value"]
             self.update_stats()
 
-            if effect.stat == "max hp":
+            if effect.attributes["stat"] == "max hp":
                 symbol = " " + text.hp
-            elif effect.stat == "max mp":
+            elif effect.attributes["stat"] == "max mp":
                 symbol = " " + text.mp
             else:
                 symbol = ""
 
-            if (effect.opp == "*" and effect.attributes["value"] >= 1) or (effect.opp != "*" and effect.opp > 0):
+            if (effect.attributes["opp"] == "*" and effect.attributes["value"] >= 1)\
+                    or (effect.attributes["opp"] != "*" and effect.attributes["opp"] > 0):
                 increase = "increasing"
             else:
                 increase = "decreasing"
 
             percent = "%" if "*" in effect else ""
 
-            print(f'{increase} {effect.stat.title()}{symbol} by {str(effect.attributes["value"])}{percent}{text.reset}', end="")
+            print(
+                '{increase}', ' ',
+                effect.attributes["stat"].title() + symbol, ' by ',
+                str(effect.attributes["value"]) + percent + text.reset,
+                sep="",
+                end=""
+            )
 
         if effect.attributes["passive"]:
             self.defend(effect.attributes["passive"], passive=True)
@@ -460,7 +467,7 @@ class Entity:
         if self.attributes["equipment"].get("weapon"):
             passives = []
             for effect in self.attributes["equipment"]["weapon"].attributes["effect"]:
-                if effect.type == "passive":
+                if effect.attributes["type"] == "passive":
                     passives += effect.attributes["value"]
                 if effect.attributes["passive"]:
                     passives += effect.attributes["passive"]
